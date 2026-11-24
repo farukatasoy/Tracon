@@ -115,6 +115,15 @@ Every item of the file gets one action:
 the two definitions, so a reviewer can read the change. In the console the
 Transfer screen shows them side by side.
 
+`targetVersion` is the version the item gets in the target. For a `create` it is the
+number the store says the new definition will get: `1` for a name the target never
+held, and the next number for a name that was saved and deleted there, because a
+deleted name continues its numbering. The number is a forecast, since another save
+can take it before the write, and the write decides. A store that does not report it
+(a custom store written before the forecast existed) leaves `targetVersion` empty and
+adds a warning, `import_target_version_unknown`; the import then numbers the
+definition when it writes and translates the pins that point at it with that number.
+
 Importing the same file twice is safe: the second run finds every item
 `unchanged` and writes nothing. That also makes a half-finished import
 recoverable. See [When a write stops half way](#when-a-write-stops-half-way).
@@ -136,7 +145,26 @@ content.
 
 **Nothing is written unless every item is valid.** One refused item stops the
 whole file. A dry run answers `200` with `"valid": false`. `?dryRun=false` on
-such a file answers `400` with the same report.
+such a file answers `400` with the same report. Any other `400` (a malformed file,
+a member this version does not know, a `formatVersion` above 1) is a problem
+document and has no report.
+
+### Reading a refusal by its code
+
+The words of a refusal can change; its `code` does not. The same finding carries
+the same code in three places:
+
+| Where | Where the code is |
+|---|---|
+| An import report | `items[].messages[].code`, with `severity`, `message` and `path` |
+| `POST /api/agents/validate` | `messages[].code` of the `200` report |
+| A save that refuses (`POST` and `PUT /api/agents`, and the skill, MCP server and workflow saves) | The `400` problem: `code` is the rule that refused, `path` the field when one is known, and `messages` one entry for each finding, each with its own `code` |
+
+A client that has to tell "the model provider is unknown" from "a tool is
+unknown" reads `messages[].code` and not the text. The roles that gate each call
+are: export `Reader`, import as a dry run `Operator`, and import that writes
+`Admin`, checked in the handler once the body says it writes, and only when an
+`Admin` policy is registered.
 
 ### Version pins
 

@@ -192,6 +192,35 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
+    public async Task PeekNextVersionAsync_names_the_version_the_next_save_gets_and_moves_nothing()
+    {
+        (await Store.PeekNextVersionAsync("a")).ShouldBe(1);
+
+        // A look is not a save: asking twice, or between saves, changes no number.
+        (await Store.PeekNextVersionAsync("a")).ShouldBe(1);
+        (await Store.SaveAsync(TestData.Definition("a"))).Version.ShouldBe(1);
+
+        (await Store.PeekNextVersionAsync("a")).ShouldBe(2);
+        (await Store.SaveAsync(TestData.Definition("a"))).Version.ShouldBe(2);
+        (await Store.PeekNextVersionAsync("a")).ShouldBe(3);
+        (await Store.PeekNextVersionAsync("b")).ShouldBe(1, "another name has its own numbering");
+    }
+
+    [Fact]
+    public async Task PeekNextVersionAsync_after_a_delete_continues_the_numbering_like_the_save_does()
+    {
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.DeleteAsync("a");
+
+        var forecast = await Store.PeekNextVersionAsync("a");
+
+        forecast.ShouldBe(4);
+        (await Store.SaveAsync(TestData.Definition("a"))).Version.ShouldBe(forecast!.Value);
+    }
+
+    [Fact]
     public async Task DeleteAsync_of_a_name_that_never_existed_does_not_start_a_numbering()
     {
         (await Store.DeleteAsync("never")).ShouldBeFalse();

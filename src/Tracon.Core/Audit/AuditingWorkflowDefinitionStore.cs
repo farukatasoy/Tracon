@@ -130,6 +130,13 @@ internal sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore
         => _inner.ListVersionsAsync(tenantId, name, cancellationToken);
 
     /// <inheritdoc />
+    public ValueTask<int?> PeekNextVersionAsync(
+        string tenantId,
+        string name,
+        CancellationToken cancellationToken = default)
+        => _inner.PeekNextVersionAsync(tenantId, name, cancellationToken);
+
+    /// <inheritdoc />
     /// <remarks>
     /// Written as <c>workflow.rollback</c>, not <c>workflow.save</c>: the entry names the
     /// version the content came from and the new version it was written as, which is what

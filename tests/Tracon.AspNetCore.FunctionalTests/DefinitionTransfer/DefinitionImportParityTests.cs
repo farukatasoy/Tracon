@@ -289,14 +289,14 @@ public sealed class DefinitionImportParityTests
         await AssertRefusedTheSameWayAsync(host, bundle, "skill", "twice", detail);
     }
 
-    private static async Task<string> SaveRefusalAsync<T>(TraconTestHost host, HttpMethod method, string path, T body, HttpStatusCode expected)
+    private static async Task<Refusal> SaveRefusalAsync<T>(TraconTestHost host, HttpMethod method, string path, T body, HttpStatusCode expected)
     {
         using var request = new HttpRequestMessage(method, TransferHost.Api(path)) { Content = JsonContent.Create(body) };
 
         return await ReadRefusalAsync(host, request, expected);
     }
 
-    private static async Task<string> SaveRawRefusalAsync(TraconTestHost host, HttpMethod method, string path, JsonObject body, HttpStatusCode expected)
+    private static async Task<Refusal> SaveRawRefusalAsync(TraconTestHost host, HttpMethod method, string path, JsonObject body, HttpStatusCode expected)
     {
         using var request = new HttpRequestMessage(method, TransferHost.Api(path))
         {
@@ -306,17 +306,26 @@ public sealed class DefinitionImportParityTests
         return await ReadRefusalAsync(host, request, expected);
     }
 
-    private static async Task<string> ReadRefusalAsync(TraconTestHost host, HttpRequestMessage request, HttpStatusCode expected)
+    private static async Task<Refusal> ReadRefusalAsync(TraconTestHost host, HttpRequestMessage request, HttpStatusCode expected)
     {
         using var response = await host.Client.SendAsync(request);
         var text = await response.Content.ReadAsStringAsync();
 
         response.StatusCode.ShouldBe(expected, text);
 
-        return JsonDocument.Parse(text).RootElement.GetProperty("detail").GetString()!;
+        using var document = JsonDocument.Parse(text);
+        var problem = document.RootElement;
+
+        return new Refusal(
+            problem.GetProperty("detail").GetString()!,
+            problem.GetProperty("code").GetString()!,
+            [.. problem.GetProperty("messages").EnumerateArray().Select(static message => message.GetProperty("code").GetString()!)]);
     }
 
-    private static async Task AssertRefusedTheSameWayAsync(TraconTestHost host, JsonNode bundle, string type, string name, string saveDetail)
+    /// <summary>What a save endpoint answered: the prose, the code of the rule and the code of each finding.</summary>
+    private sealed record Refusal(string Detail, string Code, string[] MessageCodes);
+
+    private static async Task AssertRefusedTheSameWayAsync(TraconTestHost host, JsonNode bundle, string type, string name, Refusal save)
     {
         var dry = await host.ImportOkAsync(bundle, dryRun: true);
 
@@ -332,7 +341,15 @@ public sealed class DefinitionImportParityTests
                 .Where(static message => string.Equals(message!["severity"]!.GetValue<string>(), "Error", StringComparison.Ordinal))
                 .Select(static message => message!["message"]!.GetValue<string>()));
 
-        detail.ShouldBe(saveDetail);
+        detail.ShouldBe(save.Detail);
+
+        // The report says it with the same codes the save answered with: a client that reads one reads the other.
+        var errorCodes = item["messages"]!.AsArray()
+            .Where(static message => string.Equals(message!["severity"]!.GetValue<string>(), "Error", StringComparison.Ordinal))
+            .Select(static message => message!["code"]!.GetValue<string>())
+            .ToArray();
+
+        errorCodes.ShouldBe(save.MessageCodes);
 
         // An apply is refused whole, with the report in the body.
         var (response, body) = await host.ImportAsync(bundle, dryRun: false);

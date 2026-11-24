@@ -90,6 +90,14 @@ internal sealed class PlannedItem
     /// <param name="path">The field, if one is known.</param>
     public void Warn(string code, string message, string? path = null)
         => Add(new DefinitionImportMessage { Severity = ValidationSeverity.Warning, Code = code, Message = message, Path = path });
+
+    /// <summary>Warns that the store did not say which version a new definition gets.</summary>
+    /// <param name="kind">The kind of the definition, for the sentence.</param>
+    public void WarnVersionUnknown(string kind)
+        => Warn(
+            DefinitionImportCodes.TargetVersionUnknown,
+            $"The store does not say which version the new {kind} '{Name}' will get, so the report leaves 'targetVersion' empty. " +
+            "The import numbers it when it writes and translates the version pins that point at it then.");
 }
 
 /// <summary>What the planner found: the items in the order an import writes them, and what it knows for the write.</summary>
@@ -393,6 +401,41 @@ internal sealed class DefinitionImportPlanner
         return version;
     }
 
+    /// <summary>
+    /// Asks the agent store which version a new agent of this name will get. A store that cannot say, or that fails
+    /// while it is asked, leaves the version unknown: the report says so, and the write decides.
+    /// </summary>
+    /// <param name="name">The agent name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The forecast; <see langword="null"/> when the store does not give one.</returns>
+    private async ValueTask<int?> PeekAgentVersionAsync(string name, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _agents.PeekNextVersionAsync(name, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The workflow twin of <see cref="PeekAgentVersionAsync"/>.</summary>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The forecast; <see langword="null"/> when the store does not give one.</returns>
+    private async ValueTask<int?> PeekWorkflowVersionAsync(string name, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _workflows.PeekNextVersionAsync(_tenant.TenantId, name, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            return null;
+        }
+    }
+
     private async ValueTask<List<PlannedItem>> PlanSkillsAsync(
         IReadOnlyList<ExportedSkill> exported,
         bool selected,
@@ -672,9 +715,13 @@ internal sealed class DefinitionImportPlanner
             var existing = await _agents.GetAsync(name, cancellationToken).ConfigureAwait(false);
             var descriptor = descriptors.FirstOrDefault(candidate => string.Equals(candidate.Name, name, StringComparison.Ordinal));
 
+            // A name that was saved and deleted continues its numbering, so the first version of a "new" agent is the
+            // store's to say. A store that cannot say leaves it unknown, and the report says so.
+            var firstVersion = existing is null ? await PeekAgentVersionAsync(name, cancellationToken).ConfigureAwait(false) : null;
+
             // The name is spoken for either way: an agent that refers to this one still has a version to be pinned to,
             // and it should not be told the pin cannot be translated because of something else that is wrong.
-            targetVersions[name] = existing?.Version ?? 1;
+            targetVersions[name] = existing?.Version ?? firstVersion ?? 1;
 
             if (AgentDefinitionWriteRules.GuardCodeAgent(descriptor, name) is { } guard)
             {
@@ -699,7 +746,12 @@ internal sealed class DefinitionImportPlanner
             if (existing is null)
             {
                 item.Action = DefinitionImportActions.Create;
-                item.TargetVersion = 1;
+                item.TargetVersion = firstVersion;
+
+                if (firstVersion is null)
+                {
+                    item.WarnVersionUnknown("agent");
+                }
             }
             else
             {
@@ -720,8 +772,12 @@ internal sealed class DefinitionImportPlanner
                 }
             }
 
-            targetVersions[name] = item.TargetVersion!.Value;
-            item.AgentCandidate = candidate with { Version = item.TargetVersion.Value };
+            // An unknown number is carried as 1 for the pins of this file; the write translates them again with the
+            // number the store really gives.
+            var targetVersion = item.TargetVersion ?? 1;
+
+            targetVersions[name] = targetVersion;
+            item.AgentCandidate = candidate with { Version = targetVersion };
 
             if (item.HasError)
             {
@@ -873,7 +929,12 @@ internal sealed class DefinitionImportPlanner
             if (existing is null)
             {
                 item.Action = DefinitionImportActions.Create;
-                item.TargetVersion = 1;
+                item.TargetVersion = await PeekWorkflowVersionAsync(name, cancellationToken).ConfigureAwait(false);
+
+                if (item.TargetVersion is null)
+                {
+                    item.WarnVersionUnknown("workflow");
+                }
             }
             else
             {

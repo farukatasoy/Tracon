@@ -54,7 +54,9 @@ internal static class DefinitionTransferEndpoints
                 "secret, no OAuth token, no script permission and no plain MCP header value: an MCP server travels with " +
                 "the NAMES of its headers and the names of the configuration keys its credentials are read from. " +
                 "A workflow in the file needs the 'WorkflowsRead' scope as well when the call uses an API key (403 " +
-                "otherwise). The export is written to the audit trail with its counts, never its content.")
+                "otherwise). Needs the Reader role (and the 'AgentsRead' scope for a key); the import that takes the " +
+                "file needs more (see POST /api/definitions/import). The export is written to the audit trail with " +
+                "its counts, never its content.")
             .Produces<DefinitionBundle>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -71,8 +73,10 @@ internal static class DefinitionTransferEndpoints
             .WithSummary("Plans, validates and imports a tracon.definitions file.")
             .Accepts<DefinitionBundle>("application/json")
             .WithDescription(
-                "'?dryRun=' DEFAULTS TO TRUE: a bare call plans and validates the file and writes nothing. '?dryRun=false' " +
-                "writes, and needs the Admin role. The report names, for every item, what the import does: 'create' " +
+                "'?dryRun=' DEFAULTS TO TRUE: a bare call plans and validates the file and writes nothing, and needs the " +
+                "Operator role. '?dryRun=false' writes, and needs the Admin role: the Operator role is the route's own gate " +
+                "and the Admin check is made in the handler once the body says it writes, and only when an Admin policy is " +
+                "registered. The report names, for every item, what the import does: 'create' " +
                 "(the target has no such definition), 'newVersion' (an agent or workflow with other content; the " +
                 "history grows by one version), 'update' (a skill or MCP server with other content, overwritten in " +
                 "place), 'unchanged' (the target already holds the same content; nothing is written, so importing the " +
@@ -82,7 +86,12 @@ internal static class DefinitionTransferEndpoints
                 "write: every item passes the same rules the save endpoints apply, with the agents and skills of the file " +
                 "counted as already saved, so an agent may call, pin, review with or share instructions from another " +
                 "agent of the same file. When any item is refused, nothing is written: a dry run answers 200 with " +
-                "'valid: false', and '?dryRun=false' answers 400 with the same report. A version pin in the file names the " +
+                "'valid: false', and '?dryRun=false' answers 400 with the same report, whose 'items[].messages[]' carry " +
+                "the stable 'code' of every finding (the same codes 'POST /api/agents/validate' returns). Any other 400 " +
+                "(a malformed file, an unknown member, a 'formatVersion' above 1) is a problem document and has no report. " +
+                "A new definition's 'targetVersion' is the version the store says it will get; a definition that was " +
+                "saved and deleted before continues its numbering. It is a forecast, because another save can take the " +
+                "number before the write, and it is empty when the store does not say. A version pin in the file names the " +
                 "version the SOURCE installation gave an agent; the import translates it to the version the target holds " +
                 "and refuses a pin to a version the file does not hold ('import_pin_untranslatable'). A tool of an MCP " +
                 "server that the file would create or change cannot be checked before the server is saved, so an agent " +
@@ -99,9 +108,10 @@ internal static class DefinitionTransferEndpoints
                 "import writes one summary line (counts and the SHA-256 of the file) beside the line each store writes.")
             .Produces<DefinitionImportReport>(StatusCodes.Status200OK)
 
-            // 400 is a ProblemDetails in the document: a malformed file is the common case, and a typed client that
-            // read every 400 as a report could not read it. The one 400 that carries a report ('dryRun=false' on a file
-            // with a refused item) is described in the text above; a dry run returns the same report with 200.
+            // A 400 has two bodies: a problem document for a malformed file (the common case) and the report for
+            // 'dryRun=false' on a file with a refused item. The document keeps ONE body for a status, and a typed
+            // client that read every 400 as a report could not read the problem, so the status is declared as the
+            // problem and the report is described in the text above; a dry run returns the same report with 200.
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge)

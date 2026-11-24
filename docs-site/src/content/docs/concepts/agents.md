@@ -485,6 +485,10 @@ its first version is one more than the highest the name ever had. An agent that 
 to 3 and was deleted comes back as version 4, and versions 1 to 3 name nothing. A pin to one of
 those numbers (a workflow step, a loop reviewer, an experiment arm) or an approval that waited
 on it therefore stops with "no such version" instead of running the text of the new agent.
+`POST /api/agents` answers with that number, so a create is version `1` only for a name that was
+never saved. A host that writes definitions from code can read the number the next save will get
+with `IAgentDefinitionStore.PeekNextVersionAsync`, which saves nothing and moves nothing; the
+import's dry run reads it to report a new agent's `targetVersion`.
 
 Versions are also what make [experiments](/concepts/evaluation/) possible —
 an A/B test splits traffic between two versions of the same agent, which is why a

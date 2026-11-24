@@ -28,11 +28,11 @@ public sealed partial class AgentDefinitionCompiler
     /// of the fingerprint the moment it is declared.
     /// </para>
     /// <para>
-    /// This replaces <see cref="AgentDefinition.Version"/>, which was a proxy for
-    /// content and stopped being one after a delete when the store restarted
-    /// numbering, so a recreated name was version <c>1</c> again. The built-in stores
-    /// keep the numbering now, but a custom store may not. Content is the thing that
-    /// was always meant; the version only stood in for it.
+    /// This replaces <see cref="AgentDefinition.Version"/>, which is a proxy for
+    /// content and stops being one when a store restarts numbering after a delete, so
+    /// a recreated name would be version <c>1</c> again. The built-in stores keep the
+    /// numbering, but a custom store may not, and the cache must not depend on it.
+    /// Content is the thing that is meant; the version only stands in for it.
     /// </para>
     /// </remarks>
     public static string CreateDefinitionFingerprint(AgentDefinition definition)

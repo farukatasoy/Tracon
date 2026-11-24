@@ -30,9 +30,12 @@ public sealed class TraconApprovalOptions
     /// </remarks>
     public bool ExpirationEnabled { get; set; } = true;
 
-    /// <summary>The delay between expiration scans.</summary>
+    /// <summary>The delay between expiration scans. Defaults to 1 minute.</summary>
     public TimeSpan ScanInterval { get; set; } = TimeSpan.FromMinutes(1);
 
-    /// <summary>The maximum number of requests to close in one scan.</summary>
+    /// <summary>
+    /// The maximum number of requests to close in one scan. Defaults to 100; a scan that reaches it leaves the rest
+    /// for the next one.
+    /// </summary>
     public int MaxPerScan { get; set; } = 100;
 }

@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests.DefinitionTransfer;
@@ -43,6 +44,108 @@ public sealed class DefinitionImportPinTests
 
         (await PinOfAsync(target, "a")).ShouldBe(2);
         (await target.AgentVersionCountAsync("x")).ShouldBe(2);
+    }
+
+    /// <summary>
+    /// A name that was saved and deleted continues its numbering, so a "new" agent is not at version 1. The dry run
+    /// used to say 1 while the write gave the next number; the pins that point at it followed the wrong number too.
+    /// </summary>
+    [Fact]
+    public async Task A_dry_run_names_the_version_a_deleted_name_will_get_and_the_write_gives_exactly_that()
+    {
+        await using var source = await TraconTestHost.StartAsync();
+        await using var target = await TraconTestHost.StartAsync();
+
+        await source.CreateAgentAsync(TestData.Request("x", "x one"));
+        await source.CreateAgentAsync(TestData.Request("a", "uses x") with
+        {
+            CallableAgents = [new CallableAgentReference { Name = "x", Version = 1 }],
+        });
+
+        // The target saved "x" twice and deleted it: its numbering is at 2.
+        await target.CreateAgentAsync(TestData.Request("x", "an old era"));
+        await target.UpdateAgentAsync(TestData.Request("x", "an old era, changed"));
+        using (var deleted = await target.Client.DeleteAsync(TransferHost.Api("agents/x")))
+        {
+            deleted.IsSuccessStatusCode.ShouldBeTrue();
+        }
+
+        var bundle = await source.ExportAsync("?agent=a");
+        var dry = await target.ImportOkAsync(bundle, dryRun: true);
+
+        dry["valid"]!.GetValue<bool>().ShouldBeTrue(dry.ToJsonString());
+
+        var forecast = TransferHost.Item(dry, "agent", "x");
+
+        forecast["action"]!.GetValue<string>().ShouldBe("create");
+        forecast["targetVersion"]!.GetValue<int>().ShouldBe(3);
+
+        await target.ImportOkAsync(bundle, dryRun: false);
+
+        using var written = await target.Client.GetAsync(TransferHost.Api("agents/x"));
+
+        (await TraconTestHost.ReadJsonAsync(written)).GetProperty("definition").GetProperty("version").GetInt32().ShouldBe(3);
+        (await PinOfAsync(target, "a")).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_dry_run_names_the_version_a_deleted_workflow_will_get()
+    {
+        await using var target = await TraconTestHost.StartAsync();
+
+        await target.CreateAgentAsync(TestData.Request("rev", "reviewer"));
+        await target.CreateWorkflowAsync("flow", TransferHost.SequentialWorkflow("rev"));
+        await target.CreateWorkflowAsync("flow", TransferHost.SequentialWorkflow("rev"));
+
+        using (var deleted = await target.Client.DeleteAsync(TransferHost.Api("workflows/flow")))
+        {
+            deleted.IsSuccessStatusCode.ShouldBeTrue();
+        }
+
+        var bundle = TransferHost.NewBundle()
+            .WithAgent(TestData.Request("rev", "reviewer"))
+            .WithWorkflow("flow", TransferHost.SequentialWorkflow("rev"));
+
+        var dry = await target.ImportOkAsync(bundle, dryRun: true);
+
+        var forecast = TransferHost.Item(dry, "workflow", "flow");
+
+        forecast["action"]!.GetValue<string>().ShouldBe("create");
+        forecast["targetVersion"]!.GetValue<int>().ShouldBe(3);
+
+        await target.ImportOkAsync(bundle, dryRun: false);
+
+        using var written = await target.Client.GetAsync(TransferHost.Api("workflows/flow"));
+
+        (await TraconTestHost.ReadJsonAsync(written)).GetProperty("version").GetInt32().ShouldBe(3);
+    }
+
+    /// <summary>
+    /// A store written before the forecast existed answers "unknown". The dry run says so in the report and carries
+    /// on: it neither crashes nor names a number the store never gave.
+    /// </summary>
+    [Fact]
+    public async Task A_store_that_gives_no_forecast_leaves_the_target_version_empty_and_the_write_still_works()
+    {
+        await using var target = await TraconTestHost.StartAsync(
+            configureServices: static services => services.AddSingleton<IAgentDefinitionStore>(static _ => new ForecastlessAgentStore()));
+
+        var bundle = TransferHost.NewBundle().WithAgent(TestData.Request("x", "x one"));
+        var dry = await target.ImportOkAsync(bundle, dryRun: true);
+
+        dry["valid"]!.GetValue<bool>().ShouldBeTrue(dry.ToJsonString());
+
+        var forecast = TransferHost.Item(dry, "agent", "x");
+
+        forecast["action"]!.GetValue<string>().ShouldBe("create");
+        forecast["targetVersion"].ShouldBeNull();
+        forecast["messages"]!.AsArray().ShouldContain(static message =>
+            string.Equals(message!["code"]!.GetValue<string>(), "import_target_version_unknown", StringComparison.Ordinal)
+            && string.Equals(message["severity"]!.GetValue<string>(), "Warning", StringComparison.OrdinalIgnoreCase));
+
+        await target.ImportOkAsync(bundle, dryRun: false);
+
+        (await target.AgentVersionCountAsync("x")).ShouldBe(1);
     }
 
     [Fact]
@@ -175,4 +278,31 @@ public sealed class DefinitionImportPinTests
                 },
             },
         };
+
+    /// <summary>A store written before the forecast existed: every member of the original contract, and no forecast.</summary>
+    private sealed class ForecastlessAgentStore : IAgentDefinitionStore
+    {
+        private readonly InMemoryAgentDefinitionStore _inner = new();
+
+        public ValueTask<AgentDefinition?> GetAsync(string name, CancellationToken cancellationToken = default)
+            => _inner.GetAsync(name, cancellationToken);
+
+        public ValueTask<AgentDefinition?> GetVersionAsync(string name, int version, CancellationToken cancellationToken = default)
+            => _inner.GetVersionAsync(name, version, cancellationToken);
+
+        public ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default)
+            => _inner.ListAsync(cancellationToken);
+
+        public ValueTask<AgentDefinition> SaveAsync(AgentDefinition definition, CancellationToken cancellationToken = default)
+            => _inner.SaveAsync(definition, cancellationToken);
+
+        public ValueTask<bool> DeleteAsync(string name, CancellationToken cancellationToken = default)
+            => _inner.DeleteAsync(name, cancellationToken);
+
+        public ValueTask<IReadOnlyList<AgentDefinition>> ListVersionsAsync(string name, CancellationToken cancellationToken = default)
+            => _inner.ListVersionsAsync(name, cancellationToken);
+
+        public ValueTask<AgentDefinition> RollbackAsync(string name, int version, CancellationToken cancellationToken = default)
+            => _inner.RollbackAsync(name, version, cancellationToken);
+    }
 }

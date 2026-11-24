@@ -20,9 +20,21 @@ public static partial class TraconServiceCollectionExtensions
     /// <returns>The configuration chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
+    /// <para>
     /// The one call every Tracon application starts with. On its own it
     /// runs with in-memory stores and needs no database; a provider and a store
     /// are added to the chain it returns.
+    /// </para>
+    /// <para>
+    /// <strong>Background loops.</strong> Two run by default: the job worker (<c>Tracon:Scheduling:Enabled</c> and
+    /// <c>RunWorker</c>, both <see langword="true"/>) and the scan that closes expired approvals
+    /// (<c>Tracon:Approvals:ExpirationEnabled</c>, <see langword="true"/>). Six are off until you turn them on: the
+    /// run heartbeat and the reconciliation of interrupted runs (<c>Tracon:RunReconciliation:Enabled</c>), the canary
+    /// auto-rollback, the model provider health probe, and the job queue depth and quota usage gauges. With a SQL
+    /// provider the job worker leases from the database's own queue, which every process connected to that database
+    /// shares: a host that connects to a shared database and has no <c>Tracon:Scheduling</c> section joins the
+    /// queue. Set <c>Tracon:Scheduling:RunWorker</c> to <see langword="false"/> to keep a process out of it.
+    /// </para>
     /// <example>
     /// <code>
     /// var builder = WebApplication.CreateBuilder(args);

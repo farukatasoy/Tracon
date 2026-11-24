@@ -971,6 +971,7 @@ Tracon.IAgentDefinitionStore.ListAsync(System.Threading.CancellationToken cancel
 Tracon.IAgentDefinitionStore.ListVersionsAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.AgentDefinition!>!>
 Tracon.IAgentDefinitionStore.RollbackAsync(string! name, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentDefinition!>
 Tracon.IAgentDefinitionStore.SaveAsync(Tracon.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentDefinition!>
+Tracon.IAgentDefinitionStore.PeekNextVersionAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int?>
 Tracon.IAgentSkillStore
 Tracon.IAgentSkillStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IAgentSkillStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentSkillDefinition?>
@@ -1394,6 +1395,7 @@ Tracon.IWorkflowDefinitionStore.ListAsync(string! tenantId, System.Threading.Can
 Tracon.IWorkflowDefinitionStore.ListVersionsAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowDefinition!>!>
 Tracon.IWorkflowDefinitionStore.RollbackAsync(string! tenantId, string! name, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDefinition!>
 Tracon.IWorkflowDefinitionStore.SaveAsync(string! tenantId, Tracon.WorkflowDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDefinition!>
+Tracon.IWorkflowDefinitionStore.PeekNextVersionAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int?>
 Tracon.IWorkflowRunner
 Tracon.IWorkflowRunner.GetAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDescriptor?>
 Tracon.IWorkflowRunner.GetGraphAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowGraph?>

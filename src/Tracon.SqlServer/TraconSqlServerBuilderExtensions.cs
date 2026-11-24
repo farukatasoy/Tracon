@@ -20,6 +20,14 @@ public static class TraconSqlServerBuilderExtensions
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="connectionString"/> is empty.</exception>
     /// <remarks>
+    /// <para>
+    /// <strong>The job queue is shared.</strong> A SQL provider keeps the job queue in the database, and the job
+    /// worker is on by default, so a process that connects to a database another process already uses and has no
+    /// <c>Tracon:Scheduling</c> section joins that queue and leases its jobs. Set
+    /// <c>Tracon:Scheduling:RunWorker</c> to <see langword="false"/> to keep a process that only takes requests out
+    /// of it. The worker logs one line when it starts, and <c>GET /api/meta</c> reports it in
+    /// <c>storage.jobWorkerEnabled</c>.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddTracon()

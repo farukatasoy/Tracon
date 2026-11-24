@@ -90,6 +90,8 @@ internal sealed class JobWorkerBackgroundService(
         using var timer = new PeriodicTimer(options.PollInterval, _clock);
         var slots = new JobWorkerSlots(options.MaxConcurrentJobs);
 
+        LogStarted(options);
+
         try
         {
             while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
@@ -112,6 +114,27 @@ internal sealed class JobWorkerBackgroundService(
             await slots.WaitForDrainedAsync().ConfigureAwait(false);
             await WaitForRunningJobsAsync().ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Says once that this process joined the job queue. The worker is on by default, so a host that connects to a
+    /// shared SQL database without a <c>Tracon:Scheduling</c> section leases that database's jobs without having
+    /// asked for it: this line is where an operator reads it.
+    /// </summary>
+    /// <param name="options">The settings the worker started with.</param>
+    private void LogStarted(TraconSchedulingOptions options)
+    {
+        if (logger is null || !logger.IsEnabled(LogLevel.Information))
+        {
+            return;
+        }
+
+        logger.LogInformation(
+            "The job worker runs in this process: it leases jobs of every tenant from {Lanes}, at most {MaxConcurrentJobs} at a time, and looks for work every {PollInterval}. " +
+            "Set Tracon:Scheduling:RunWorker to false to keep this process out of the job queue.",
+            options.Lanes is { Count: > 0 } lanes ? "the lanes " + string.Join(", ", lanes) : "every lane",
+            options.MaxConcurrentJobs,
+            options.PollInterval);
     }
 
     /// <summary>

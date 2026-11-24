@@ -1390,3 +1390,7 @@ virtual Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.TenantKey(strin
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.A_tenant_whose_last_policy_was_deleted_is_no_longer_listed() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.No_policy_lists_no_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.The_tenants_that_own_a_policy_are_listed_once_each_and_the_default_is_not_a_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.PeekNextVersionAsync_after_a_delete_continues_the_numbering_like_the_save_does() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.PeekNextVersionAsync_names_the_version_the_next_save_gets_and_moves_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.PeekNextVersionAsync_after_a_delete_continues_the_numbering_like_the_save_does() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.PeekNextVersionAsync_names_the_version_the_next_save_gets_and_moves_nothing() -> System.Threading.Tasks.Task!

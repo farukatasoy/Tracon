@@ -87,6 +87,8 @@ public static partial class TraconBuilderExtensions
     /// turning off this process's background worker with
     /// <c>o.RunWorker = false</c>). <c>PostConfigure</c> is used, so the value
     /// given from code always wins over the value coming from the configuration file.
+    /// The worker is on when this method is never called: with a SQL provider every process that connects to the
+    /// database joins the same queue unless its <c>RunWorker</c> is <see langword="false"/>.
     /// <example>
     /// <code>
     /// // A web instance that serves requests and leaves the jobs to a worker process.

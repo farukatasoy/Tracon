@@ -117,4 +117,24 @@ public interface IWorkflowDefinitionStore
         string name,
         int version,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads the version number the next save under this name would get, without saving anything or
+    /// moving the numbering.
+    /// </summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <c>1</c> for a name that was never saved, and otherwise one more than the highest version the
+    /// name ever had, a deleted definition's versions included. <see langword="null"/> when the store
+    /// cannot say, which is what a store written before this member existed answers.
+    /// </returns>
+    /// <remarks>
+    /// An import that reports what it would write (<c>dryRun</c>) reads this to name the version a new
+    /// workflow will get. It is a forecast: another save can take the number before the import writes, and
+    /// the write is what decides. A reader that gets <see langword="null"/> must not guess a number.
+    /// </remarks>
+    ValueTask<int?> PeekNextVersionAsync(string tenantId, string name, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult<int?>(null);
 }

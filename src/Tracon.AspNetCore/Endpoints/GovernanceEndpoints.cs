@@ -309,7 +309,8 @@ internal static class GovernanceEndpoints
             .WithDescription(
                 "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions " +
                 "from an external source. Only http/https addresses are accepted; local process " +
-                "(stdio) transport is not supported. Tools require approval by default; saving " +
+                "(stdio) transport is not supported. A refused server answers with the stable 'code' " +
+                "of the rule and 'messages'. Tools require approval by default; saving " +
                 "'requiresApproval: false' for a new server, for a server that required approval, " +
                 "or together with a new 'endpoint' also requires the 'SecurityAdmin' scope when " +
                 "the call uses an API key (403 otherwise). A " +

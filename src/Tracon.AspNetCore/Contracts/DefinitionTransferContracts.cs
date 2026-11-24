@@ -262,4 +262,7 @@ internal static class DefinitionImportCodes
 
     /// <summary>A store failed while the import wrote an item.</summary>
     public const string StoreFailed = "import_store_failed";
+
+    /// <summary>The store did not say which version a new definition gets, so a dry run cannot name it.</summary>
+    public const string TargetVersionUnknown = "import_target_version_unknown";
 }

@@ -2,38 +2,54 @@ namespace Tracon;
 
 /// <summary>Batch and scheduled run settings.</summary>
 /// <remarks>
+/// <para>
 /// Read from the <c>Tracon:Scheduling</c> configuration section. See
 /// <c>TraconBuilderExtensions.UseScheduling</c>.
+/// </para>
+/// <para>
+/// <strong>Nothing has to be configured for the worker to run.</strong> The section may be absent: every
+/// setting then has the default its own documentation names, and the job worker is on. A process that
+/// connects to a shared SQL database without a <c>Tracon:Scheduling</c> section therefore joins that
+/// database's job queue and leases jobs from it. To keep a process out of the queue (a process that only
+/// takes requests) set <see cref="RunWorker"/> to <see langword="false"/>. <c>GET /api/meta</c> reports
+/// whether the worker runs in <c>storage.jobWorkerEnabled</c>, and the worker logs one line when it starts.
+/// </para>
 /// </remarks>
 public sealed class TraconSchedulingOptions
 {
     /// <summary>The configuration section name.</summary>
     public const string SectionName = "Tracon:Scheduling";
 
-    /// <summary>Whether the scheduling subsystem is enabled.</summary>
+    /// <summary>Whether the scheduling subsystem is enabled. Defaults to <see langword="true"/>.</summary>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Whether the background worker runs in this process. If set to
-    /// <see langword="false"/>, the queue and schedule stores keep working,
-    /// but no job is leased or executed in this process — distribution is
-    /// left to another process.
+    /// Whether the background worker runs in this process. Defaults to
+    /// <see langword="true"/>. If set to <see langword="false"/>, the queue and
+    /// schedule stores keep working, but no job is leased or executed in this
+    /// process — distribution is left to another process.
     /// </summary>
     public bool RunWorker { get; set; } = true;
 
-    /// <summary>The maximum number of jobs that may run concurrently in this process.</summary>
+    /// <summary>The maximum number of jobs that may run concurrently in this process. Defaults to 2.</summary>
     public int MaxConcurrentJobs { get; set; } = 2;
 
-    /// <summary>How often new jobs and due schedules are looked for.</summary>
+    /// <summary>How often new jobs and due schedules are looked for. Defaults to 10 seconds.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(10);
 
-    /// <summary>A job's lease duration. If the worker does not finish within this time, the job may be re-leased.</summary>
+    /// <summary>
+    /// A job's lease duration. If the worker does not finish within this time, the job may be re-leased.
+    /// Defaults to 5 minutes.
+    /// </summary>
     public TimeSpan LeaseDuration { get; set; } = TimeSpan.FromMinutes(5);
 
-    /// <summary>The maximum number of attempts a job may make before becoming <see cref="JobStatus.Failed"/>.</summary>
+    /// <summary>
+    /// The maximum number of attempts a job may make before becoming <see cref="JobStatus.Failed"/>.
+    /// Defaults to 3.
+    /// </summary>
     public int MaxAttempts { get; set; } = 3;
 
-    /// <summary>The maximum number of items allowed in a single job.</summary>
+    /// <summary>The maximum number of items allowed in a single job. Defaults to 1000.</summary>
     public int MaxItemsPerJob { get; set; } = 1000;
 
     /// <summary>
@@ -78,7 +94,7 @@ public sealed class TraconSchedulingOptions
     /// <summary>
     /// Maps a handler key to the lane its jobs are queued under, when the
     /// caller did not set <see cref="JobRecord.Lane"/>/<see cref="JobSchedule.Lane"/>
-    /// explicitly.
+    /// explicitly. Empty by default: every job is queued under <see cref="JobLanes.Default"/>.
     /// </summary>
     /// <remarks>
     /// Applied once, inside <see cref="IJobStore.EnqueueAsync"/>: a job whose

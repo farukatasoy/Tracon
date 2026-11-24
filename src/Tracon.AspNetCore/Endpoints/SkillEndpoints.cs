@@ -61,8 +61,10 @@ internal static class SkillEndpoints
                 "but an extension with no registered interpreter is rejected, because such a " +
                 "script could never run and would leave dead data behind. A name registered in " +
                 "code answers 409: a skill defined in code wins name conflicts, so a stored skill " +
-                "with that name would never run. Changing a stored script's content stops it from " +
-                "running until its script grant is given again for the new content.")
+                "with that name would never run. A refused skill answers with the stable 'code' of the " +
+                "rule, the 'path' of the field when one is known, and 'messages'. Changing a stored " +
+                "script's content stops it from running until its script grant is given again for the " +
+                "new content.")
             .Accepts<AgentSkillRequest>("application/json");
 
         builder.MapDelete("/api/skills/{name}", DeleteAsync)

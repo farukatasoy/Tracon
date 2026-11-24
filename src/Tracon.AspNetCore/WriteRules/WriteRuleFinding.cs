@@ -64,9 +64,27 @@ internal sealed record WriteRuleFinding
         => Of(StatusCodes.Status409Conflict, title, detail, code);
 
     /// <summary>Turns the finding into the answer a save endpoint returns.</summary>
-    /// <returns>The <c>ProblemDetails</c> answer.</returns>
+    /// <returns>
+    /// The <c>ProblemDetails</c> answer. It carries the stable code and the field the same way an import report line
+    /// does: <c>code</c>, <c>path</c> (when a field is known) and <c>messages</c>, one entry for each error the rule
+    /// found, so a client that reads the report of an import reads the answer of a save the same way.
+    /// </returns>
     public ProblemHttpResult ToProblem()
-        => TypedResults.Problem(title: Title, detail: Detail, statusCode: Status);
+    {
+        var extensions = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["code"] = Code,
+        };
+
+        if (Path is not null)
+        {
+            extensions["path"] = Path;
+        }
+
+        extensions["messages"] = ToMessages();
+
+        return TypedResults.Problem(title: Title, detail: Detail, statusCode: Status, extensions: extensions);
+    }
 
     /// <summary>Turns the finding into the lines an import report carries.</summary>
     /// <returns>One line for each error the rule found; one line when it found a single refusal.</returns>

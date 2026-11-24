@@ -82,6 +82,22 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
     }
 
     /// <inheritdoc />
+    public ValueTask<int?> PeekNextVersionAsync(
+        string tenantId,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
+        return new ValueTask<int?>(
+            _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) ? history.NextVersion() : 1);
+    }
+
+    /// <inheritdoc />
     public ValueTask<WorkflowDefinition?> GetVersionAsync(
         string tenantId,
         string name,
@@ -158,6 +174,15 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
             lock (_versions)
             {
                 return _exists ? _versions[^1] : null;
+            }
+        }
+
+        public int NextVersion()
+        {
+            lock (_versions)
+            {
+                // Versions are numbered from 1 and never skip, and a delete keeps them.
+                return _versions.Count + 1;
             }
         }
 

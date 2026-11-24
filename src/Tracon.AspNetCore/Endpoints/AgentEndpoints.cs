@@ -84,11 +84,16 @@ internal static class AgentEndpoints
             .WithDescription(
                 "The definition is fully validated before it is stored: the model binding, every " +
                 "tool, skill, and callable agent must already exist, and the call graph must be " +
-                "free of cycles. A failed check returns 400 and nothing is written. A name that " +
+                "free of cycles. A failed check returns 400 and nothing is written; the problem carries the " +
+                "stable 'code' of the rule, the 'path' of the field when one is known, and 'messages' (one " +
+                "entry for each finding, each with its own 'code': the codes POST /api/agents/validate " +
+                "and an import report use). A name that " +
                 "another definition already uses returns 409; a name that a code-defined agent " +
                 "already uses also returns 409, because code wins name conflicts and the stored " +
                 "definition would never resolve. On success the response is 201 with the saved " +
-                "definition at version 1 and a Location header pointing at it.")
+                "definition and a Location header pointing at it. The version is 1 for a name " +
+                "that was never saved; a name that was saved and deleted before continues its " +
+                "numbering, so the new definition gets the next number and not 1.")
             .Accepts<AgentDefinitionRequest>("application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -122,7 +127,8 @@ internal static class AgentEndpoints
                 "An agent's name is immutable: when the path name and the body name differ the " +
                 "response is 400. A code-defined name returns 409 — code definitions are validated " +
                 "at compile time and are changed by changing the application. The same existence " +
-                "and call-graph checks as create apply, and a failed check writes nothing. Every " +
+                "and call-graph checks as create apply, and a failed check writes nothing and answers " +
+                "with the same 'code', 'path' and 'messages' as create. Every " +
                 "successful save appends a version rather than overwriting; the previous content " +
                 "stays readable through the version history.")
             .Accepts<AgentDefinitionRequest>("application/json")

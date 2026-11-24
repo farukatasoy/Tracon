@@ -210,6 +210,28 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         return await WriteVersionAsync(name, AgentDefinitionPayload.UpgradeLegacyKeys(payload), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async ValueTask<int?> PeekNextVersionAsync(
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        var tenantId = CanonicalTenant();
+
+        var next = await _context.ExecuteStatementAsync(
+            _sql.SelectNextAgentDefinitionVersion,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false);
+
+        return next is null or DBNull ? null : Convert.ToInt32(next, CultureInfo.InvariantCulture);
+    }
+
     private async ValueTask<AgentDefinition> WriteVersionAsync(
         string name,
         string payload,

@@ -190,6 +190,28 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
     }
 
     /// <inheritdoc />
+    public async ValueTask<int?> PeekNextVersionAsync(
+        string tenantId,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var next = await _context.ExecuteStatementAsync(
+            _sql.SelectNextWorkflowVersion,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false);
+
+        return next is null or DBNull ? null : Convert.ToInt32(next, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <inheritdoc />
     public async ValueTask<WorkflowDefinition> RollbackAsync(
         string tenantId,
         string name,

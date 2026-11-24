@@ -167,11 +167,13 @@ public sealed record AgentDefinition
     /// number: the value on an incoming definition is ignored.
     /// </summary>
     /// <remarks>
-    /// The version is a history marker, not an identity. Deleting a definition and
-    /// creating one with the same name starts the numbering again at <c>1</c>, so two
-    /// different definitions can carry the same name and the same version. Anything
-    /// that needs to tell one definition's content from another's must compare the
-    /// content itself; the compiled agent cache does exactly that.
+    /// A version number names one content for one name, and it is not given twice: deleting a
+    /// definition deletes its versions but keeps the highest number the name had, so the next
+    /// save under the same name continues the numbering (a name that held versions 1 to 3 and
+    /// was deleted gets <c>4</c> when it is created again). A run, a workflow node or an approval
+    /// that recorded a version before the delete therefore never names the content that replaced it.
+    /// A store written by hand keeps the same rule, and the contract suite checks it. The
+    /// compiled agent cache does not rely on it: it compares the content itself.
     /// </remarks>
     public int Version { get; init; } = 1;
 

@@ -543,6 +543,17 @@ registers more than one image provider or a custom keyed generator.
 `UseScheduling()` changes worker settings from code; it does not create a second
 queue. `AddTracon()` already registers the core job contracts.
 
+The `Scheduling` section does not have to exist for the worker to run: `Scheduling:Enabled`
+and `Scheduling:RunWorker` are `true` without it. With a SQL provider the job queue lives in
+the database, so a process that connects to a database another process already uses, and has
+no `Scheduling` section, **joins that queue** and leases its jobs. Set
+`Scheduling:RunWorker` to `false` in a process that only takes requests. The worker logs one
+line when it starts, and `GET /api/meta` reports `storage.jobWorkerEnabled`. Two loops are on
+by default (the job worker and the scan that closes expired approvals); the run heartbeat and
+reconciliation, the canary auto-rollback, the provider health probe and the two gauges are off
+until you turn them on. The same defaults are in the documentation of each setting that ships
+with the package.
+
 `RunReconciliation:Enabled` also switches on cross-instance run cancellation, and
 `RunReconciliation:HeartbeatInterval` is then its delay. See
 [run reconciliation](/guides/background-work/#singleton-services-and-orphaned-run-recovery).

@@ -117,7 +117,7 @@ internal static class WorkflowEndpoints
             .WithDescription(
                 "The definition is validated at save time with the same rules the compiler " +
                 "applies, so a shape that could not run is rejected with 400 instead of failing " +
-                "on the first run. Which fields are required depends on the kind — a manager " +
+                "on the first run; the problem carries the stable 'code' of the rule and 'messages'. Which fields are required depends on the kind — a manager " +
                 "driven workflow needs its manager agent, for example. A function node's " +
                 "'settings' must be a JSON object that fits the settings type its function " +
                 "declares (see settingsSchema on GET /api/workflows/functions): an unknown field, " +

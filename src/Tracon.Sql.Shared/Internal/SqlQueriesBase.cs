@@ -651,6 +651,19 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string UpsertAgentDefinitionVersionCounter { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Reads the version the next save of an agent name would get from <c>agent_definition_version_counters</c>,
+    /// without writing. The counter is the one the save moves, so a deleted definition's numbering is included.
+    /// Parameters: <c>@tenant_id</c>, <c>@name</c>.
+    /// </summary>
+    public string SelectNextAgentDefinitionVersion { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Reads the version the next save of a workflow name would get: one more than the highest version in
+    /// <c>workflow_definition_versions</c>, which a delete keeps. Parameters: <c>@tenant_id</c>, <c>@name</c>.
+    /// </summary>
+    public string SelectNextWorkflowVersion { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that inserts an agent definition or moves it to the version the counter gave.</summary>
     public string UpsertAgentDefinition { get; protected set; } = string.Empty;
 
@@ -1954,6 +1967,18 @@ internal abstract class SqlQueriesBase
             SELECT definition, created_at
             FROM {Table("workflow_definition_versions")}
             WHERE tenant_id = @tenant_id AND name = @name AND version = @version;
+            """;
+
+        SelectNextWorkflowVersion = $"""
+            SELECT COALESCE(MAX(version), 0) + 1
+            FROM {Table("workflow_definition_versions")}
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectNextAgentDefinitionVersion = $"""
+            SELECT COALESCE(MAX(last_version), 0) + 1
+            FROM {Table("agent_definition_version_counters")}
+            WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
         SelectWorkflowVersions = $"""

@@ -655,6 +655,33 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     }
 
     [Fact]
+    public async Task PeekNextVersionAsync_names_the_version_the_next_save_gets_and_moves_nothing()
+    {
+        (await Store.PeekNextVersionAsync("tenant-a", "review")).ShouldBe(1);
+        (await Store.PeekNextVersionAsync("tenant-a", "review")).ShouldBe(1);
+
+        (await Store.SaveAsync("tenant-a", Definition())).Version.ShouldBe(1);
+        (await Store.PeekNextVersionAsync("tenant-a", "review")).ShouldBe(2);
+        (await Store.SaveAsync("tenant-a", Definition())).Version.ShouldBe(2);
+
+        (await Store.PeekNextVersionAsync("tenant-a", "review")).ShouldBe(3);
+        (await Store.PeekNextVersionAsync("tenant-b", "review")).ShouldBe(1, "another tenant has its own numbering");
+    }
+
+    [Fact]
+    public async Task PeekNextVersionAsync_after_a_delete_continues_the_numbering_like_the_save_does()
+    {
+        await Store.SaveAsync("tenant-a", Definition());
+        await Store.SaveAsync("tenant-a", Definition());
+        await Store.DeleteAsync("tenant-a", "review");
+
+        var forecast = await Store.PeekNextVersionAsync("tenant-a", "review");
+
+        forecast.ShouldBe(3);
+        (await Store.SaveAsync("tenant-a", Definition())).Version.ShouldBe(forecast!.Value);
+    }
+
+    [Fact]
     public async Task A_rollback_of_a_deleted_definition_creates_it_again_and_continues_the_numbering()
     {
         await Store.SaveAsync("tenant-a", Definition() with { Description = "One." });

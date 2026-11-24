@@ -66,6 +66,39 @@ public sealed class AgentCrudTests
             .ShouldBe([2, 1]);
     }
 
+    /// <summary>
+    /// A name that was saved and deleted continues its numbering, so the create answers with the next number and
+    /// not with 1. The description of <c>POST /api/agents</c> used to promise version 1 for every create.
+    /// </summary>
+    [Fact]
+    public async Task Create_after_a_delete_answers_with_the_next_version_not_one()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using (var first = await host.Client.PostAsJsonAsync(Agents, TestData.Request(instructions: "first era")))
+        {
+            first.StatusCode.ShouldBe(HttpStatusCode.Created);
+            (await TraconTestHost.ReadJsonAsync(first)).GetProperty("version").GetInt32().ShouldBe(1);
+        }
+
+        using (var updated = await host.Client.PutAsJsonAsync(
+            new Uri("/tracon/api/agents/db-agent", UriKind.Relative),
+            TestData.Request(instructions: "first era, changed")))
+        {
+            updated.EnsureSuccessStatusCode();
+        }
+
+        using (var deleted = await host.Client.DeleteAsync(new Uri("/tracon/api/agents/db-agent", UriKind.Relative)))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using var recreated = await host.Client.PostAsJsonAsync(Agents, TestData.Request(instructions: "second era"));
+
+        recreated.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await TraconTestHost.ReadJsonAsync(recreated)).GetProperty("version").GetInt32().ShouldBe(3);
+    }
+
     [Fact]
     public async Task Rollback_writes_the_old_content_as_a_new_version()
     {

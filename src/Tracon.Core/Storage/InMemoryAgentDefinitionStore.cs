@@ -228,6 +228,23 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
         }
     }
 
+    /// <inheritdoc />
+    public ValueTask<int?> PeekNextVersionAsync(string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_versions.TryGetValue(Key(name), out var history))
+        {
+            return new ValueTask<int?>(1);
+        }
+
+        lock (history)
+        {
+            return new ValueTask<int?>(history.LastVersion + 1);
+        }
+    }
+
     private (string TenantId, string Name) Key(string name) => (_tenantContext.TenantId, name);
 
     /// <summary>The versions of one name and the highest number the name has ever had; guarded by its own lock.</summary>

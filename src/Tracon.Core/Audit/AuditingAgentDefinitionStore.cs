@@ -59,6 +59,10 @@ internal sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAud
         => _inner.GetVersionAsync(name, version, cancellationToken);
 
     /// <inheritdoc />
+    public ValueTask<int?> PeekNextVersionAsync(string name, CancellationToken cancellationToken = default)
+        => _inner.PeekNextVersionAsync(name, cancellationToken);
+
+    /// <inheritdoc />
     public ValueTask<IReadOnlyList<AgentDefinition>> ListVersionsAsync(
         string name,
         CancellationToken cancellationToken = default)
