@@ -280,6 +280,23 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
+    public async Task PeekNextVersionAsync_reads_the_numbering_of_the_tenant_it_is_asked_in()
+    {
+        AmbientTenant.TenantId = TenantA;
+        await Store.SaveAsync(TestData.Definition("support"));
+        await Store.SaveAsync(TestData.Definition("support"));
+
+        (await Store.PeekNextVersionAsync("support")).ShouldBe(3);
+
+        AmbientTenant.TenantId = TenantB;
+        (await Store.PeekNextVersionAsync("support")).ShouldBe(1, "another tenant's saves are not this tenant's numbering");
+
+        // The same name spelled in another letter case is the same tenant.
+        AmbientTenant.TenantId = "TENANT-A";
+        (await Store.PeekNextVersionAsync("support")).ShouldBe(3);
+    }
+
+    [Fact]
     public async Task One_tenants_delete_does_not_move_another_tenants_numbering()
     {
         AmbientTenant.TenantId = TenantA;

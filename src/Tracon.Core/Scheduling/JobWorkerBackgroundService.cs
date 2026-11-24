@@ -130,11 +130,41 @@ internal sealed class JobWorkerBackgroundService(
         }
 
         logger.LogInformation(
-            "The job worker runs in this process: it leases jobs of every tenant from {Lanes}, at most {MaxConcurrentJobs} at a time, and looks for work every {PollInterval}. " +
+            "The job worker runs in this process: it leases jobs of every tenant from {Lanes}, and looks for work every {PollInterval}. " +
             "Set Tracon:Scheduling:RunWorker to false to keep this process out of the job queue.",
-            options.Lanes is { Count: > 0 } lanes ? "the lanes " + string.Join(", ", lanes) : "every lane",
-            options.MaxConcurrentJobs,
+            DescribeLanes(options),
             options.PollInterval);
+    }
+
+    /// <summary>
+    /// Says which lanes the worker leases from and how many jobs at a time, by the same rule a tick applies: the
+    /// shared pool of <see cref="TraconSchedulingOptions.MaxConcurrentJobs"/> for the lanes without a budget of their
+    /// own, and one budget for each lane listed in <see cref="TraconSchedulingOptions.MaxConcurrentJobsPerLane"/>.
+    /// </summary>
+    /// <param name="options">The settings the worker started with.</param>
+    /// <returns>The sentence part that names the lanes.</returns>
+    private static string DescribeLanes(TraconSchedulingOptions options)
+    {
+        var shared = ComputeSharedLanes(options);
+        var parts = new List<string>
+        {
+            shared switch
+            {
+                null => $"every lane, at most {options.MaxConcurrentJobs} at a time",
+                { Length: 0 } => "no shared lane",
+                _ => $"the lanes {string.Join(", ", shared)}, at most {options.MaxConcurrentJobs} at a time",
+            },
+        };
+
+        foreach (var (lane, max) in options.MaxConcurrentJobsPerLane.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
+        {
+            if (options.Lanes is not { } subscribed || subscribed.Contains(lane, StringComparer.Ordinal))
+            {
+                parts.Add($"the lane {lane}, at most {max} at a time");
+            }
+        }
+
+        return string.Join("; ", parts);
     }
 
     /// <summary>

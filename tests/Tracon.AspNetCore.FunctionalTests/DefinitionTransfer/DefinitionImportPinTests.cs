@@ -148,6 +148,68 @@ public sealed class DefinitionImportPinTests
         (await target.AgentVersionCountAsync("x")).ShouldBe(1);
     }
 
+    /// <summary>
+    /// A dry run that cannot forecast carries the pin as 1 for want of a number; the write numbers the callee and
+    /// translates the pin of the agent that points at it with the number the store really gave.
+    /// </summary>
+    [Fact]
+    public async Task Without_a_forecast_the_write_still_translates_the_pin_to_the_number_the_store_gave()
+    {
+        await using var source = await TraconTestHost.StartAsync();
+        await using var target = await TraconTestHost.StartAsync(
+            configureServices: static services => services.AddSingleton<IAgentDefinitionStore>(static _ => new ForecastlessAgentStore()));
+
+        await source.CreateAgentAsync(TestData.Request("x", "x one"));
+        await source.CreateAgentAsync(TestData.Request("a", "uses x") with
+        {
+            CallableAgents = [new CallableAgentReference { Name = "x", Version = 1 }],
+        });
+
+        // The target saved "x" twice and deleted it: its numbering is at 2, and its store gives no forecast.
+        await target.CreateAgentAsync(TestData.Request("x", "an old era"));
+        await target.UpdateAgentAsync(TestData.Request("x", "an old era, changed"));
+        using (var deleted = await target.Client.DeleteAsync(TransferHost.Api("agents/x")))
+        {
+            deleted.IsSuccessStatusCode.ShouldBeTrue();
+        }
+
+        var bundle = await source.ExportAsync("?agent=a");
+        var dry = await target.ImportOkAsync(bundle, dryRun: true);
+
+        TransferHost.Item(dry, "agent", "x")["targetVersion"].ShouldBeNull();
+
+        await target.ImportOkAsync(bundle, dryRun: false);
+
+        using var written = await target.Client.GetAsync(TransferHost.Api("agents/x"));
+
+        (await TraconTestHost.ReadJsonAsync(written)).GetProperty("definition").GetProperty("version").GetInt32().ShouldBe(3);
+        (await PinOfAsync(target, "a")).ShouldBe(3, "the pin follows the number the write gave, not the 1 the dry run carried");
+    }
+
+    /// <summary>A forecast is a convenience of the report: a store that fails while giving one leaves the version unknown.</summary>
+    [Fact]
+    public async Task A_store_whose_forecast_throws_leaves_the_version_unknown_and_the_import_goes_on()
+    {
+        await using var target = await TraconTestHost.StartAsync(
+            configureServices: static services => services.AddSingleton<IAgentDefinitionStore>(static _ => new ForecastlessAgentStore(throwOnForecast: true)));
+
+        var bundle = TransferHost.NewBundle().WithAgent(TestData.Request("x", "x one"));
+        var dry = await target.ImportOkAsync(bundle, dryRun: true);
+
+        dry["valid"]!.GetValue<bool>().ShouldBeTrue(dry.ToJsonString());
+
+        var forecast = TransferHost.Item(dry, "agent", "x");
+
+        forecast["targetVersion"].ShouldBeNull();
+        forecast["messages"]!.AsArray().ShouldContain(static message =>
+            string.Equals(message!["code"]!.GetValue<string>(), "import_target_version_unknown", StringComparison.Ordinal));
+        target.Logs.Entries.ShouldContain(static entry => entry.Contains("could not forecast the next version", StringComparison.Ordinal));
+
+        await target.ImportOkAsync(bundle, dryRun: false);
+
+        (await target.AgentVersionCountAsync("x")).ShouldBe(1);
+    }
+
     [Fact]
     public async Task A_pin_to_an_agent_the_target_already_holds_the_same_follows_the_version_it_has()
     {
@@ -280,9 +342,15 @@ public sealed class DefinitionImportPinTests
         };
 
     /// <summary>A store written before the forecast existed: every member of the original contract, and no forecast.</summary>
-    private sealed class ForecastlessAgentStore : IAgentDefinitionStore
+    private sealed class ForecastlessAgentStore(bool throwOnForecast = false) : IAgentDefinitionStore
     {
         private readonly InMemoryAgentDefinitionStore _inner = new();
+
+        // Declared only to fail on purpose; without it the member is the interface's default and says "unknown".
+        public ValueTask<int?> PeekNextVersionAsync(string name, CancellationToken cancellationToken = default)
+            => throwOnForecast
+                ? throw new InvalidOperationException("The store cannot count right now.")
+                : ValueTask.FromResult<int?>(null);
 
         public ValueTask<AgentDefinition?> GetAsync(string name, CancellationToken cancellationToken = default)
             => _inner.GetAsync(name, cancellationToken);

@@ -37,7 +37,39 @@ public sealed class JobWorkerStartLogTests
 
         await WaitUntil.TrueAsync(() => StartLines(host).Count > 0, "the worker to say it started");
 
-        StartLines(host).ShouldHaveSingleItem().ShouldContain("the lanes media, default", Case.Sensitive);
+        StartLines(host).ShouldHaveSingleItem().ShouldContain("the lanes media, default, at most 2 at a time", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// A lane with a budget of its own is leased by its own pass and is not part of the shared pool: the line names
+    /// both, the way a tick applies them, instead of saying "every lane" for a worker that does not lease every lane.
+    /// </summary>
+    [Fact]
+    public async Task A_per_lane_budget_narrows_the_shared_pool_to_the_default_lane_and_is_named_on_its_own()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static tracon => tracon.UseScheduling(static options => options.MaxConcurrentJobsPerLane["media"] = 4));
+
+        await WaitUntil.TrueAsync(() => StartLines(host).Count > 0, "the worker to say it started");
+
+        var line = StartLines(host).ShouldHaveSingleItem();
+
+        line.ShouldContain("the lanes default, at most 2 at a time; the lane media, at most 4 at a time", Case.Sensitive);
+        line.ShouldNotContain("every lane", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_worker_subscribed_to_no_lane_says_it_leases_from_none()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static tracon => tracon.UseScheduling(static options => options.Lanes = []));
+
+        await WaitUntil.TrueAsync(() => StartLines(host).Count > 0, "the worker to say it started");
+
+        var line = StartLines(host).ShouldHaveSingleItem();
+
+        line.ShouldContain("no shared lane", Case.Sensitive);
+        line.ShouldNotContain("every lane", Case.Sensitive);
     }
 
     /// <summary>

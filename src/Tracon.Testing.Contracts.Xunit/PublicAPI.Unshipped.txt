@@ -1394,3 +1394,5 @@ Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.PeekNextVersionAsy
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.PeekNextVersionAsync_names_the_version_the_next_save_gets_and_moves_nothing() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.PeekNextVersionAsync_after_a_delete_continues_the_numbering_like_the_save_does() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.PeekNextVersionAsync_names_the_version_the_next_save_gets_and_moves_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.PeekNextVersionAsync_reads_the_numbering_of_the_tenant_it_is_asked_in() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.PeekNextVersionAsync_reads_the_tenant_under_its_canonical_spelling() -> System.Threading.Tasks.Task!

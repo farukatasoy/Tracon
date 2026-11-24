@@ -497,6 +497,16 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     }
 
     [Fact]
+    public async Task PeekNextVersionAsync_reads_the_tenant_under_its_canonical_spelling()
+    {
+        await Store.SaveAsync("TENANT-A", Definition());
+        await Store.SaveAsync("tenant-a", Definition());
+
+        (await Store.PeekNextVersionAsync("Tenant-A", "review")).ShouldBe(3);
+        (await Store.PeekNextVersionAsync("tenant-b", "review")).ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Another_tenants_definition_is_not_visible()
     {
         await Store.SaveAsync("tenant-a", Definition());

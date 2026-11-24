@@ -12172,7 +12172,7 @@
               "integer",
               "string"
             ],
-            "description": "The version the item has, or will have, in the target. After a dry run of a new version it is the\nnumber the store will most likely assign.",
+            "description": "The version the item has, or will have, in the target. After a dry run of a new version it is the\nnumber the store says it will assign (a name that was saved and deleted continues its numbering), and\n\u0060null\u0060 when the store does not say; the write numbers it then.",
             "format": "int32"
           },
           "changedPaths": {

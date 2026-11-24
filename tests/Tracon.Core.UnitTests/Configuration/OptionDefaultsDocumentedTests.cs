@@ -15,7 +15,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// on disk (the local reference, an IDE tooltip, a coding agent) has only the property's own text. A setting whose
 /// text names no default leaves that reader to run the code to learn what happens when the section is absent: a
 /// process that connects to a shared SQL database without a <c>Tracon:Scheduling</c> section joined the job queue, and
-/// nothing said so (measured: 262 of the 436 scalar settings of the options classes were silent).
+/// nothing said so.
 /// </para>
 /// <para>
 /// A ratchet, in the shape of <see cref="CapabilityExampleTests"/>. <c>option-defaults-baseline.txt</c> lists the
@@ -23,12 +23,16 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// without its default fails, and a setting that states its default and is still on the list fails too.
 /// </para>
 /// <para>
-/// <strong>What counts as a default stated.</strong> The word <c>default</c> in the text of the summary or the
-/// remarks, or a number with a unit (<c>10 seconds</c>, <c>5 minutes</c>, <c>8,192 characters</c>). A cross reference
-/// to a member that has <c>Default</c> in its name is no text and does not count: only what the reader sees does.
-/// A setting that starts at the zero value of its type (<see langword="false"/>, <c>0</c>, <see langword="null"/>) has
-/// no starting value to state and is out of scope. This reads the scalar settings of <c>Tracon.Core</c> and
-/// <c>Tracon.Abstractions</c>; the options of the provider, MCP, voice, workflow and SQL packages are not read here.
+/// <strong>What counts as a default stated.</strong> A phrase that gives the default of THIS setting
+/// (<c>Defaults to</c>, <c>by default</c>, <c>the default is</c>), or a number with a unit that is not a limit
+/// (<c>10 seconds</c>, <c>5 minutes</c>): a number that follows <c>from</c>, <c>to</c>, <c>at most</c>, <c>about</c> and
+/// the like is the range a validator accepts, and does not count. A cross reference to a member that has
+/// <c>Default</c> in its name is no text and does not count either: only what the reader sees does. This is an
+/// approximation: it cannot tell that a sentence names another object's default, and it does not compare the value
+/// with the one the code starts with, so a wrong number passes. A setting that starts at the zero value of its type
+/// (<see langword="false"/>, <c>0</c>, <see langword="null"/>) has no starting value to state and is out of scope.
+/// This reads the scalar settings of <c>Tracon.Core</c> and <c>Tracon.Abstractions</c>; the options of the provider,
+/// MCP, voice, workflow and SQL packages are not read here.
 /// </para>
 /// <para>
 /// Refresh after a reviewed change:
@@ -41,10 +45,48 @@ public sealed class OptionDefaultsDocumentedTests
 
     private const string ReadTargetFramework = "net10.0";
 
-    private static readonly Regex StatesADefault = new(
-        @"\bdefault(?:s|ed)?\b|\b\d[\d,.]*\s*(?:ms|milliseconds?|seconds?|minutes?|hours?|days?|bytes?|KiB|MiB|characters?|items?|rows?|tokens?)\b",
+    private static readonly Regex DefaultPhrase = new(
+        @"\bby default\b|\bdefaults?\s+(?:to|is|are|of|value)\b|\bthe default\s+(?:is|value|are)\b|\b(?:its|is the) default\b",
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
         TimeSpan.FromSeconds(1));
+
+    private static readonly Regex ValueWithUnit = new(
+        @"\b\d[\d,.]*\s*(?:ms|milliseconds?|seconds?|minutes?|hours?|days?|bytes?|KiB|MiB|characters?|items?|rows?|tokens?)\b",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
+        TimeSpan.FromSeconds(1));
+
+    /// <summary>What in front of a number makes it a limit and not a starting value.</summary>
+    private static readonly Regex LimitContext = new(
+        @"\b(?:from|to|than|most|least|between|about|under|over|below|above|exceeds?|within|maximum|minimum|range)\b",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
+        TimeSpan.FromSeconds(1));
+
+    private static bool StatesADefault(string text)
+    {
+        if (DefaultPhrase.IsMatch(text))
+        {
+            return true;
+        }
+
+        foreach (Match match in ValueWithUnit.Matches(text))
+        {
+            // Only the sentence the number stands in says whether it is a limit.
+            var before = text[Math.Max(0, match.Index - 40)..match.Index];
+            var sentenceStart = before.LastIndexOf(". ", StringComparison.Ordinal);
+
+            if (sentenceStart >= 0)
+            {
+                before = before[(sentenceStart + 2)..];
+            }
+
+            if (!LimitContext.IsMatch(before))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     [Fact]
     public void Every_scalar_option_that_starts_with_a_value_says_it_or_is_in_the_shrinking_baseline()
@@ -63,7 +105,7 @@ public sealed class OptionDefaultsDocumentedTests
             $"(dotnet build Tracon.slnx -c Release): {string.Join(", ", unreadable.Take(10))}");
 
         var silent = settings
-            .Where(setting => !StatesADefault.IsMatch(documentation[setting.Id]))
+            .Where(setting => !StatesADefault(documentation[setting.Id]))
             .Select(static setting => setting.Name)
             .Order(StringComparer.Ordinal)
             .ToList();
@@ -123,17 +165,22 @@ public sealed class OptionDefaultsDocumentedTests
     /// </summary>
     [Theory]
     [InlineData("Whether the worker runs. Defaults to <true/>.", true)]
+    [InlineData("Whether the worker runs. It is on by default.", true)]
     [InlineData("How often to look. 10 seconds.", true)]
     [InlineData("The default is 24 hours.", true)]
     [InlineData("The limit, 8,192 characters.", true)]
     [InlineData("The lane the job is queued under, as <see cref=\"JobLanes.Default\"/> says.", false)]
     [InlineData("Whether the subsystem is enabled.", false)]
+    [InlineData("Must be from one millisecond to about 49.7 days.", false)]
+    [InlineData("The longest wait; at most 30 seconds.", false)]
+    [InlineData("Shuts down within HostOptions.ShutdownTimeout (default 30 s).", false)]
+    [InlineData("How long a call may run. 5 minutes.", true)]
     public void The_pattern_reads_a_stated_default_and_nothing_else(string summary, bool expected)
     {
         // A <see/> element holds no text, which is what an XML reader sees; the sample strips it the same way.
         var text = Regex.Replace(summary, "<[^>]*/>", string.Empty, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
-        StatesADefault.IsMatch(text).ShouldBe(expected);
+        StatesADefault(text).ShouldBe(expected);
     }
 
     private static List<Setting> ScalarSettingsWithAStartingValue()
@@ -233,7 +280,8 @@ public sealed class OptionDefaultsDocumentedTests
 
                 foreach (var element in member.Elements().Where(static element => element.Name.LocalName is "summary" or "remarks"))
                 {
-                    text.Append(element.Value).Append(' ');
+                    AppendText(element, text);
+                    text.Append(' ');
                 }
 
                 texts[id] = text.ToString();
@@ -241,6 +289,31 @@ public sealed class OptionDefaultsDocumentedTests
         }
 
         return texts;
+    }
+
+    /// <summary>
+    /// The text a reader sees: the words, the content of <c>&lt;c&gt;</c>, and the word a <c>langword</c> reference
+    /// stands for (<see langword="true"/> reads as "true"). An example is code and is left out.
+    /// </summary>
+    private static void AppendText(XElement element, StringBuilder text)
+    {
+        foreach (var node in element.Nodes())
+        {
+            switch (node)
+            {
+                case XText content:
+                    text.Append(content.Value);
+                    break;
+                case XElement child when string.Equals(child.Name.LocalName, "example", StringComparison.Ordinal):
+                    break;
+                case XElement child when child.Attribute("langword") is { } langword:
+                    text.Append(langword.Value);
+                    break;
+                case XElement child:
+                    AppendText(child, text);
+                    break;
+            }
+        }
     }
 
     private static string Configuration { get; } = new DirectoryInfo(AppContext.BaseDirectory).Name.Split('_')[0];

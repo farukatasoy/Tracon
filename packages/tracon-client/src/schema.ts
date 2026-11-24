@@ -4294,7 +4294,8 @@ export interface components {
             /**
              * Format: int32
              * @description The version the item has, or will have, in the target. After a dry run of a new version it is the
-             *     number the store will most likely assign.
+             *     number the store says it will assign (a name that was saved and deleted continues its numbering), and
+             *     `null` when the store does not say; the write numbers it then.
              */
             targetVersion?: null | number | string;
             /** @description The JSON paths whose values differ between `current` and `incoming`. */

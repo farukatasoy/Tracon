@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -96,8 +98,8 @@ internal sealed class PlannedItem
     public void WarnVersionUnknown(string kind)
         => Warn(
             DefinitionImportCodes.TargetVersionUnknown,
-            $"The store does not say which version the new {kind} '{Name}' will get, so the report leaves 'targetVersion' empty. " +
-            "The import numbers it when it writes and translates the version pins that point at it then.");
+            $"The store did not say, before the write, which version the new {kind} '{Name}' will get, so a dry run reports no 'targetVersion'. " +
+            "The import numbers it when it writes and translates the version pins that point at it with that number.");
 }
 
 /// <summary>What the planner found: the items in the order an import writes them, and what it knows for the write.</summary>
@@ -416,6 +418,8 @@ internal sealed class DefinitionImportPlanner
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
+            LogForecastFailure(exception, "agent", name);
+
             return null;
         }
     }
@@ -432,9 +436,23 @@ internal sealed class DefinitionImportPlanner
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
+            LogForecastFailure(exception, "workflow", name);
+
             return null;
         }
     }
+
+    /// <summary>
+    /// A forecast is a convenience of the report, so a store that fails while giving one leaves the version unknown
+    /// and the import goes on; the failure is logged where an operator reads it.
+    /// </summary>
+    /// <param name="exception">What the store threw.</param>
+    /// <param name="kind">The kind of the definition.</param>
+    /// <param name="name">The definition name.</param>
+    private void LogForecastFailure(Exception exception, string kind, string name)
+        => _httpContext.RequestServices.GetService<ILoggerFactory>()?
+            .CreateLogger("Tracon.DefinitionImport")
+            .LogWarning(exception, "The store could not forecast the next version of the {Kind} '{Name}'; the dry run leaves it unknown.", kind, name);
 
     private async ValueTask<List<PlannedItem>> PlanSkillsAsync(
         IReadOnlyList<ExportedSkill> exported,

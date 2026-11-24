@@ -377,6 +377,12 @@ all become usable, since they depend on state outliving a request. A resolved
 [approval presentation](/concepts/governance/#approvals) is persisted next to the
 raw call arguments, so it survives a restart the same way the arguments do.
 
+The job queue is one of those tables, and every process that connects to the same database
+shares it. The job worker is on by default, so a process with no `Tracon:Scheduling` section
+**joins that queue** and leases its jobs. Set `Tracon:Scheduling:RunWorker` to `false` in a process
+that only takes requests; the worker logs one line when it starts, and `GET /api/meta` reports
+`storage.jobWorkerEnabled` ([the scheduling settings](/reference/configuration/#scheduling-async-runs-leases-and-recovery)).
+
 It is also what makes recovering from a crash possible at all: a run's recorded
 tool calls are what an [automatically continued run](/guides/reliability/#continue-an-interrupted-run-automatically)
 replays instead of repeating, and orphan reconciliation itself only has a stale

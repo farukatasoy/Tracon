@@ -652,8 +652,9 @@ internal abstract class SqlQueriesBase
     public string UpsertAgentDefinitionVersionCounter { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Reads the version the next save of an agent name would get from <c>agent_definition_version_counters</c>,
-    /// without writing. The counter is the one the save moves, so a deleted definition's numbering is included.
+    /// Reads the version the next save of an agent name would get, without writing: the larger of
+    /// <c>agent_definition_version_counters</c> and the agent's own row, plus one, as the save takes it. The counter
+    /// is the one the save moves, so a deleted definition's numbering is included.
     /// Parameters: <c>@tenant_id</c>, <c>@name</c>.
     /// </summary>
     public string SelectNextAgentDefinitionVersion { get; protected set; } = string.Empty;
@@ -1975,10 +1976,16 @@ internal abstract class SqlQueriesBase
             WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
+        // The save takes the larger of the counter and the agent's own row, because a process of an older release
+        // writes the row without touching the counter; the forecast takes the same larger one.
         SelectNextAgentDefinitionVersion = $"""
-            SELECT COALESCE(MAX(last_version), 0) + 1
-            FROM {Table("agent_definition_version_counters")}
-            WHERE tenant_id = @tenant_id AND name = @name;
+            SELECT CASE WHEN counters.last_version > agents.version THEN counters.last_version ELSE agents.version END + 1
+            FROM (SELECT COALESCE(MAX(last_version), 0) AS last_version
+                    FROM {Table("agent_definition_version_counters")}
+                   WHERE tenant_id = @tenant_id AND name = @name) AS counters
+            CROSS JOIN (SELECT COALESCE(MAX(version), 0) AS version
+                          FROM {Table("agent_definitions")}
+                         WHERE tenant_id = @tenant_id AND name = @name) AS agents;
             """;
 
         SelectWorkflowVersions = $"""

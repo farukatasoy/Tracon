@@ -21617,7 +21617,8 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// The version the item has, or will have, in the target. After a dry run of a new version it is the
-        /// <br/>number the store will most likely assign.
+        /// <br/>number the store says it will assign (a name that was saved and deleted continues its numbering), and
+        /// <br/>`null` when the store does not say; the write numbers it then.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("targetVersion")]
         public int? TargetVersion { get; set; } = default!;
