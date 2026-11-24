@@ -22,8 +22,10 @@ namespace Tracon;
 /// <para>
 /// <strong>Tenant:</strong> ambient tenant. There is no tenant parameter: the call reads the tenant of the request or
 /// job it runs in (<see cref="ITenantContext"/>, which reports <see cref="AmbientTenantScope"/> while one is open),
-/// so a call cannot ask about another tenant's rows. A host that has to preview several tenants opens
-/// <see cref="AmbientTenantScope.Begin"/> for each of them. A tenant the context cannot name as a valid tenant
+/// so a call cannot ask about another tenant's rows. Outside a request and outside an open scope (a hosted
+/// service, a startup task) the context answers with the default tenant (<c>TraconOptions.DefaultTenantId</c>), and
+/// the call previews that tenant's rows without an error: a host that serves several tenants opens
+/// <see cref="AmbientTenantScope.Begin"/> for each tenant it previews. A tenant the context cannot name as a valid tenant
 /// identifier (the <c>"*"</c> default marker, a character outside the tenant alphabet) is refused with an
 /// <see cref="ArgumentException"/>.
 /// </para>

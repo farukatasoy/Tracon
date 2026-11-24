@@ -77,6 +77,16 @@ public static class JobErrorCodes
     public const string HostTenantScopeFailed = TraconErrorTypes.JobHostTenantScopeFailed;
 
     /// <summary>
+    /// The job's handler runs only in the installation's default tenant (<see cref="JobHandlerKeys.RetentionFanOut"/>
+    /// is one), and the job belongs to another tenant, so it failed without queueing or running anything.
+    /// </summary>
+    /// <remarks>
+    /// The job is failed rather than released: running it again cannot change the tenant it belongs to. The log
+    /// carries the tenant under the correlation id the message carries; the message does not name it.
+    /// </remarks>
+    public const string HostOnlyHandlerRefused = TraconErrorTypes.JobHostOnlyHandlerRefused;
+
+    /// <summary>
     /// The attempt ran longer than the job's time limit
     /// (<see cref="JobRecord.MaxDuration"/>, or
     /// <c>TraconSchedulingOptions.MaxDurationByHandlerKey</c> for its key), the worker

@@ -37,7 +37,7 @@ public sealed partial class JobHandlerOutcomeWriteSiteTests
         ["src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs"] =
             "a failed score write is compensated and the judge runs again on the retry - deliberate, a half-written set would freeze the checkpoint",
         ["src/Tracon.Core/Retention/RetentionFanOutJobHandler.cs"] =
-            "the report is outside the fan-out's try; a report error ends the attempt, and the repeat finds each tenant's job already waiting or running and queues no second one (RetentionFanOutJobHandlerTests)",
+            "the report is outside the fan-out's try; a report error ends the attempt, and a repeat that comes while the tenants' jobs still wait or run queues no second one; a job that has finished in the meantime is queued again, which is harmless because a sweep is safe to repeat (RetentionFanOutJobHandlerTests)",
         ["src/Tracon.Core/Retention/RetentionJobHandler.cs"] =
             "the success report is outside the sweep's try; a report error ends the attempt, and the sweep is safe to repeat",
         ["src/Tracon.Core/Scheduling/AgentBatchJobHandler.cs"] =

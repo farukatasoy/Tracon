@@ -218,7 +218,7 @@ experiment, and automatic rollback is off until you configure it.
 | Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, tenant provider endpoints, generated image URLs and live voice; private network targets refused by default, checked inside the socket connect callback. The endpoint of a `Use...()` call is not guarded |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix; a credential-looking plain header is refused |
 | At-rest content protection | `AddContentProtection(...)` | Off by default; AES-256-GCM encrypts session state, chat history, run inputs and events, tool arguments/results, agent files, and attachments before they reach the database |
-| Retention and archive | Stored operational data | Deletion defaults are off (`false`)<!-- claim:option TraconRetentionOptions.Enabled=false -->; preview and jobs make cleanup explicit |
+| Retention and archive | Stored operational data | Deletion defaults are off (`false`)<!-- claim:option TraconRetentionOptions.Enabled=false -->; preview and jobs make cleanup explicit. A retention job cleans one tenant; `tracon.retention.fanout` in the default tenant queues one for every tenant (`IRetentionTenantSource`) |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
 | Cross-origin access | `TraconEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
@@ -239,7 +239,7 @@ caller's role and key scopes. See the complete scope table in
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddTraconHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
-| Retention preview | HTTP API and console | Shows eligible rows before a cleanup job changes data |
+| Retention preview | HTTP API, console and `IRetentionPreviewService` | Shows the current tenant's eligible rows before a cleanup job changes data; deletes nothing |
 | Package family alignment | Host start | Always on; a host whose Tracon package assemblies (all but `Tracon.Client`) come from more than one release stops before any hosted service runs, and the error names each assembly and version |
 
 Observability never changes behavior. Every signal here is a side effect of a run, and

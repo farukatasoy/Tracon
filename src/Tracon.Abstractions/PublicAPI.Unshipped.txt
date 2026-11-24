@@ -6061,6 +6061,7 @@ static Tracon.ValidationMessage.operator ==(Tracon.ValidationMessage? left, Trac
 Tracon.IHostTenantScope
 Tracon.IHostTenantScope.Begin(string! tenantId) -> System.IDisposable?
 const Tracon.JobErrorCodes.HostTenantScopeFailed = "tracon.job.host-tenant-scope-failed" -> string!
+const Tracon.JobErrorCodes.HostOnlyHandlerRefused = "tracon.job.host-only-handler-refused" -> string!
 const Tracon.TraconErrorTypes.JobHostTenantScopeFailed = "tracon.job.host-tenant-scope-failed" -> string!
 const Tracon.TraconErrorTypes.JobHostOnlyHandlerRefused = "tracon.job.host-only-handler-refused" -> string!
 Tracon.TraconSessionOptions

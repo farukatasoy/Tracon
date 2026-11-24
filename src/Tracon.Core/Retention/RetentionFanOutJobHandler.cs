@@ -65,6 +65,7 @@ internal sealed class RetentionFanOutJobHandler(
         }
 
         Log(context.Job, target, tally);
+        WarnWhenNobodyWasSwept(context.Job, tally);
 
         if (tally.Failures.Count > 0)
         {
@@ -198,6 +199,31 @@ internal sealed class RetentionFanOutJobHandler(
             tally.Invalid,
             tally.Repeated,
             tally.Failures.Count);
+    }
+
+    /// <summary>
+    /// A job that ends green while it swept nobody (an empty source, or names that are all invalid) says so at a
+    /// level an operator reads: the job itself carries no result to show it.
+    /// </summary>
+    private void WarnWhenNobodyWasSwept(JobRecord job, FanOutTally tally)
+    {
+        if (logger is null || !logger.IsEnabled(LogLevel.Warning) || (tally.Listed > 0 && tally.Invalid == 0))
+        {
+            return;
+        }
+
+        if (tally.Listed == 0)
+        {
+            logger.LogWarning("Retention fan-out {JobId} found no tenant to sweep: the IRetentionTenantSource named nobody.", job.Id);
+
+            return;
+        }
+
+        logger.LogWarning(
+            "Retention fan-out {JobId} skipped {Invalid} of {Listed} tenant identifiers because they are not valid tenant identifiers.",
+            job.Id,
+            tally.Invalid,
+            tally.Listed);
     }
 
     private static async ValueTask ReportAsync(

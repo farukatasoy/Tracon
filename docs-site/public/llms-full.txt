@@ -229,7 +229,7 @@ experiment, and automatic rollback is off until you configure it.
 | Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, tenant provider endpoints, generated image URLs and live voice; private network targets refused by default, checked inside the socket connect callback. The endpoint of a `Use...()` call is not guarded |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix; a credential-looking plain header is refused |
 | At-rest content protection | `AddContentProtection(...)` | Off by default; AES-256-GCM encrypts session state, chat history, run inputs and events, tool arguments/results, agent files, and attachments before they reach the database |
-| Retention and archive | Stored operational data | Deletion defaults are off (`false`)<!-- claim:option TraconRetentionOptions.Enabled=false -->; preview and jobs make cleanup explicit |
+| Retention and archive | Stored operational data | Deletion defaults are off (`false`)<!-- claim:option TraconRetentionOptions.Enabled=false -->; preview and jobs make cleanup explicit. A retention job cleans one tenant; `tracon.retention.fanout` in the default tenant queues one for every tenant (`IRetentionTenantSource`) |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
 | Cross-origin access | `TraconEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
@@ -250,7 +250,7 @@ caller's role and key scopes. See the complete scope table in
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddTraconHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
-| Retention preview | HTTP API and console | Shows eligible rows before a cleanup job changes data |
+| Retention preview | HTTP API, console and `IRetentionPreviewService` | Shows the current tenant's eligible rows before a cleanup job changes data; deletes nothing |
 | Package family alignment | Host start | Always on; a host whose Tracon package assemblies (all but `Tracon.Client`) come from more than one release stops before any hosted service runs, and the error names each assembly and version |
 
 Observability never changes behavior. Every signal here is a side effect of a run, and
@@ -2578,6 +2578,15 @@ when the `tracon.retention` job runs, and nothing schedules it for you: call `ru
 or save a recurring schedule for the `tracon.retention` handler (see
 [Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever)).
 A host that runs no job worker deletes nothing.
+
+A retention job is one tenant's. It reads that tenant's policy and deletes that tenant's
+rows, whatever the policy is, so the `run` endpoint cleans the calling tenant and a
+schedule cleans the tenant it belongs to. The `*` policy is not a sweep across tenants:
+it is the default each tenant without a policy of its own is given, and every tenant
+still needs its own job. The default tenant schedules `tracon.retention.fanout` once to
+queue that job for every tenant, and `IRetentionTenantSource` says which tenants exist
+([Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant)). Every
+tenant's history holds its own runs.
 
 ```bash
 curl 'http://localhost:5081/tracon/api/retention/preview'
@@ -7633,12 +7642,76 @@ A policy or a default only says what is eligible. Rows are deleted when the
 `tracon.retention` job runs, and nothing schedules that job for you: call the `run`
 endpoint, or save a recurring schedule for it. A host that runs no job worker
 deletes nothing, because the job waits in the queue. A job sweeps the tenant that
-queued it, so a schedule saved for a tenant cleans that tenant.
+queued it and no other, so a schedule saved for a tenant cleans that tenant.
 
 ```bash
 curl -X PUT 'http://localhost:5081/tracon/api/schedules/nightly-retention' \
   -H 'Content-Type: application/json' \
   -d '{ "handlerKey": "tracon.retention", "targetName": "*", "cron": "0 3 * * *", "enabled": true }'
+```
+
+Two things named `*` are easy to read as "every tenant". In `targetName`, `*` means
+every target. A policy saved under the tenant `*` is a default: it applies to each
+tenant that has no policy of its own for a target. Neither makes a job reach another
+tenant's rows.
+
+### Cleaning every tenant
+
+A multi-tenant host does not want one schedule per tenant. In the default tenant
+(`Tracon:DefaultTenantId`), save one schedule for `tracon.retention.fanout`. Each run
+queues one `tracon.retention` job for every tenant, in that tenant's own name, so
+each tenant is cleaned by its own policy: a tenant that keeps its data for a year and
+a tenant whose policy is paused are both honored. A tenant whose job from the last
+run is still waiting or running is skipped, so a slow sweep does not pile up behind
+itself.
+
+```bash
+curl -X PUT 'http://localhost:5081/tracon/api/schedules/nightly-retention-all-tenants' \
+  -H 'Content-Type: application/json' \
+  -d '{ "handlerKey": "tracon.retention.fanout", "targetName": "*", "cron": "0 3 * * *", "enabled": true }'
+```
+
+The key is not in the default list of keys `PUT /api/schedules/{name}` accepts, because
+it reaches every tenant. Name it in `Scheduling:HttpSchedulableHandlerKeys` (next to the
+keys you already allow; a non-empty list replaces the default) and save the schedule
+from the default tenant. Another tenant is refused, and a fan-out job queued for
+another tenant from code fails for good without queueing anything. A host that
+schedules from code needs no setting.
+
+The fan-out asks an `IRetentionTenantSource` which tenants exist. The built-in source
+names the default tenant, the registered tenants (`ITenantStore`) and the tenants that
+have a retention policy of their own. A tenant in none of those three, one that nobody
+registered and that never saved a policy, is not swept, because Tracon has no other
+way to learn it exists. If your tenants live elsewhere, register a source of your own before `AddTracon()`;
+it replaces the built-in one. This one reads a list from configuration, and a source
+that reads your multi-tenant framework's tenant list looks the same:
+
+```csharp
+public sealed class ConfiguredRetentionTenantSource(IConfiguration configuration) : IRetentionTenantSource
+{
+    public async IAsyncEnumerable<string> ListTenantsAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        foreach (var tenant in configuration.GetSection("Retention:Tenants").Get<string[]>() ?? [])
+        {
+            yield return tenant;
+            await Task.Yield();
+        }
+    }
+}
+```
+
+Identifiers that are not valid tenant identifiers (`*`, an empty value) are skipped and
+counted in the job's log line, and an identifier named twice is queued once.
+
+To see what a run would delete for the current tenant from your own code, take an
+`IRetentionPreviewService`. It reads the tenant of the request or job it runs in, so
+it cannot ask about another tenant, and it deletes nothing: deletion stays on the job
+queue. `GET /api/retention/preview` returns the same `RetentionPreview` entries.
+
+```csharp
+app.MapGet("/ops/retention-preview", async (IRetentionPreviewService previews, CancellationToken cancellationToken) =>
+    await previews.PreviewAsync(RetentionTargets.Sessions, cancellationToken));
 ```
 
 ## Durability also enables governance
@@ -10112,6 +10185,13 @@ key turn every built-in key off. See
 The schedule name `handler-keys` is reserved for that list: a schedule saved under it
 could not be read back, so `PUT /api/schedules/handler-keys` answers `400`.
 
+One built-in key is left out of that default list: `tracon.retention.fanout`, which
+queues a `tracon.retention` job for every tenant. It runs only in the default tenant:
+a schedule for it is refused from any other tenant, and a job of another tenant fails
+for good. A host that wants to schedule it over HTTP names it in
+`Scheduling.HttpSchedulableHandlerKeys`; only the default tenant sees it in the list
+then. See [Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant).
+
 Tracon accepts five-field cron expressions: minute, hour, day of month, month,
 and day of week. It supports `*`, fixed values, ranges, lists, and `/step`. It does
 not support seconds or the `L`, `W`, and `#` extensions. A value with a step runs from
@@ -10330,7 +10410,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
 | `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
 | `Scheduling.LaneByHandlerKey` | empty | Maps a handler key to a lane when the caller left it unset |
-| `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default. `tracon.workflow-run` is never accepted |
+| `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default. `tracon.workflow-run` is never accepted, and `tracon.retention.fanout` is accepted only when named here, from the default tenant |
 | `AsyncRun.Enabled` | `true` | A queued run request returns `501` when disabled |
 | `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries, and queued workflow runs while workflow recovery is off |
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |
@@ -18647,7 +18727,10 @@ Start with an explicit classification:
 `Tracon:Retention:Enabled` defaults to `false`. With no explicit database policy,
 nothing is eligible for deletion. Eligible rows are deleted only when the
 `tracon.retention` job runs, and nothing schedules it: call `POST /api/retention/run` or
-save a recurring schedule for it, on a host that runs the job worker. When you enable configuration defaults, run events
+save a recurring schedule for it, on a host that runs the job worker. A retention job
+cleans only the tenant it was queued for; on a multi-tenant host, save one schedule for
+`tracon.retention.fanout` in the default tenant, and it queues the job for every tenant
+([Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant)). When you enable configuration defaults, run events
 default to 30 days, tool invocations to 90 days, traces to 14 days, completed jobs to
 30 days, idempotency keys to one day, and run inputs to 30 days. Session and
 conversation deletion still need an age you set yourself, in configuration or in a
@@ -19171,7 +19254,7 @@ irreversible action. Test the crash boundary, not only the successful path.
 | Jobs do not move | Confirm a worker is enabled, shares the same SQL database, and passed the schema-ready gate |
 | A job restarted by itself | A worker holding its lease died or stalled past `LeaseDuration`; check `Attempt` and the worker's own liveness before suspecting the handler |
 | Runs are slow but the model is not | Check registered `IRunEventSink` implementations; sink dispatch is inline and its latency is paid per event |
-| Database volume grows without bound | Retention is off by default and nothing schedules the cleanup job; create and preview policies, schedule the `tracon.retention` job, then verify cleanup history and archival behavior |
+| Database volume grows without bound | Retention is off by default and nothing schedules the cleanup job; create and preview policies, schedule the `tracon.retention` job (one schedule per tenant) or `tracon.retention.fanout` once in the default tenant, then verify cleanup history and archival behavior |
 | Cost dashboards are empty | Confirm the provider reported token usage and that the exact model has a price; unknown cost is not zero |
 
 ## Read next
@@ -26306,8 +26389,11 @@ no `Enabled` of its own for a single target, which is what the two ways above ar
 A default or a policy makes rows eligible for deletion; it does not delete them. The
 `tracon.retention` job deletes, and nothing schedules it by itself: call
 `POST /api/retention/run` or save a recurring schedule for the `tracon.retention`
-handler, on a host that runs the job worker. See
-[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever).
+handler, on a host that runs the job worker. A retention job cleans one tenant, so these
+defaults apply to a tenant only when a job is queued for it: the default tenant's one
+`tracon.retention.fanout` schedule queues one for every tenant. See
+[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever)
+and [Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant).
 
 ## Endpoint options are code-only
 
@@ -34048,6 +34134,17 @@ nothing schedules that job by itself. Call `POST /api/retention/run` or save a r
 schedule for the `tracon.retention` handler. The job waits in the queue on a host that
 runs no job worker, so check that a worker is running, then read
 `GET /api/retention/history` for what each run deleted.
+
+### Retention cleans one tenant and leaves the others
+
+A retention job deletes only the rows of the tenant it was queued for, so a schedule
+saved in the default tenant cleans the default tenant and finishes green while another
+tenant's old rows stay. The `*` policy does not change that: it is each tenant's default,
+not a sweep. Save one schedule for `tracon.retention.fanout` in the default tenant, which
+queues the job for every tenant, and read `GET /api/retention/history` in each tenant.
+A tenant that nobody registered and that never saved a policy is not named by the
+built-in source; register your own `IRetentionTenantSource`. See
+[Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant).
 
 ### Diagnostics or health is missing from my deployment
 

@@ -16296,7 +16296,7 @@
               "integer",
               "string"
             ],
-            "description": "The number of rows a run would delete now: the rows older than DateTimeOffset? RetentionPreview.Cutoff. For\nstring RetentionTargets.Attachments without an IAttachmentStorage it leaves out the rows\nthat point at external content, because a run keeps them.",
+            "description": "The number of rows a run would delete now: the rows older than \u0060Cutoff\u0060. For the \u0060attachments\u0060\ntarget without an \u0060IAttachmentStorage\u0060 it leaves out the rows that point at external content, because a\nrun keeps them.",
             "format": "int64"
           }
         },

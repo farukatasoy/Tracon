@@ -16,6 +16,8 @@ public sealed class RetentionProfileCheckTests
         result.State.ShouldBe(ProductionProfileState.Permissive);
         result.Remedy.ShouldContain("tracon.retention", Case.Sensitive);
         result.Remedy.ShouldContain("nothing schedules it", Case.Sensitive);
+        result.Remedy.ShouldContain("tracon.retention.fanout", Case.Sensitive);
+        result.Remedy.ShouldContain("only the tenant it was queued for", Case.Sensitive);
         result.Remedy.ShouldContain("job worker", Case.Sensitive);
     }
 

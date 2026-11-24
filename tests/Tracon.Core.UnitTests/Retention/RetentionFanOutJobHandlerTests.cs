@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Retention;
@@ -259,6 +260,44 @@ public sealed class RetentionFanOutJobHandlerTests
         (await rig.QueuedAsync()).Count.ShouldBe(2);
     }
 
+    /// <summary>
+    /// The job has no result to show that it swept nobody, so a green job that did says it in the log at a level an
+    /// operator reads.
+    /// </summary>
+    [Fact]
+    public async Task A_source_that_names_nobody_is_logged_as_a_warning()
+    {
+        var rig = Rig([]);
+
+        await rig.Handler.ExecuteAsync(Context(), TestContext.Current.CancellationToken);
+
+        rig.Log.Warnings.ShouldHaveSingleItem().ShouldContain("found no tenant");
+    }
+
+    [Fact]
+    public async Task Identifiers_that_are_not_tenants_are_logged_as_a_warning_with_their_count()
+    {
+        var rig = Rig(["*", "acme", " "]);
+
+        await rig.Handler.ExecuteAsync(Context(), TestContext.Current.CancellationToken);
+
+        var warning = rig.Log.Warnings.ShouldHaveSingleItem();
+
+        warning.ShouldContain("skipped 2 of 3");
+        (await rig.QueuedAsync()).ShouldHaveSingleItem().TenantId.ShouldBe("acme");
+    }
+
+    [Fact]
+    public async Task A_clean_sweep_logs_its_summary_at_information_and_no_warning()
+    {
+        var rig = Rig(["acme", "tenant-b"]);
+
+        await rig.Handler.ExecuteAsync(Context(), TestContext.Current.CancellationToken);
+
+        rig.Log.Warnings.ShouldBeEmpty();
+        rig.Log.Informations.ShouldHaveSingleItem().ShouldContain("2 jobs queued");
+    }
+
     [Fact]
     public async Task A_job_without_items_runs_and_reports_nothing()
     {
@@ -282,13 +321,16 @@ public sealed class RetentionFanOutJobHandlerTests
         var source = new ScriptedSource(tenants, thenThrow, onNamed);
         var refusing = new RefusingDispatcher(dispatcher, failFor ?? []);
 
+        var log = new CapturedLog();
+
         var handler = new RetentionFanOutJobHandler(
             source,
             refusing,
             store,
-            new StaticOptionsMonitor<TraconOptions>(new TraconOptions { DefaultTenantId = defaultTenant }));
+            new StaticOptionsMonitor<TraconOptions>(new TraconOptions { DefaultTenantId = defaultTenant }),
+            log);
 
-        return new Fixture(handler, store, dispatcher, source, host);
+        return new Fixture(handler, store, dispatcher, source, host, log);
     }
 
     private static bool Is(string actual, string expected) => string.Equals(actual, expected, StringComparison.Ordinal);
@@ -334,7 +376,8 @@ public sealed class RetentionFanOutJobHandlerTests
         InMemoryJobStore Store,
         JobDispatcher Dispatcher,
         ScriptedSource Source,
-        TestJobHandlerHost Host) : IDisposable
+        TestJobHandlerHost Host,
+        CapturedLog Log) : IDisposable
     {
         public async ValueTask<IReadOnlyList<JobRecord>> QueuedAsync()
             => await Store.QueryAsync(new JobQuery { HandlerKey = JobHandlerKeys.Retention, Take = 200 }, TestContext.Current.CancellationToken);
@@ -365,6 +408,37 @@ public sealed class RetentionFanOutJobHandlerTests
         }
 
         public void Dispose() => Host.Dispose();
+    }
+
+    private sealed class CapturedLog : ILogger<RetentionFanOutJobHandler>
+    {
+        private readonly List<(LogLevel Level, string Message)> _entries = [];
+
+        public IReadOnlyList<string> Warnings => Of(LogLevel.Warning);
+
+        public IReadOnlyList<string> Informations => Of(LogLevel.Information);
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+            => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            lock (_entries)
+            {
+                _entries.Add((logLevel, formatter(state, exception)));
+            }
+        }
+
+        private List<string> Of(LogLevel level)
+        {
+            lock (_entries)
+            {
+                return [.. _entries.Where(entry => entry.Level == level).Select(static entry => entry.Message)];
+            }
+        }
     }
 
     /// <summary>Names the tenants it was given in order, then throws if told to.</summary>

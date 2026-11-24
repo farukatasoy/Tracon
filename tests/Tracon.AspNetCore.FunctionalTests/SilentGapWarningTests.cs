@@ -74,6 +74,8 @@ public sealed class SilentGapWarningTests
 
         entry.ShouldContain("tracon.retention", Case.Sensitive);
         entry.ShouldContain("nothing schedules it", Case.Sensitive);
+        entry.ShouldContain("tracon.retention.fanout", Case.Sensitive);
+        entry.ShouldContain("only the tenant it was queued for", Case.Sensitive);
     }
 
     [Fact]

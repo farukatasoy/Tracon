@@ -25809,9 +25809,9 @@ namespace Tracon.Client.Generated
         public System.DateTimeOffset? Cutoff { get; set; } = default!;
 
         /// <summary>
-        /// The number of rows a run would delete now: the rows older than DateTimeOffset? RetentionPreview.Cutoff. For
-        /// <br/>string RetentionTargets.Attachments without an IAttachmentStorage it leaves out the rows
-        /// <br/>that point at external content, because a run keeps them.
+        /// The number of rows a run would delete now: the rows older than `Cutoff`. For the `attachments`
+        /// <br/>target without an `IAttachmentStorage` it leaves out the rows that point at external content, because a
+        /// <br/>run keeps them.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("matchingRows")]
         public long MatchingRows { get; set; } = default!;

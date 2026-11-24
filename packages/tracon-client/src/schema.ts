@@ -6450,9 +6450,9 @@ export interface components {
             cutoff?: null | string;
             /**
              * Format: int64
-             * @description The number of rows a run would delete now: the rows older than DateTimeOffset? RetentionPreview.Cutoff. For
-             *     string RetentionTargets.Attachments without an IAttachmentStorage it leaves out the rows
-             *     that point at external content, because a run keeps them.
+             * @description The number of rows a run would delete now: the rows older than `Cutoff`. For the `attachments`
+             *     target without an `IAttachmentStorage` it leaves out the rows that point at external content, because a
+             *     run keeps them.
              */
             matchingRows?: number | string;
         };
