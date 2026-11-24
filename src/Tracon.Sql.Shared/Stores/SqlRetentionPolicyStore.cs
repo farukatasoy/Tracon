@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 
 namespace Tracon;
 
@@ -210,6 +211,30 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
             },
             (command, token) => DbHelpers.ReadListAsync(command, ReadRun, token),
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    [TenantAgnostic(
+        "Names the tenants that own a policy row so a fan-out can queue one job for each; it returns identifiers only and never a policy, and the '*' default is left out.")]
+    public async IAsyncEnumerable<string> ListPolicyTenantsAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        // Built per dialect: SQL Server compares the default marker by code point, because its default collation
+        // folds a full-width asterisk into '*'.
+        var sql =
+            $"SELECT DISTINCT tenant_id FROM {Dialect.QualifyTable("retention_policies")} " +
+            $"WHERE {Dialect.NotTheDefaultPolicyTenantPredicate} ORDER BY tenant_id;";
+
+        var tenants = await _context.ExecuteStatementAsync(
+            sql,
+            static _ => { },
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => reader.GetString(0), token),
+            cancellationToken).ConfigureAwait(false);
+
+        foreach (var tenant in tenants)
+        {
+            yield return tenant;
+        }
     }
 
     private static RetentionPolicy ReadPolicy(DbDataReader reader)

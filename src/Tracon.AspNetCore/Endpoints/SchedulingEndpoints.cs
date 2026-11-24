@@ -62,7 +62,10 @@ internal static class SchedulingEndpoints
                 "time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. " +
                 "'lane' defaults to 'default' and every job this schedule produces — cron-dispatched " +
                 "or manually triggered — inherits it. The name 'handler-keys' is reserved (400): " +
-                "GET /api/schedules/handler-keys uses it.");
+                "GET /api/schedules/handler-keys uses it. The key 'tracon.retention.fanout' queues " +
+                "a retention job for every tenant, so only the default tenant may schedule it, and " +
+                "it is not in the default list of keys: name it in " +
+                "TraconSchedulingOptions.HttpSchedulableHandlerKeys first.");
 
         builder.MapGet("/api/schedules/handler-keys", ListHandlerKeysAsync)
             .RequireRole(roles.Admin)
@@ -76,7 +79,9 @@ internal static class SchedulingEndpoints
                 "built-in keys unless the host set " +
                 "TraconSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full " +
                 "set of registered handlers: a handler with no entry here runs jobs queued in " +
-                "process but cannot be scheduled from outside. Admin only — a consumer's key " +
+                "process but cannot be scheduled from outside. The default list leaves out " +
+                "'tracon.retention.fanout', and a host-only key the host names is listed only " +
+                "to the default tenant. Admin only — a consumer's key " +
                 "names are deployment detail, so this list is deliberately not on the " +
                 "unauthenticated meta endpoint.");
 
@@ -172,10 +177,18 @@ internal static class SchedulingEndpoints
     }
 
     private static Ok<IReadOnlyList<string>> ListHandlerKeysAsync(
-        [FromServices] IOptionsMonitor<TraconSchedulingOptions> schedulingOptions)
+        [FromServices] IOptionsMonitor<TraconSchedulingOptions> schedulingOptions,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IOptionsMonitor<TraconOptions> coreOptions)
     {
         var allowed = schedulingOptions.CurrentValue.HttpSchedulableHandlerKeys;
-        IEnumerable<string> keys = allowed.Count == 0 ? JobHandlerKeys.BuiltIn : allowed;
+        var isDefaultTenant = HostOnlyJobHandlerKeys.IsDefaultTenant(tenants.TenantId, coreOptions.CurrentValue.DefaultTenantId);
+
+        // The built-in default leaves a host-only key out; a list the host wrote may name it, and then only the
+        // default tenant is shown it, because only the default tenant can use it.
+        IEnumerable<string> keys = allowed.Count == 0
+            ? JobHandlerKeys.BuiltIn.Where(static key => !HostOnlyJobHandlerKeys.Contains(key))
+            : allowed.Where(key => isDefaultTenant || !HostOnlyJobHandlerKeys.Contains(key));
 
         return TypedResults.Ok<IReadOnlyList<string>>(
             [.. keys.Where(static key => !IsNeverSchedulable(key))]);
@@ -187,6 +200,7 @@ internal static class SchedulingEndpoints
         [FromServices] IJobScheduleStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IOptionsMonitor<TraconSchedulingOptions> schedulingOptions,
+        [FromServices] IOptionsMonitor<TraconOptions> coreOptions,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -228,6 +242,15 @@ internal static class SchedulingEndpoints
             return InvalidSchedule(
                 $"'{request.HandlerKey}' cannot be scheduled: it carries one queued workflow run, which is " +
                 "checked when it is queued. Schedule 'tracon.workflow' to run a workflow on a schedule.");
+        }
+
+        // 🚨 A host-only key queues work for every tenant, so a tenant other than the default one is refused
+        // here, before the allow-list is read: telling it to add the key to the list would be wrong advice.
+        if (HostOnlyJobHandlerKeys.Contains(request.HandlerKey)
+            && !HostOnlyJobHandlerKeys.IsDefaultTenant(tenants.TenantId, coreOptions.CurrentValue.DefaultTenantId))
+        {
+            return InvalidSchedule(
+                $"'{request.HandlerKey}' can be scheduled only by the default tenant: it queues work for every tenant.");
         }
 
         if (!IsSchedulableOverHttp(request.HandlerKey, schedulingOptions.CurrentValue))
@@ -549,7 +572,9 @@ internal static class SchedulingEndpoints
     /// An empty <see cref="TraconSchedulingOptions.HttpSchedulableHandlerKeys"/>
     /// means the built-in keys only, which is exactly what the endpoint
     /// accepted before handler keys existed — an upgraded deployment keeps
-    /// working with no configuration change.
+    /// working with no configuration change. A host-only key
+    /// (<see cref="JobHandlerKeys.RetentionFanOut"/>) is not part of that default:
+    /// a host opts in by naming it.
     /// </remarks>
     private static bool IsSchedulableOverHttp(string? handlerKey, TraconSchedulingOptions options)
     {
@@ -566,7 +591,7 @@ internal static class SchedulingEndpoints
         var allowed = options.HttpSchedulableHandlerKeys;
 
         return allowed.Count == 0
-            ? JobHandlerKeys.BuiltIn.Contains(handlerKey, StringComparer.Ordinal)
+            ? JobHandlerKeys.BuiltIn.Contains(handlerKey, StringComparer.Ordinal) && !HostOnlyJobHandlerKeys.Contains(handlerKey)
             : allowed.Contains(handlerKey, StringComparer.Ordinal);
     }
 

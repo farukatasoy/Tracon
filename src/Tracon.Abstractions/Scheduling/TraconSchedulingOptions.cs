@@ -129,7 +129,8 @@ public sealed class TraconSchedulingOptions
     /// <summary>
     /// The handler keys <c>PUT /api/schedules/{name}</c> accepts. Empty — the
     /// default — means the built-in keys only (<see cref="JobHandlerKeys.BuiltIn"/>),
-    /// except <see cref="JobHandlerKeys.WorkflowRun"/>, which no list can allow.
+    /// except <see cref="JobHandlerKeys.WorkflowRun"/>, which no list can allow, and
+    /// <see cref="JobHandlerKeys.RetentionFanOut"/>, which a host has to name itself.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -148,6 +149,14 @@ public sealed class TraconSchedulingOptions
     /// consumer that wants both adds the built-in keys it needs alongside its
     /// own, for example
     /// <c>[.. JobHandlerKeys.BuiltIn, "contoso.nightly-report"]</c>.
+    /// </para>
+    /// <para>
+    /// <see cref="JobHandlerKeys.RetentionFanOut"/> queues a retention job for every
+    /// tenant, so it is the one built-in key the default list leaves out. A host that
+    /// wants to schedule it over HTTP names it here (a list that spreads
+    /// <see cref="JobHandlerKeys.BuiltIn"/> names it too); the endpoint then accepts it
+    /// from the default tenant only. Scheduling it from code
+    /// (<c>IJobScheduleStore</c>) needs no entry.
     /// </para>
     /// <para>
     /// It restricts only the HTTP schedule endpoint. Code paths inside the

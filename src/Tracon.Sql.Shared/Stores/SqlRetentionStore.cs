@@ -697,8 +697,8 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// query per run, and only a run without a storage pays it.
     /// </para>
     /// <para>
-    /// The line names the count and nothing else: no tenant (the installation-wide policy spans all of them)
-    /// and no location (it can be a signed URL).
+    /// The line names the count and nothing else: no tenant (a run is of one tenant, but the line is read by
+    /// operators of every tenant) and no location (it can be a signed URL).
     /// </para>
     /// </remarks>
     private async ValueTask LogKeptExternalAttachmentsAtTheEndOfARunAsync(

@@ -436,12 +436,76 @@ A policy or a default only says what is eligible. Rows are deleted when the
 `tracon.retention` job runs, and nothing schedules that job for you: call the `run`
 endpoint, or save a recurring schedule for it. A host that runs no job worker
 deletes nothing, because the job waits in the queue. A job sweeps the tenant that
-queued it, so a schedule saved for a tenant cleans that tenant.
+queued it and no other, so a schedule saved for a tenant cleans that tenant.
 
 ```bash
 curl -X PUT 'http://localhost:5081/tracon/api/schedules/nightly-retention' \
   -H 'Content-Type: application/json' \
   -d '{ "handlerKey": "tracon.retention", "targetName": "*", "cron": "0 3 * * *", "enabled": true }'
+```
+
+Two things named `*` are easy to read as "every tenant". In `targetName`, `*` means
+every target. A policy saved under the tenant `*` is a default: it applies to each
+tenant that has no policy of its own for a target. Neither makes a job reach another
+tenant's rows.
+
+### Cleaning every tenant
+
+A multi-tenant host does not want one schedule per tenant. In the default tenant
+(`Tracon:DefaultTenantId`), save one schedule for `tracon.retention.fanout`. Each run
+queues one `tracon.retention` job for every tenant, in that tenant's own name, so
+each tenant is cleaned by its own policy: a tenant that keeps its data for a year and
+a tenant whose policy is paused are both honored. A tenant whose job from the last
+run is still waiting or running is skipped, so a slow sweep does not pile up behind
+itself.
+
+```bash
+curl -X PUT 'http://localhost:5081/tracon/api/schedules/nightly-retention-all-tenants' \
+  -H 'Content-Type: application/json' \
+  -d '{ "handlerKey": "tracon.retention.fanout", "targetName": "*", "cron": "0 3 * * *", "enabled": true }'
+```
+
+The key is not in the default list of keys `PUT /api/schedules/{name}` accepts, because
+it reaches every tenant. Name it in `Scheduling:HttpSchedulableHandlerKeys` (next to the
+keys you already allow; a non-empty list replaces the default) and save the schedule
+from the default tenant. Another tenant is refused, and a fan-out job queued for
+another tenant from code fails for good without queueing anything. A host that
+schedules from code needs no setting.
+
+The fan-out asks an `IRetentionTenantSource` which tenants exist. The built-in source
+names the default tenant, the registered tenants (`ITenantStore`) and the tenants that
+have a retention policy of their own. A tenant in none of those three, one that nobody
+registered and that never saved a policy, is not swept, because Tracon has no other
+way to learn it exists. If your tenants live elsewhere, register a source of your own before `AddTracon()`;
+it replaces the built-in one. This one reads a list from configuration, and a source
+that reads your multi-tenant framework's tenant list looks the same:
+
+```csharp
+public sealed class ConfiguredRetentionTenantSource(IConfiguration configuration) : IRetentionTenantSource
+{
+    public async IAsyncEnumerable<string> ListTenantsAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        foreach (var tenant in configuration.GetSection("Retention:Tenants").Get<string[]>() ?? [])
+        {
+            yield return tenant;
+            await Task.Yield();
+        }
+    }
+}
+```
+
+Identifiers that are not valid tenant identifiers (`*`, an empty value) are skipped and
+counted in the job's log line, and an identifier named twice is queued once.
+
+To see what a run would delete for the current tenant from your own code, take an
+`IRetentionPreviewService`. It reads the tenant of the request or job it runs in, so
+it cannot ask about another tenant, and it deletes nothing: deletion stays on the job
+queue. `GET /api/retention/preview` returns the same `RetentionPreview` entries.
+
+```csharp
+app.MapGet("/ops/retention-preview", async (IRetentionPreviewService previews, CancellationToken cancellationToken) =>
+    await previews.PreviewAsync(RetentionTargets.Sessions, cancellationToken));
 ```
 
 ## Durability also enables governance

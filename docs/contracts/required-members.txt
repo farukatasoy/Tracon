@@ -278,6 +278,7 @@ Tracon.RetentionPolicy.Id
 Tracon.RetentionPolicy.Target
 Tracon.RetentionPolicy.TenantId
 Tracon.RetentionPolicy.UpdatedAt
+Tracon.RetentionPreview.Target
 Tracon.RetentionRun.Id
 Tracon.RetentionRun.StartedAt
 Tracon.RetentionRun.Target

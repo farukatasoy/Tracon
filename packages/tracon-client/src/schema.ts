@@ -926,7 +926,7 @@ export interface paths {
         get: operations["TraconGetSchedule"];
         /**
          * Creates or updates a schedule.
-         * @description The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it. The name 'handler-keys' is reserved (400): GET /api/schedules/handler-keys uses it.
+         * @description The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it. The name 'handler-keys' is reserved (400): GET /api/schedules/handler-keys uses it. The key 'tracon.retention.fanout' queues a retention job for every tenant, so only the default tenant may schedule it, and it is not in the default list of keys: name it in TraconSchedulingOptions.HttpSchedulableHandlerKeys first.
          */
         put: operations["TraconSaveSchedule"];
         post?: never;
@@ -949,7 +949,7 @@ export interface paths {
         };
         /**
          * Lists the handler keys a schedule may be created for.
-         * @description The allow-list PUT /api/schedules/{name} enforces, so a client can offer exactly the keys that will be accepted rather than guessing. It is Tracon's own built-in keys unless the host set TraconSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full set of registered handlers: a handler with no entry here runs jobs queued in process but cannot be scheduled from outside. Admin only — a consumer's key names are deployment detail, so this list is deliberately not on the unauthenticated meta endpoint.
+         * @description The allow-list PUT /api/schedules/{name} enforces, so a client can offer exactly the keys that will be accepted rather than guessing. It is Tracon's own built-in keys unless the host set TraconSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full set of registered handlers: a handler with no entry here runs jobs queued in process but cannot be scheduled from outside. The default list leaves out 'tracon.retention.fanout', and a host-only key the host names is listed only to the default tenant. Admin only — a consumer's key names are deployment detail, so this list is deliberately not on the unauthenticated meta endpoint.
          */
         get: operations["TraconListSchedulableHandlerKeys"];
         put?: never;
@@ -2001,7 +2001,7 @@ export interface paths {
         };
         /**
          * Shows how many rows would be deleted if run now. Does NOT delete.
-         * @description Run this before every cleanup: it is the only way to see the size of a deletion before it happens. The counts are computed against the data as it is right now, so they are an estimate — rows written between the preview and the run are included by the run. Without '?target=' every configured target is previewed; an unknown target name returns 400. Nothing is written and no job is queued.
+         * @description Run this before every cleanup: it is the only way to see the size of a deletion before it happens. It reads the calling tenant's rows and policy only: a cleanup is always one tenant's. The counts are computed against the data as it is right now, so they are an estimate — rows written between the preview and the run are included by the run. Without '?target=' every configured target is previewed; an unknown target name returns 400. Nothing is written and no job is queued.
          */
         get: operations["TraconPreviewRetention"];
         put?: never;
@@ -2023,7 +2023,7 @@ export interface paths {
         put?: never;
         /**
          * Runs the cleanup now.
-         * @description Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, so nothing is deleted on a host that runs no job worker. Nothing schedules this job by itself: call this endpoint or add a recurring schedule for the tracon.retention handler.
+         * @description Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, so nothing is deleted on a host that runs no job worker. The job cleans the calling tenant's rows only, whatever its policy is. Nothing schedules this job by itself: call this endpoint or add a recurring schedule for the tracon.retention handler. To clean every tenant from one schedule, the default tenant schedules the tracon.retention.fanout handler, which queues one tracon.retention job for each tenant.
          */
         post: operations["TraconRunRetention"];
         delete?: never;
@@ -6432,25 +6432,27 @@ export interface components {
              */
             enabled?: boolean;
         };
-        /** @description A preview of "how many rows would be deleted if run now" for a target. */
+        /** @description What a retention run would delete now for one target of the current tenant. */
         RetentionPreview: {
-            /** @description The previewed target. */
+            /** @description The previewed target. See RetentionTargets. */
             target: string;
             /**
              * Format: int32
-             * @description `null` if no policy was found (nothing would be deleted).
+             * @description The age in days past which a row is deleted. `null` when no policy applies.
              */
             maxAgeDays?: null | number | string;
-            /** @description Whether the policy is enabled. */
+            /** @description Whether a policy that deletes applies to the target for this tenant. */
             enabled?: boolean;
             /**
              * Format: date-time
-             * @description The computed cutoff date (UTC). `null` if there is no policy.
+             * @description The cutoff date (UTC): rows older than it would be deleted. `null` when no policy applies.
              */
             cutoff?: null | string;
             /**
              * Format: int64
-             * @description The number of rows a run would delete now: the rows older than the cutoff date, without the attachment rows that point at external content when no attachment storage is registered.
+             * @description The number of rows a run would delete now: the rows older than DateTimeOffset? RetentionPreview.Cutoff. For
+             *     string RetentionTargets.Attachments without an IAttachmentStorage it leaves out the rows
+             *     that point at external content, because a run keeps them.
              */
             matchingRows?: number | string;
         };

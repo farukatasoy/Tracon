@@ -14,6 +14,11 @@ namespace Tracon;
 /// upgrade must not delete data before a consumer adds configuration. This flag
 /// must explicitly be <see langword="true"/> before configuration defaults apply.
 /// </para>
+/// <para>
+/// The defaults apply to every tenant that has no policy of its own, but a retention job
+/// reads them for the one tenant it was queued for: a tenant that no job is queued for keeps
+/// its rows. <see cref="JobHandlerKeys.RetentionFanOut"/> queues the job for every tenant.
+/// </para>
 /// </remarks>
 public sealed class TraconRetentionOptions
 {

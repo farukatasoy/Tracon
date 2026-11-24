@@ -5,8 +5,9 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>
-/// Provides shared logic for preview and actual cleanup runs. <see cref="RetentionJobHandler"/>
-/// and the <c>RetentionEndpoints</c> "run now" and "preview" endpoints use it.
+/// Provides shared logic for preview and actual cleanup runs of ONE tenant. <see cref="RetentionJobHandler"/>
+/// runs the cleanup from the job queue, and <see cref="RetentionPreviewService"/> (the "preview" endpoint)
+/// reads what a cleanup would delete. The "run now" endpoint queues a job; it does not call this type.
 /// </summary>
 internal sealed class RetentionExecutor(
     IRetentionPolicyStore policyStore,

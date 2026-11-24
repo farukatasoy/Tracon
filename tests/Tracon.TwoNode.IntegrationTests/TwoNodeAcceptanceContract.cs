@@ -11,7 +11,7 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// Two hosts share ONE database and nothing else the application would not share: each has its own DI container, its
 /// own cancellation registry, its own job worker, its own MCP tool catalog and its own pending OAuth flows. A
 /// scenario passes only if the behaviour crosses the database (or, for the OAuth token, the distributed cache the
-/// deployment shares). Six behaviours, one partial file each:
+/// deployment shares). Seven behaviours, one partial file each:
 /// </para>
 /// <list type="number">
 /// <item><description>Cancel of a run that another node executes, direct and queued (<c>.Cancel.cs</c>).</description></item>
@@ -20,6 +20,7 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// <item><description>An MCP tool is listed on both nodes while single-executor election is on (<c>.McpDiscovery.cs</c>).</description></item>
 /// <item><description>The job lease changes hands when a worker process dies - separate operating-system processes, so it lives in the provider projects (<c>TwoProcessLeaseTakeoverContract</c>).</description></item>
 /// <item><description>A tenant's workflow concurrency across both nodes (<c>.WorkflowConcurrency.cs</c>).</description></item>
+/// <item><description>One retention fan-out queues one job for each tenant, and the two workers run each once (<c>.RetentionFanOut.cs</c>).</description></item>
 /// </list>
 /// <para>
 /// A provider's class derives from this one and says which server it runs on. The scenarios are the same on

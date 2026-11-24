@@ -418,6 +418,28 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetRequiredService<RetentionExecutor>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<RetentionJobHandler>>()));
 
+        // A retention job cleans the tenant it was queued for. Which tenants an installation has is the host's to
+        // say, so the fan-out asks a seam; the default knows the registered tenants, the tenants that own a policy
+        // and the default tenant. Nothing schedules the fan-out: that is the host's one registration.
+        services.TryAddSingleton<IRetentionTenantSource>(static provider => new DefaultRetentionTenantSource(
+            provider.GetRequiredService<ITenantStore>(),
+            provider.GetRequiredService<IRetentionPolicyStore>(),
+            provider.GetRequiredService<IOptionsMonitor<TraconOptions>>()));
+
+        services.AddBuiltInJobHandler(
+            JobHandlerKeys.RetentionFanOut,
+            static provider => new RetentionFanOutJobHandler(
+                provider.GetRequiredService<IRetentionTenantSource>(),
+                provider.GetRequiredService<IJobDispatcher>(),
+                provider.GetRequiredService<IJobStore>(),
+                provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<RetentionFanOutJobHandler>>()));
+
+        // Reads what a retention run would delete for the current tenant. The host's own registration wins.
+        services.TryAddSingleton<IRetentionPreviewService>(static provider => new RetentionPreviewService(
+            provider.GetRequiredService<RetentionExecutor>(),
+            provider.GetRequiredService<ITenantContext>()));
+
         // 🚨 Built BEFORE the worker's first tick and before the migrations:
         // a duplicate or reserved handler key must break the host's START, not
         // surface later as one swallowed background log line.

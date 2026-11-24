@@ -700,6 +700,15 @@ or save a recurring schedule for the `tracon.retention` handler (see
 [Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever)).
 A host that runs no job worker deletes nothing.
 
+A retention job is one tenant's. It reads that tenant's policy and deletes that tenant's
+rows, whatever the policy is, so the `run` endpoint cleans the calling tenant and a
+schedule cleans the tenant it belongs to. The `*` policy is not a sweep across tenants:
+it is the default each tenant without a policy of its own is given, and every tenant
+still needs its own job. The default tenant schedules `tracon.retention.fanout` once to
+queue that job for every tenant, and `IRetentionTenantSource` says which tenants exist
+([Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant)). Every
+tenant's history holds its own runs.
+
 ```bash
 curl 'http://localhost:5081/tracon/api/retention/preview'
 curl -X POST 'http://localhost:5081/tracon/api/retention/run'

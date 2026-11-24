@@ -97,4 +97,25 @@ public interface IRetentionPolicyStore
         int skip,
         int take,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Lists the tenants that have a policy of their own.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The tenant identifiers that own at least one policy row, switched off or on, each once. The <c>"*"</c> default
+    /// is not a tenant and is not listed.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The built-in <see cref="IRetentionTenantSource"/> uses it, so that a tenant that saved a policy is swept by
+    /// <see cref="JobHandlerKeys.RetentionFanOut"/> even when nobody registered the tenant. A policy that is switched
+    /// off still names the tenant: its job is queued and finds the policy off, which is the tenant's own choice.
+    /// </para>
+    /// <para>
+    /// This member is tenant-independent: it is the one call of this store that reads every tenant, and it returns
+    /// identifiers only, never a policy. A store written before this member existed keeps compiling and lists no
+    /// tenant, so the built-in source then falls back to the registered tenants and the default tenant.
+    /// </para>
+    /// </remarks>
+    IAsyncEnumerable<string> ListPolicyTenantsAsync(CancellationToken cancellationToken = default)
+        => System.Linq.AsyncEnumerable.Empty<string>();
 }

@@ -78,7 +78,6 @@ IQuotaStore:delivery
 IQuotaStore:lifetime
 IQuotaStore:tenant
 IRetentionPolicyStore:delivery
-IRetentionPolicyStore:tenant
 IRetentionStore:delivery
 IRetentionStore:tenant
 IRunAttributionContext:delivery

@@ -15,7 +15,10 @@ namespace Tracon;
 /// The <c>preview</c> endpoint is mandatory: no one should start a deletion
 /// without knowing how much data it will delete. No endpoint deletes directly
 /// — even the <c>run</c> endpoint enqueues a job (<see cref="JobHandlerKeys.Retention"/>);
-/// it does not run synchronously.
+/// it does not run synchronously. Every endpoint works on the calling tenant:
+/// the job it queues cleans that tenant's rows only, and the preview counts that
+/// tenant's rows only. Cleaning every tenant is the fan-out job
+/// (<see cref="JobHandlerKeys.RetentionFanOut"/>), which the default tenant schedules.
 /// </para>
 /// <para>
 /// All dependencies are explicitly marked with <c>[FromServices]</c>.
@@ -49,7 +52,8 @@ internal static class RetentionEndpoints
             .WithSummary("Shows how many rows would be deleted if run now. Does NOT delete.")
             .WithDescription(
                 "Run this before every cleanup: it is the only way to see the size of a deletion " +
-                "before it happens. The counts are computed against the data as it is right now, " +
+                "before it happens. It reads the calling tenant's rows and policy only: a cleanup " +
+                "is always one tenant's. The counts are computed against the data as it is right now, " +
                 "so they are an estimate — rows written between the preview and the run are " +
                 "included by the run. Without '?target=' every configured target is previewed; " +
                 "an unknown target name returns 400. Nothing is written and no job is queued.");
@@ -62,8 +66,11 @@ internal static class RetentionEndpoints
             .WithSummary("Runs the cleanup now.")
             .WithDescription(
                 "Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, " +
-                "so nothing is deleted on a host that runs no job worker. Nothing schedules this job by " +
-                "itself: call this endpoint or add a recurring schedule for the tracon.retention handler.");
+                "so nothing is deleted on a host that runs no job worker. The job cleans the calling " +
+                "tenant's rows only, whatever its policy is. Nothing schedules this job by " +
+                "itself: call this endpoint or add a recurring schedule for the tracon.retention handler. " +
+                "To clean every tenant from one schedule, the default tenant schedules the " +
+                "tracon.retention.fanout handler, which queues one tracon.retention job for each tenant.");
 
         builder.MapGet("/api/retention/history", HistoryAsync)
             .RequireRole(roles.Admin)
@@ -269,18 +276,16 @@ internal static class RetentionEndpoints
 
     private static async Task<Results<Ok<IReadOnlyList<RetentionPreview>>, ProblemHttpResult>> PreviewAsync(
         [FromQuery] string? target,
-        [FromServices] RetentionExecutor executor,
-        [FromServices] ITenantContext tenants,
+        [FromServices] IRetentionPreviewService previews,
         CancellationToken cancellationToken)
     {
-        var tenantId = AmbientTenantScope.Normalize(tenants.TenantId);
-
         if (target is not null && !RetentionTargets.IsKnown(target))
         {
             return UnknownTarget(target);
         }
 
-        var preview = await executor.PreviewAsync(tenantId, target, cancellationToken).ConfigureAwait(false);
+        // The service reads the caller's tenant from the same context this endpoint used to read it from.
+        var preview = await previews.PreviewAsync(target, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(preview);
     }

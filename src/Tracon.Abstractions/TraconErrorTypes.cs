@@ -140,6 +140,9 @@ public static class TraconErrorTypes
     /// <summary>The host's tenant scope (<see cref="IHostTenantScope"/>) could not be opened for the job's tenant.</summary>
     public const string JobHostTenantScopeFailed = "tracon.job.host-tenant-scope-failed";
 
+    /// <summary>A handler that runs only in the installation's default tenant was queued for another tenant.</summary>
+    public const string JobHostOnlyHandlerRefused = "tracon.job.host-only-handler-refused";
+
     /// <summary>The attempt ran longer than the job's time limit.</summary>
     public const string JobMaxDurationExceededCode = "tracon.job.max-duration-exceeded";
 

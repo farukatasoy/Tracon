@@ -110,11 +110,15 @@ public sealed class SchedulableHandlerKeyTests
         var keys = (await TraconTestHost.ReadJsonAsync(response))
             .EnumerateArray().Select(static key => key.GetString()).ToArray();
 
-        // A queued workflow run is never schedulable, so the list leaves it out.
+        // A queued workflow run is never schedulable, and the retention fan-out is host-only and opt-in, so the
+        // default list leaves both out.
         keys.ShouldBe(
-            [.. JobHandlerKeys.BuiltIn.Where(static key => !string.Equals(key, JobHandlerKeys.WorkflowRun, StringComparison.Ordinal))],
+            [.. JobHandlerKeys.BuiltIn.Where(static key =>
+                !string.Equals(key, JobHandlerKeys.WorkflowRun, StringComparison.Ordinal)
+                && !string.Equals(key, JobHandlerKeys.RetentionFanOut, StringComparison.Ordinal))],
             ignoreOrder: true);
         keys.ShouldNotContain(static key => string.Equals(key, JobHandlerKeys.WorkflowRun, StringComparison.Ordinal));
+        keys.ShouldNotContain(static key => string.Equals(key, JobHandlerKeys.RetentionFanOut, StringComparison.Ordinal));
     }
 
     /// <summary>

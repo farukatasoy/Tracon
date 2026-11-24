@@ -82,11 +82,42 @@ public static partial class JobHandlerKeys
     public const string WebhookDelivery = "tracon.webhook-delivery";
 
     /// <summary>
-    /// A retention sweep. <see cref="JobRecord.TargetName"/> is either a
-    /// specific <see cref="RetentionTargets"/> value or <c>"*"</c>, which
-    /// processes all enabled policies.
+    /// A retention sweep of ONE tenant: the tenant the job was queued for.
+    /// <see cref="JobRecord.TargetName"/> is either a specific
+    /// <see cref="RetentionTargets"/> value or <c>"*"</c>, which means every
+    /// target (not every tenant).
     /// </summary>
+    /// <remarks>
+    /// The job reads that tenant's policy (its own, else the <c>"*"</c> default
+    /// that every tenant without one is given, else the configuration default)
+    /// and deletes only that tenant's rows. A schedule belongs to one tenant, so
+    /// a schedule of this key cleans one tenant. To clean every tenant from one
+    /// schedule, use <see cref="RetentionFanOut"/>.
+    /// </remarks>
     public const string Retention = "tracon.retention";
+
+    /// <summary>
+    /// Queues one <see cref="Retention"/> job for every tenant that
+    /// <see cref="IRetentionTenantSource"/> names.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A host-only key: the job runs only in the installation's default tenant
+    /// (<c>TraconOptions.DefaultTenantId</c>). A job of another tenant fails
+    /// without queueing anything, because this key reaches every tenant's
+    /// retention. Register ONE schedule for it in that tenant, with a cron
+    /// expression and the target <c>"*"</c> (or one
+    /// <see cref="RetentionTargets"/> value, which each queued job then sweeps
+    /// for its tenant). It is not in the default list of keys
+    /// <c>PUT /api/schedules</c> accepts: a host that wants to schedule it over
+    /// HTTP names it in <c>TraconSchedulingOptions.HttpSchedulableHandlerKeys</c>,
+    /// and the endpoint then accepts it only from the default tenant.
+    /// </para>
+    /// <para>
+    /// Nothing queues this job by itself: Tracon registers no schedule for it.
+    /// </para>
+    /// </remarks>
+    public const string RetentionFanOut = "tracon.retention.fanout";
 
     /// <summary>A single queued (durable) agent run.</summary>
     /// <remarks>
@@ -136,6 +167,7 @@ public static partial class JobHandlerKeys
         Eval,
         WebhookDelivery,
         Retention,
+        RetentionFanOut,
         AgentRun,
         OnlineEval,
         ApprovalResume,

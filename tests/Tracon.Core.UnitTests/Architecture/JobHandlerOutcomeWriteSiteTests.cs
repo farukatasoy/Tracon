@@ -36,6 +36,8 @@ public sealed partial class JobHandlerOutcomeWriteSiteTests
             "the write that closes the run is outside the cases' try and goes through JobOutcomeWriteRetry; so does the write that records a failed attempt, which must not replace the failure the worker judges; a per-case report error ends the attempt, as for batches",
         ["src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs"] =
             "a failed score write is compensated and the judge runs again on the retry - deliberate, a half-written set would freeze the checkpoint",
+        ["src/Tracon.Core/Retention/RetentionFanOutJobHandler.cs"] =
+            "the report is outside the fan-out's try; a report error ends the attempt, and the repeat finds each tenant's job already waiting or running and queues no second one (RetentionFanOutJobHandlerTests)",
         ["src/Tracon.Core/Retention/RetentionJobHandler.cs"] =
             "the success report is outside the sweep's try; a report error ends the attempt, and the sweep is safe to repeat",
         ["src/Tracon.Core/Scheduling/AgentBatchJobHandler.cs"] =

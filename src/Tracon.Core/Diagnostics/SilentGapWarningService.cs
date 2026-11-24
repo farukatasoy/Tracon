@@ -120,8 +120,10 @@ internal sealed class SilentGapWarningService(
             "explicit database retention policy exists for every target you care about. Set " +
             "Enabled to true to apply the configuration-based defaults, or register a policy " +
             "through IRetentionPolicyStore. Either way rows are deleted only when the tracon.retention " +
-            "job runs, and nothing schedules it: add a recurring schedule for it or call " +
-            "POST /api/retention/run, on a host that runs the job worker. " +
+            "job runs, and nothing schedules it. A retention job cleans only the tenant it was queued for: " +
+            "call POST /api/retention/run in each tenant, or add one recurring schedule for " +
+            "tracon.retention.fanout in the default tenant, which queues a job for every tenant. " +
+            "Both need a host that runs the job worker. " +
             "Unbounded retention is a supported mode; this message " +
             "reports the configuration, it does not report a broken setup.");
     }

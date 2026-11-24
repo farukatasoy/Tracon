@@ -22,7 +22,7 @@ namespace Tracon.Generators.UnitTests.Examples;
 /// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>, <c>GitAgentDefinitionSource</c>,
 /// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>, <c>PolicyContextExtension</c>, <c>ModelCallLogChatClient</c>,
 /// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>, <c>TtsSettings</c>,
-/// <c>StudioSpeechSynthesizer</c>, <c>OnPremiseTranscriber</c>, <c>StudioTextToSpeechClient</c>, <c>StudioSpeechToTextClient</c>, <c>NarrationSettings</c>): "a
+/// <c>StudioSpeechSynthesizer</c>, <c>OnPremiseTranscriber</c>, <c>StudioTextToSpeechClient</c>, <c>StudioSpeechToTextClient</c>, <c>NarrationSettings</c>, <c>ITenantDirectory</c>): "a
 /// provider/tool/service/repository/handler/source/judge/decorator/authorization you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
@@ -199,6 +199,12 @@ internal static class ExamplePrelude
         internal interface IOrderRepository
         {
             Task<string> GetAsync(string orderId);
+        }
+
+        // Stands in for "your own tenant directory" (the multi-tenant framework's tenant repository), named in one <example> only.
+        public interface ITenantDirectory
+        {
+            IAsyncEnumerable<string> ListTenantKeysAsync(CancellationToken cancellationToken);
         }
 
         // Stands in for "your own scheduled job", named in one <example> only.

@@ -171,6 +171,20 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         return new ValueTask<IReadOnlyList<RetentionRun>>(result);
     }
 
+    /// <inheritdoc />
+    public IAsyncEnumerable<string> ListPolicyTenantsAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return _policies.Values
+            .Select(static policy => policy.TenantId)
+            .Where(static tenantId => !string.Equals(tenantId, RetentionPolicyTenant.AllTenants, StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToList()
+            .ToAsyncEnumerable();
+    }
+
     private RetentionPolicy? Find(string tenantId, string target)
         => _policies.Values.FirstOrDefault(candidate =>
             Matches(candidate.TenantId, tenantId)

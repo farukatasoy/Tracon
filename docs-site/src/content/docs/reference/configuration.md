@@ -726,8 +726,11 @@ no `Enabled` of its own for a single target, which is what the two ways above ar
 A default or a policy makes rows eligible for deletion; it does not delete them. The
 `tracon.retention` job deletes, and nothing schedules it by itself: call
 `POST /api/retention/run` or save a recurring schedule for the `tracon.retention`
-handler, on a host that runs the job worker. See
-[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever).
+handler, on a host that runs the job worker. A retention job cleans one tenant, so these
+defaults apply to a tenant only when a job is queued for it: the default tenant's one
+`tracon.retention.fanout` schedule queues one for every tenant. See
+[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever)
+and [Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant).
 
 ## Endpoint options are code-only
 

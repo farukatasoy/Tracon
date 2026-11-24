@@ -6527,7 +6527,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a schedule.
         /// </summary>
         /// <remarks>
-        /// The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it. The name 'handler-keys' is reserved (400): GET /api/schedules/handler-keys uses it.
+        /// The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it. The name 'handler-keys' is reserved (400): GET /api/schedules/handler-keys uses it. The key 'tracon.retention.fanout' queues a retention job for every tenant, so only the default tenant may schedule it, and it is not in the default list of keys: name it in TraconSchedulingOptions.HttpSchedulableHandlerKeys first.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -6700,7 +6700,7 @@ namespace Tracon.Client.Generated
         /// Lists the handler keys a schedule may be created for.
         /// </summary>
         /// <remarks>
-        /// The allow-list PUT /api/schedules/{name} enforces, so a client can offer exactly the keys that will be accepted rather than guessing. It is Tracon's own built-in keys unless the host set TraconSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full set of registered handlers: a handler with no entry here runs jobs queued in process but cannot be scheduled from outside. Admin only — a consumer's key names are deployment detail, so this list is deliberately not on the unauthenticated meta endpoint.
+        /// The allow-list PUT /api/schedules/{name} enforces, so a client can offer exactly the keys that will be accepted rather than guessing. It is Tracon's own built-in keys unless the host set TraconSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full set of registered handlers: a handler with no entry here runs jobs queued in process but cannot be scheduled from outside. The default list leaves out 'tracon.retention.fanout', and a host-only key the host names is listed only to the default tenant. Admin only — a consumer's key names are deployment detail, so this list is deliberately not on the unauthenticated meta endpoint.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -12577,7 +12577,7 @@ namespace Tracon.Client.Generated
         /// Shows how many rows would be deleted if run now. Does NOT delete.
         /// </summary>
         /// <remarks>
-        /// Run this before every cleanup: it is the only way to see the size of a deletion before it happens. The counts are computed against the data as it is right now, so they are an estimate — rows written between the preview and the run are included by the run. Without '?target=' every configured target is previewed; an unknown target name returns 400. Nothing is written and no job is queued.
+        /// Run this before every cleanup: it is the only way to see the size of a deletion before it happens. It reads the calling tenant's rows and policy only: a cleanup is always one tenant's. The counts are computed against the data as it is right now, so they are an estimate — rows written between the preview and the run are included by the run. Without '?target=' every configured target is previewed; an unknown target name returns 400. Nothing is written and no job is queued.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -12660,7 +12660,7 @@ namespace Tracon.Client.Generated
         /// Runs the cleanup now.
         /// </summary>
         /// <remarks>
-        /// Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, so nothing is deleted on a host that runs no job worker. Nothing schedules this job by itself: call this endpoint or add a recurring schedule for the tracon.retention handler.
+        /// Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, so nothing is deleted on a host that runs no job worker. The job cleans the calling tenant's rows only, whatever its policy is. Nothing schedules this job by itself: call this endpoint or add a recurring schedule for the tracon.retention handler. To clean every tenant from one schedule, the default tenant schedules the tracon.retention.fanout handler, which queues one tracon.retention job for each tenant.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -25778,38 +25778,40 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
-    /// A preview of "how many rows would be deleted if run now" for a target.
+    /// What a retention run would delete now for one target of the current tenant.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class RetentionPreview
     {
 
         /// <summary>
-        /// The previewed target.
+        /// The previewed target. See RetentionTargets.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("target")]
         public string Target { get; set; } = default!;
 
         /// <summary>
-        /// `null` if no policy was found (nothing would be deleted).
+        /// The age in days past which a row is deleted. `null` when no policy applies.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("maxAgeDays")]
         public int? MaxAgeDays { get; set; } = default!;
 
         /// <summary>
-        /// Whether the policy is enabled.
+        /// Whether a policy that deletes applies to the target for this tenant.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
         public bool Enabled { get; set; } = default!;
 
         /// <summary>
-        /// The computed cutoff date (UTC). `null` if there is no policy.
+        /// The cutoff date (UTC): rows older than it would be deleted. `null` when no policy applies.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("cutoff")]
         public System.DateTimeOffset? Cutoff { get; set; } = default!;
 
         /// <summary>
-        /// The number of rows a run would delete now: the rows older than the cutoff date, without the attachment rows that point at external content when no attachment storage is registered.
+        /// The number of rows a run would delete now: the rows older than DateTimeOffset? RetentionPreview.Cutoff. For
+        /// <br/>string RetentionTargets.Attachments without an IAttachmentStorage it leaves out the rows
+        /// <br/>that point at external content, because a run keeps them.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("matchingRows")]
         public long MatchingRows { get; set; } = default!;

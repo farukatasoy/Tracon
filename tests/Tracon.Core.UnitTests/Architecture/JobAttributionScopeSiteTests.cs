@@ -40,6 +40,8 @@ public sealed partial class JobAttributionScopeSiteTests
             (false, "starts eval case runs with no user and no labels; whether an eval carries the attribution of whoever queued it is an open decision"),
         ["src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs"] =
             (false, "runs a judge over a finished run; the judge rows belong to the platform, not to a user"),
+        ["src/Tracon.Core/Retention/RetentionFanOutJobHandler.cs"] =
+            (false, "queues one retention job per tenant and starts no run"),
         ["src/Tracon.Core/Retention/RetentionJobHandler.cs"] =
             (false, "starts no run"),
         ["src/Tracon.Core/Scheduling/AgentBatchJobHandler.cs"] =

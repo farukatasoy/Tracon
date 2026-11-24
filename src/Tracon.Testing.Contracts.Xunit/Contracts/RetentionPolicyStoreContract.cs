@@ -227,18 +227,62 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
         history[0].Id.ShouldBe(latest.Id);
     }
 
+    [Fact]
+    public async Task The_tenants_that_own_a_policy_are_listed_once_each_and_the_default_is_not_a_tenant()
+    {
+        await Store.SavePolicyAsync(Policy(tenantId: "tenant-a"));
+        await Store.SavePolicyAsync(Policy(tenantId: "tenant-a", target: RetentionTargets.Traces));
+        await Store.SavePolicyAsync(Policy(tenantId: "tenant-b", enabled: false));
+        await Store.SavePolicyAsync(Policy(tenantId: "*"));
+
+        var tenants = await ListPolicyTenantsAsync();
+
+        tenants.ShouldBe(["tenant-a", "tenant-b"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task A_tenant_whose_last_policy_was_deleted_is_no_longer_listed()
+    {
+        await Store.SavePolicyAsync(Policy(tenantId: "tenant-a"));
+        await Store.SavePolicyAsync(Policy(tenantId: "tenant-b"));
+
+        await Store.DeletePolicyAsync("tenant-b", RetentionTargets.RunEvents);
+
+        (await ListPolicyTenantsAsync()).ShouldBe(["tenant-a"]);
+    }
+
+    [Fact]
+    public async Task No_policy_lists_no_tenant()
+    {
+        (await ListPolicyTenantsAsync()).ShouldBeEmpty();
+    }
+
+    private async Task<List<string>> ListPolicyTenantsAsync()
+    {
+        var tenants = new List<string>();
+
+        await foreach (var tenant in Store.ListPolicyTenantsAsync())
+        {
+            tenants.Add(tenant);
+        }
+
+        return tenants;
+    }
+
     private static RetentionPolicy Policy(
         string tenantId = Tenant,
         int? maxAgeDays = 30,
-        bool archive = false)
+        bool archive = false,
+        string target = RetentionTargets.RunEvents,
+        bool enabled = true)
         => new()
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            Target = RetentionTargets.RunEvents,
+            Target = target,
             MaxAgeDays = maxAgeDays,
             Archive = archive,
-            Enabled = true,
+            Enabled = enabled,
             CreatedAt = new DateTimeOffset(2026, 8, 5, 9, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 8, 5, 9, 0, 0, TimeSpan.Zero),
         };

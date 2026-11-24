@@ -1146,6 +1146,7 @@ Tracon.IRetentionPolicyStore.GetPolicyAsync(string! tenantId, string! target, Sy
 Tracon.IRetentionPolicyStore.ListPoliciesAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RetentionPolicy!>!>
 Tracon.IRetentionPolicyStore.ListRunsAsync(string! tenantId, string? target, int skip, int take, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RetentionRun!>!>
 Tracon.IRetentionPolicyStore.SavePolicyAsync(Tracon.RetentionPolicy! policy, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RetentionPolicy!>
+Tracon.IRetentionPolicyStore.ListPolicyTenantsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<string!>!
 Tracon.IRetentionStore
 Tracon.IRetentionStore.ArchiveBatchAsync(string! target, string? tenantId, System.DateTimeOffset cutoff, int batchSize, System.Func<System.Collections.Generic.IReadOnlyList<Tracon.ArchiveRow!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! archiveAsync, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 Tracon.IRetentionStore.CountOlderThanAsync(string! target, string? tenantId, System.DateTimeOffset cutoff, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
@@ -5320,6 +5321,7 @@ static Tracon.JobErrorCodes.Format(string! code, string! correlationId) -> strin
 static Tracon.JobHandlerKeys.BuiltIn.get -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.JobHandlerKeys.IsReserved(string? key) -> bool
 static Tracon.JobHandlerKeys.IsValidKey(string? key) -> bool
+const Tracon.JobHandlerKeys.RetentionFanOut = "tracon.retention.fanout" -> string!
 static Tracon.JobItemRecord.operator !=(Tracon.JobItemRecord? left, Tracon.JobItemRecord? right) -> bool
 static Tracon.JobItemRecord.operator ==(Tracon.JobItemRecord? left, Tracon.JobItemRecord? right) -> bool
 static Tracon.JobItemResult.operator !=(Tracon.JobItemResult? left, Tracon.JobItemResult? right) -> bool
@@ -6060,8 +6062,32 @@ Tracon.IHostTenantScope
 Tracon.IHostTenantScope.Begin(string! tenantId) -> System.IDisposable?
 const Tracon.JobErrorCodes.HostTenantScopeFailed = "tracon.job.host-tenant-scope-failed" -> string!
 const Tracon.TraconErrorTypes.JobHostTenantScopeFailed = "tracon.job.host-tenant-scope-failed" -> string!
+const Tracon.TraconErrorTypes.JobHostOnlyHandlerRefused = "tracon.job.host-only-handler-refused" -> string!
 Tracon.TraconSessionOptions
 Tracon.TraconSessionOptions.KeepCanceledTurns.get -> bool
 Tracon.TraconSessionOptions.KeepCanceledTurns.set -> void
 Tracon.TraconSessionOptions.TraconSessionOptions() -> void
 const Tracon.TraconSessionOptions.SectionName = "Tracon:Sessions" -> string!
+Tracon.IRetentionPreviewService
+Tracon.IRetentionPreviewService.PreviewAsync(string? target = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RetentionPreview!>!>
+Tracon.IRetentionTenantSource
+Tracon.IRetentionTenantSource.ListTenantsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<string!>!
+Tracon.RetentionPreview
+Tracon.RetentionPreview.<Clone>$() -> Tracon.RetentionPreview!
+Tracon.RetentionPreview.Cutoff.get -> System.DateTimeOffset?
+Tracon.RetentionPreview.Cutoff.init -> void
+Tracon.RetentionPreview.Enabled.get -> bool
+Tracon.RetentionPreview.Enabled.init -> void
+Tracon.RetentionPreview.Equals(Tracon.RetentionPreview? other) -> bool
+Tracon.RetentionPreview.MatchingRows.get -> long
+Tracon.RetentionPreview.MatchingRows.init -> void
+Tracon.RetentionPreview.MaxAgeDays.get -> int?
+Tracon.RetentionPreview.MaxAgeDays.init -> void
+Tracon.RetentionPreview.RetentionPreview() -> void
+Tracon.RetentionPreview.Target.get -> string!
+Tracon.RetentionPreview.Target.init -> void
+override Tracon.RetentionPreview.Equals(object? obj) -> bool
+override Tracon.RetentionPreview.GetHashCode() -> int
+override Tracon.RetentionPreview.ToString() -> string!
+static Tracon.RetentionPreview.operator !=(Tracon.RetentionPreview? left, Tracon.RetentionPreview? right) -> bool
+static Tracon.RetentionPreview.operator ==(Tracon.RetentionPreview? left, Tracon.RetentionPreview? right) -> bool

@@ -569,6 +569,17 @@ schedule for the `tracon.retention` handler. The job waits in the queue on a hos
 runs no job worker, so check that a worker is running, then read
 `GET /api/retention/history` for what each run deleted.
 
+### Retention cleans one tenant and leaves the others
+
+A retention job deletes only the rows of the tenant it was queued for, so a schedule
+saved in the default tenant cleans the default tenant and finishes green while another
+tenant's old rows stay. The `*` policy does not change that: it is each tenant's default,
+not a sweep. Save one schedule for `tracon.retention.fanout` in the default tenant, which
+queues the job for every tenant, and read `GET /api/retention/history` in each tenant.
+A tenant that nobody registered and that never saved a policy is not named by the
+built-in source; register your own `IRetentionTenantSource`. See
+[Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant).
+
 ### Diagnostics or health is missing from my deployment
 
 They use different integration points:

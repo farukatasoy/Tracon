@@ -409,6 +409,49 @@ public sealed class RetentionExecutorTests
         dataStore.DeleteCalls.ShouldBe(0);
     }
 
+    /// <summary>
+    /// A run is one tenant's. A <see langword="null"/> tenant reaches every tenant's rows, and nothing else in the
+    /// executor's tests would notice the executor passing one: the recording store used to ignore the tenant.
+    /// </summary>
+    [Fact]
+    public async Task Every_data_plane_call_of_a_delete_run_names_the_tenant_of_the_run()
+    {
+        var (executor, store, dataStore) = Build();
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30, maxRows: 100);
+        dataStore.RowLimitCutoffToReturn = DateTimeOffset.UtcNow.AddDays(-1);
+        dataStore.DeleteBatchSizes.Enqueue(3);
+
+        await executor.RunAsync(Tenant, RetentionTargets.RunEvents);
+
+        dataStore.TenantsSeen.ShouldNotBeEmpty();
+        dataStore.TenantsSeen.ShouldAllBe(static tenant => string.Equals(tenant, Tenant, StringComparison.Ordinal));
+        dataStore.RowLimitCalls.ShouldBeGreaterThan(0, "the volume limit is read for the same tenant too");
+    }
+
+    [Fact]
+    public async Task Every_data_plane_call_of_an_archive_run_names_the_tenant_of_the_run()
+    {
+        var (executor, store, dataStore) = Build(archiveSink: new RecordingArchiveSink());
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30, archive: true);
+        dataStore.ArchiveBatches.Enqueue([new ArchiveRow { Json = "{}" }]);
+
+        await executor.RunAsync(Tenant, RetentionTargets.RunEvents);
+
+        dataStore.ArchiveBatchCalls.ShouldBeGreaterThan(0);
+        dataStore.TenantsSeen.ShouldAllBe(static tenant => string.Equals(tenant, Tenant, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task The_preview_counts_the_rows_of_the_tenant_it_was_asked_about()
+    {
+        var (executor, store, dataStore) = Build();
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30);
+
+        await executor.PreviewAsync(Tenant, RetentionTargets.RunEvents);
+
+        dataStore.TenantsSeen.ShouldBe([Tenant]);
+    }
+
     private static (RetentionExecutor Executor, IRetentionPolicyStore Store, RecordingRetentionStore DataStore) Build(
         IArchiveSink? archiveSink = null,
         int batchSize = 5000,
@@ -484,6 +527,9 @@ public sealed class RetentionExecutorTests
         /// <summary>The targets whose delete fails with the given exception.</summary>
         public Dictionary<string, Exception> FailingTargets { get; } = new(StringComparer.Ordinal);
 
+        /// <summary>The tenant every data-plane call named, in call order. A <see langword="null"/> entry is a call that reached every tenant.</summary>
+        public List<string?> TenantsSeen { get; } = [];
+
         /// <summary>The targets <see cref="DeleteBatchAsync"/> was called for, in order, once each.</summary>
         public List<string> TargetsSwept { get; } = [];
 
@@ -494,6 +540,7 @@ public sealed class RetentionExecutorTests
 
         public ValueTask<long> CountOlderThanAsync(string target, string? tenantId, DateTimeOffset cutoff, CancellationToken cancellationToken = default)
         {
+            TenantsSeen.Add(tenantId);
             LastCutoffUsed = cutoff;
 
             return new ValueTask<long>(CountToReturn);
@@ -506,6 +553,7 @@ public sealed class RetentionExecutorTests
             int batchSize,
             CancellationToken cancellationToken = default)
         {
+            TenantsSeen.Add(tenantId);
             ArchiveReadCalls++;
 
             var rows = ArchiveRowsToReturn;
@@ -520,6 +568,7 @@ public sealed class RetentionExecutorTests
             long maxRows,
             CancellationToken cancellationToken = default)
         {
+            TenantsSeen.Add(tenantId);
             RowLimitCalls++;
             LastRowLimitMaxRows = maxRows;
 
@@ -528,6 +577,7 @@ public sealed class RetentionExecutorTests
 
         public ValueTask<int> DeleteBatchAsync(string target, string? tenantId, DateTimeOffset cutoff, int batchSize, CancellationToken cancellationToken = default)
         {
+            TenantsSeen.Add(tenantId);
             LastCutoffUsed = cutoff;
 
             DeleteCalls++;
@@ -556,6 +606,7 @@ public sealed class RetentionExecutorTests
             Func<IReadOnlyList<ArchiveRow>, CancellationToken, ValueTask> archiveAsync,
             CancellationToken cancellationToken = default)
         {
+            TenantsSeen.Add(tenantId);
             LastCutoffUsed = cutoff;
             ArchiveBatchCalls++;
 

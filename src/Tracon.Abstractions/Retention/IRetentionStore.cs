@@ -16,10 +16,13 @@ namespace Tracon;
 /// the implementation; the caller knows only the target name and the cutoff date.
 /// </para>
 /// <para>
-/// <strong>Tenant scoping is mandatory.</strong> A retention
-/// policy is defined per tenant; if <c>tenantId</c> is not given, the
-/// operation touches <em>every</em> tenant's rows. Only the installation-wide
-/// (<c>'*'</c>) policy should pass <see langword="null"/>.
+/// <strong>Tenant scoping is mandatory.</strong> A retention run works on one tenant: the
+/// tenant of the job that runs it. Tracon's own executor always passes that tenant, so a
+/// job deletes only the rows of the tenant that queued it, whatever policy it applies. The
+/// <c>'*'</c> policy is not a sweep over tenants: it is the default each tenant without a
+/// policy of its own is given, and every tenant still gets its own run. A <see langword="null"/>
+/// <c>tenantId</c> reaches <em>every</em> tenant's rows at once; Tracon never passes it, and
+/// it is not the way to clean every tenant (see <see cref="JobHandlerKeys.RetentionFanOut"/>).
 /// </para>
 /// <para>
 /// The default (in-memory) setup registers <c>NullRetentionStore</c>, which
@@ -40,8 +43,8 @@ public interface IRetentionStore
     /// </remarks>
     /// <param name="target">The target name.</param>
     /// <param name="tenantId">
-    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
-    /// (the <c>'*'</c> policy).
+    /// Only this tenant's rows; if <see langword="null"/>, every tenant's rows. Tracon's
+    /// own executor always names the tenant.
     /// </param>
     /// <param name="cutoff">The cutoff date (UTC). Rows older than this match.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -55,8 +58,8 @@ public interface IRetentionStore
     /// <summary>Reads a batch of rows older than the cutoff date (does not delete).</summary>
     /// <param name="target">The target name.</param>
     /// <param name="tenantId">
-    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
-    /// (the <c>'*'</c> policy).
+    /// Only this tenant's rows; if <see langword="null"/>, every tenant's rows. Tracon's
+    /// own executor always names the tenant.
     /// </param>
     /// <param name="cutoff">The cutoff date (UTC).</param>
     /// <param name="batchSize">The maximum number of rows to read.</param>
@@ -80,8 +83,8 @@ public interface IRetentionStore
     /// </summary>
     /// <param name="target">The target name.</param>
     /// <param name="tenantId">
-    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
-    /// (the <c>'*'</c> policy).
+    /// Only this tenant's rows; if <see langword="null"/>, every tenant's rows. Tracon's
+    /// own executor always names the tenant.
     /// </param>
     /// <param name="cutoff">The cutoff date (UTC).</param>
     /// <param name="batchSize">The maximum number of rows to delete.</param>
@@ -123,8 +126,8 @@ public interface IRetentionStore
     /// </summary>
     /// <param name="target">The target name.</param>
     /// <param name="tenantId">
-    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
-    /// (the <c>'*'</c> policy).
+    /// Only this tenant's rows; if <see langword="null"/>, every tenant's rows. Tracon's
+    /// own executor always names the tenant.
     /// </param>
     /// <param name="cutoff">The cutoff date (UTC).</param>
     /// <param name="batchSize">The maximum number of rows to archive and delete.</param>
@@ -193,8 +196,8 @@ public interface IRetentionStore
     /// The target name.
     /// </param>
     /// <param name="tenantId">
-    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide (the
-    /// <c>'*'</c> policy).
+    /// Only this tenant's rows; if <see langword="null"/>, every tenant's rows. Tracon's
+    /// own executor always names the tenant.
     /// </param>
     /// <param name="maxRows">
     /// The maximum number of rows to keep (at least 1).

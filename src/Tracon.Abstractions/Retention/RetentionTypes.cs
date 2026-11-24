@@ -80,21 +80,35 @@ public sealed record RetentionRun
     public string? Error { get; init; }
 }
 
+/// <summary>What a retention run would delete now for one target of the current tenant.</summary>
+/// <remarks>
+/// Returned by <see cref="IRetentionPreviewService"/> and by <c>GET /api/retention/preview</c>. It is a reading: it
+/// deletes nothing.
+/// </remarks>
 [Description("A preview of \"how many rows would be deleted if run now\" for a target.")]
-internal sealed record RetentionPreview
+public sealed record RetentionPreview
 {
+    /// <summary>The previewed target. See <see cref="RetentionTargets"/>.</summary>
     [Description("The previewed target.")]
     public required string Target { get; init; }
 
+    /// <summary>The age in days past which a row is deleted. <see langword="null"/> when no policy applies.</summary>
     [Description("`null` if no policy was found (nothing would be deleted).")]
     public int? MaxAgeDays { get; init; }
 
+    /// <summary>Whether a policy that deletes applies to the target for this tenant.</summary>
     [Description("Whether the policy is enabled.")]
     public bool Enabled { get; init; }
 
+    /// <summary>The cutoff date (UTC): rows older than it would be deleted. <see langword="null"/> when no policy applies.</summary>
     [Description("The computed cutoff date (UTC). `null` if there is no policy.")]
     public DateTimeOffset? Cutoff { get; init; }
 
+    /// <summary>
+    /// The number of rows a run would delete now: the rows older than <see cref="Cutoff"/>. For
+    /// <see cref="RetentionTargets.Attachments"/> without an <see cref="IAttachmentStorage"/> it leaves out the rows
+    /// that point at external content, because a run keeps them.
+    /// </summary>
     [Description("The number of rows a run would delete now: the rows older than the cutoff date, without the attachment rows that point at external content when no attachment storage is registered.")]
     public long MatchingRows { get; init; }
 }

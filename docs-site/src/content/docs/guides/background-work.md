@@ -457,6 +457,13 @@ key turn every built-in key off. See
 The schedule name `handler-keys` is reserved for that list: a schedule saved under it
 could not be read back, so `PUT /api/schedules/handler-keys` answers `400`.
 
+One built-in key is left out of that default list: `tracon.retention.fanout`, which
+queues a `tracon.retention` job for every tenant. It runs only in the default tenant:
+a schedule for it is refused from any other tenant, and a job of another tenant fails
+for good. A host that wants to schedule it over HTTP names it in
+`Scheduling.HttpSchedulableHandlerKeys`; only the default tenant sees it in the list
+then. See [Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant).
+
 Tracon accepts five-field cron expressions: minute, hour, day of month, month,
 and day of week. It supports `*`, fixed values, ranges, lists, and `/step`. It does
 not support seconds or the `L`, `W`, and `#` extensions. A value with a step runs from
@@ -675,7 +682,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
 | `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
 | `Scheduling.LaneByHandlerKey` | empty | Maps a handler key to a lane when the caller left it unset |
-| `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default. `tracon.workflow-run` is never accepted |
+| `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default. `tracon.workflow-run` is never accepted, and `tracon.retention.fanout` is accepted only when named here, from the default tenant |
 | `AsyncRun.Enabled` | `true` | A queued run request returns `501` when disabled |
 | `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries, and queued workflow runs while workflow recovery is off |
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |

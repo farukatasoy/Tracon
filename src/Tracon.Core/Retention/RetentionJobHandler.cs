@@ -2,11 +2,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
-/// <summary>Runs a retention sweep (<see cref="JobHandlerKeys.Retention"/>).</summary>
+/// <summary>Runs a retention sweep of one tenant (<see cref="JobHandlerKeys.Retention"/>).</summary>
 /// <remarks>
+/// The sweep is of the job's own tenant: it reads that tenant's policy and deletes that tenant's rows only.
 /// <see cref="JobRecord.TargetName"/> is either a specific <see cref="RetentionTargets"/>
-/// value or <c>"*"</c>, which processes all active policies. The job has one item.
-/// It reports the item when the entire run succeeds or fails.
+/// value or <c>"*"</c>, which means every target, not every tenant. The job has one item.
+/// It reports the item when the entire run succeeds or fails. To sweep every tenant, the default tenant
+/// schedules <see cref="JobHandlerKeys.RetentionFanOut"/>, which queues one of these jobs for each tenant.
 /// </remarks>
 internal sealed class RetentionJobHandler(
     RetentionExecutor executor,
