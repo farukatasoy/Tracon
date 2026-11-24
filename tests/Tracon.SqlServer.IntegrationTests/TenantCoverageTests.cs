@@ -36,8 +36,9 @@ public sealed class TenantCoverageTests
     /// </summary>
     private static readonly Dictionary<string, string[]> Covered = new(StringComparer.Ordinal)
     {
+        // PeekNextVersionAsync is asserted per tenant by AgentDefinitionStoreContract (the numbering of the tenant it is asked in).
         ["SqlAgentDefinitionStore"] =
-            ["GetAsync", "GetVersionAsync", "ListAsync", "ListVersionsAsync", "SaveAsync", "DeleteAsync", "RollbackAsync"],
+            ["GetAsync", "GetVersionAsync", "ListAsync", "ListVersionsAsync", "SaveAsync", "DeleteAsync", "RollbackAsync", "PeekNextVersionAsync"],
         // MeasureAsync, and the tenant-and-directory overloads of ReadAsync and DeleteAsync (IAgentFileTree), name the tenant in
         // every query: SessionWorkspaceFilesTests.A_delete_never_reaches_another_tenant_that_has_the_same_path.
         ["SqlAgentFileStore"] =
@@ -112,7 +113,8 @@ public sealed class TenantCoverageTests
         ["SqlTenantEgressPolicyStore"] = ["GetAsync", "UpsertAsync", "DeleteAsync"],
         ["SqlTenantToolPolicyStore"] = ["GetAsync", "UpsertAsync", "DeleteAsync"],
         ["SqlWorkflowCheckpointStore"] = ["CreateAsync", "ReadAsync", "ListAsync", "ListByRunAsync", "DeleteAsync"],
-        ["SqlWorkflowDefinitionStore"] = ["GetAsync", "ListAsync", "SaveAsync", "DeleteAsync", "ListVersionsAsync", "GetVersionAsync", "RollbackAsync"],
+        // PeekNextVersionAsync is asserted per tenant by WorkflowDefinitionStoreContract (another tenant has its own numbering).
+        ["SqlWorkflowDefinitionStore"] = ["GetAsync", "ListAsync", "SaveAsync", "DeleteAsync", "ListVersionsAsync", "GetVersionAsync", "RollbackAsync", "PeekNextVersionAsync"],
         ["SqlTenantStore"] = [],
         ["SqlChatHistoryProvider"] = [],
         ["SqlSingletonLeaseStore"] = [],
