@@ -374,7 +374,7 @@ internal sealed class VoiceConversationDriver
                 var wait = untilDeadline < _options.IdleTimeout ? untilDeadline : _options.IdleTimeout;
                 var durationIsNext = wait == untilDeadline;
 
-                _pendingReceive ??= ReceiveAsync(cancellationToken);
+                _pendingReceive ??= StartReceive(cancellationToken);
 
                 using var timerCancellation = new CancellationTokenSource();
                 var timer = Task.Delay(wait, driver._timeProvider, timerCancellation.Token);
@@ -1361,39 +1361,37 @@ internal sealed class VoiceConversationDriver
                 }).ConfigureAwait(false);
             }
 
+            // The record is observability, and the close is what the client reads: a record that cannot be written must not
+            // take the close with it.
             try
             {
-                // The record is observability, and the close is what the client reads: a record that cannot be written must not
-                // take the close with it.
-                try
-                {
-                    await WriteRecordAsync(recordId, started, reason).ConfigureAwait(false);
-                }
-                finally
-                {
-                    await CloseSocketAsync(reason).ConfigureAwait(false);
-                }
+                await WriteRecordAsync(recordId, started, reason).ConfigureAwait(false);
             }
             finally
             {
-                ObservePendingReceive();
+                await CloseSocketAsync(reason).ConfigureAwait(false);
             }
         }
 
-        /// <summary>
-        /// The read that was pending when the connection closed ends with the close handshake or with the socket's abort; its
-        /// outcome is of no use, and it must not surface later as an unobserved failure.
-        /// </summary>
-        private void ObservePendingReceive()
+        /// <summary>Starts the read that waits for the client's next message.</summary>
+        /// <remarks>
+        /// 🚨 The read is marked observed the moment it starts, not when the connection ends. It stays pending while the
+        /// conversation is closing, and a client that goes away in that time makes it fail, with nobody left to await it: a
+        /// handler that is still waiting for the client's answer to the close (or that the host abandoned) never reaches the
+        /// end of the connection, and the read was reported as a task nobody observed. The loop still awaits it and still
+        /// sees its failure; observing marks the task, it does not swallow the exception.
+        /// </remarks>
+        private Task<VoiceFrame> StartReceive(CancellationToken cancellationToken)
         {
-            if (_pendingReceive is { } pending)
-            {
-                _ = pending.ContinueWith(
-                    static task => _ = task.Exception,
-                    CancellationToken.None,
-                    TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Default);
-            }
+            var read = ReceiveAsync(cancellationToken);
+
+            _ = read.ContinueWith(
+                static task => _ = task.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            return read;
         }
 
         /// <inheritdoc />
