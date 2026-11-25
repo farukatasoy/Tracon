@@ -151,7 +151,7 @@ claim to provide an operating-system sandbox.
 | Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy; per-request provider settings (`elevenlabs.*`) are refused, never ignored, when unknown |
 | Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host; a Microsoft.Extensions.AI speech client binds to a name with `TextToSpeechClientBinding` or `SpeechToTextClientBinding`, `UseOpenAISpeech()` registers OpenAI speech as the provider `openai`, `UseGoogleSpeech()` Gemini speech as `gemini` |
 | Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and ISpeechDialogueSynthesizer | Several voices in one request and one audio result, with each turn's time range where the provider reports it, from a workflow function node; the built-in ElevenLabs client and `UseGoogleSpeech()` (two voices) implement it, and a request over the provider's voice or character limit is refused rather than split |
-| Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
+| Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered. `ResolveConnection` lets the host decide the voice and the agent's parameters on the server, open the conversation with a `Greeting` or an `OpeningPrompt`, and the `end_conversation` tool lets an agent end it; the [protocol](/reference/voice-conversation-protocol/) is published with a JSON Schema and a TypeScript client |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
 A run is the unit of evidence. What is recorded is recorded against a run id, and a
@@ -265,7 +265,7 @@ graph instead of reporting it.
 | .NET API | `AddTracon()` and `IAgentCatalog`, tuned with `ITraconBuilder.Configure(...)` and extended through `ITraconBuilder.Services` | Application code that wants direct MAF objects |
 | Management HTTP API | `MapTracon()` | The embedded console, automation, or your own client |
 | Typed management client | `Tracon.Client`'s `AddTraconClient()` | .NET code calling a running instance from outside the process that hosts it; every SSE endpoint also has a `...StreamAsync` method yielding one raw frame at a time |
-| Typed TypeScript client | `@tracon/client`'s `createTraconClient()` | Browser or Node.js code calling a running instance from outside the process that hosts it; `parseAs: 'stream'` plus the exported `readSse` decoder reads an SSE endpoint |
+| Typed TypeScript client | `@tracon/client`'s `createTraconClient()` and `createVoiceConversation()` | Browser or Node.js code calling a running instance from outside the process that hosts it; `parseAs: 'stream'` plus the exported `readSse` decoder reads an SSE endpoint, and `createVoiceConversation()` speaks the [voice conversation protocol](/reference/voice-conversation-protocol/) with typed frames |
 | CLI | `tracon` global tool (`Tracon.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `state-check` reports read-only whether this build can still read the stored session and checkpoint state before an upgrade, `health` checks model provider health, `eval` gates a build on agent quality, absolutely or against an earlier run |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapTracon()` | Existing Chat Completions, Responses, and Conversations clients |
@@ -275,7 +275,7 @@ graph instead of reporting it.
 | MCP server | `UseMcpServer()` and `MapTraconMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
 | AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. `TraconAGUIOptions.AcceptForwardedParameters` (off by default) lets the front end send run parameters in `forwardedProps.parameters`, and `TraconAGUIOptions.ResolveParameters` lets your own code decide them on the server instead, read by the run as `Host` values; the endpoint can be mapped under more than one pattern; an API key with the `ChatRun` scope reaches this endpoint and no other that asks for a scope; no frame carries `rawEvent`. See [AG-UI front ends](/guides/ag-ui/) |
 | A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents; a `contextId` continues a conversation scoped to the caller |
-| Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients |
+| Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients; the [protocol](/reference/voice-conversation-protocol/) is published with a JSON Schema |
 | Live voice sessions | `UseLiveVoice()`, a live provider, and `MapTracon()` | Browsers that speak to a provider-hosted model over WebRTC while Tracon supervises the session |
 
 `MapTracon()` exposes the documented management and OpenAI operations. The
@@ -22052,6 +22052,10 @@ end reason `Error`. No run starts and nothing is spoken. The browser is told onl
 `The conversation could not be started.`; the exception text stays in your log. A `null`
 result runs the agent with its defaults and the configured voice.
 
+The resolver runs while the conversation starts, and nothing times it out: the connection
+waits for it and the idle and duration limits do not run meanwhile. Keep it to a lookup, not
+a call to a slow service.
+
 A host that serves untrusted browsers sets a resolver. Without one, any caller that may
 open a conversation can ask for any voice the provider's account holds.
 
@@ -22065,6 +22069,11 @@ would hide a mistake:
 |---|---|---|
 | `Greeting` | A fixed text, spoken right after `ready`. No model is called and no run is recorded. | The synthesized characters |
 | `OpeningPrompt` | The agent answers your text first, as if a user had said it: an ordinary turn. The text is a user message in the history. | A run, as any turn |
+
+The browser chooses the session id of the address, and a session the server has never seen
+has no history, so a caller can open a fresh session and be greeted. A greeting costs the
+synthesized characters and an opening prompt costs a run, so decide in the resolver, which
+receives `request.User` and `request.SessionId`, whether this caller may open one.
 
 Both are spoken through the same path as an answer, so `MaxSpokenCharactersPerTurn`
 applies, and both are written to the session history (a greeting as the assistant's
@@ -33844,7 +33853,8 @@ a conversation ends. The server side, its settings and its privacy rules are in
 that implements everything here ships in [`@tracon/client`](/guides/typescript-client/#talk-to-a-voice-conversation).
 
 The frames are described by a JSON Schema,
-[`voice-conversation-frames.schema.json`](/schemas/voice-conversation-frames.schema.json).
+[`voice-conversation-frames.schema.json`](/schemas/voice-conversation-frames.schema.json): validate
+a frame the server sent against `#/$defs/ServerFrame`, and one you send against `#/$defs/ClientFrame`.
 The names of the frames, their fields and the handshake values are pinned by a test, so
 removing or renaming one is a breaking change that a release note names; a new frame or a new
 field is not. A reader ignores a frame type and a field it does not know.
@@ -33856,7 +33866,8 @@ field is not. A reader ignores a frame type and a field it does not know.
 | Address | `{origin}{prefix}/api/voice/sessions/{sessionId}/stream`, where the prefix is the one `MapTracon` was given (`/tracon` by default). Use `wss` when the page is `https` |
 | Subprotocol | `tracon.voice.v1`. The server echoes it on a successful handshake |
 | Credential | A second subprotocol, `tracon.token.<token>`, because a browser cannot add an `Authorization` header to a WebSocket handshake. The token is never accepted in the query string, where logs would record it |
-| Session | `{sessionId}` is the agent session the conversation runs in. An id the server has never seen is not refused: the first turn opens it. It is 1 to 200 characters |
+| Session | `{sessionId}` is the agent session the conversation runs in. An id the server has never seen is not refused: the first turn opens it. The socket does not check the id's length or characters; the other voice endpoints take 1 to 200 characters, so use an id that fits |
+| Token characters | A subprotocol value is limited to the token characters of RFC 6455, so a token or key that holds `=`, `/` or a space cannot travel there. Tracon API keys are base64url and are safe. A free-form `AuthToken` should be one too |
 
 ```mermaid
 sequenceDiagram
@@ -33890,7 +33901,7 @@ socket that closes after it opens:
 | `101` | The conversation can start. Send `start` |
 | `400` | The request is not a WebSocket upgrade |
 | `401` | No credential or an unknown one. The body does not say what was expected |
-| `403` | The API key lacks the `RunsWrite` scope or is not allowed for the tenant; the page's origin is not allowed (a socket authenticated by cookie only); or the tenant's policy does not allow the speech provider |
+| `403` | The API key lacks the `RunsWrite` scope or is not allowed for the tenant; the request's `Origin` or `Host` is not the installation's own and is not listed in `AllowedOrigins` (this applies to a socket authenticated by cookie or not at all, which a browser sends from any page); the caller's role does not reach the `Operator` policy; or the tenant's policy does not allow the speech provider |
 | `404` | The session belongs to another tenant, or the run authorization handler refused the caller. The two answers are identical, so a refusal never confirms a session exists. The same status answers a host that did not call `UseVoiceConversation()`: the route does not exist |
 | `429` | The tenant already holds its maximum number of conversation connections |
 | `501` | The host registered no speech provider: a conversation needs both transcription and synthesis |
@@ -33926,8 +33937,8 @@ using `InputSampleRate` (16 kHz by default). Say the real rate in the server's s
 | `audioEnd` | none | One spoken sentence ended. Another `audioStart` can follow in the same turn |
 | `done` | `cancelled`, `turn`, `attachmentId` | The turn ended: answered, interrupted (`cancelled`) or failed. `turn` is the number of turns the user has completed; `attachmentId` is present only when the host stores audio |
 | `idle` | none | A `commit` closed no turn: it came before any audio, or the audio held nothing usable. The conversation is listening again. It is neither an error nor a `done` |
-| `error` | `message` | Something went wrong. Before `ready` it ends the conversation. During a turn it ends the turn and a `done` follows |
-| `ended` | `reason` | The server ends the conversation and closes the socket right after. `reason` is `agent` when the agent called `end_conversation`. Do not reconnect on your own |
+| `error` | `message` | Something went wrong. A failed `start` (no such agent, an unknown audio format, a refused resolver) ends the conversation. A failed turn ends the turn and a `done` follows. A frame the server does not understand (not JSON, or an unknown `type`) answers `error` and changes nothing: the conversation goes on and no `done` follows |
+| `ended` | `reason` | The server ends the conversation and closes the socket right after. `reason` is `agent` when the agent called `end_conversation`; treat a `reason` you do not know the same way, as the server's decision to stop. Do not reconnect on your own. An answer the user cut off or that failed never sends it |
 
 Two rules keep a client from hanging. Every `commit` the server accepts ends in a `done` or an
 `idle`, never in silence: a client that put itself in a "thinking" state when it committed
@@ -33953,16 +33964,17 @@ that tells the client why:
 
 | Description | Cause |
 |---|---|
-| `The conversation closed.` | The client sent `stop` or closed the socket |
+| `The conversation closed.` | The client sent `stop` or closed the socket, or a `start` failed |
 | `The conversation was ended by the agent.` | An `ended` frame came first |
-| `The connection stayed idle.` | No frame for `IdleTimeout` (2 minutes by default) |
+| `The connection stayed idle.` | No frame **from the client** for `IdleTimeout` (2 minutes by default); frames the server sends do not count, so a client that stays silent through a long answer is closed |
 | `The connection reached the duration limit.` | `MaxConnectionDuration` (30 minutes by default). Reconnect to continue: the session keeps its history |
 | `The server is shutting down.` | The host is draining |
 | `The conversation closed with an error.` | The connection failed |
 
 An utterance is bounded by `MaxUtteranceDuration` (60 seconds) and `MaxUtteranceBytes` (8 MiB):
 when a client's voice activity detection never commits, the server closes the utterance on its
-own and answers it. A whole answer is spoken up to `MaxSpokenCharactersPerTurn` (5,000
+own and answers it. A single WebSocket message larger than `MaxUtteranceBytes` ends the
+conversation with an `error`. A whole answer is spoken up to `MaxSpokenCharactersPerTurn` (5,000
 characters); the text beyond it still arrives as `text` frames.
 
 A conversation is bound to one server instance for its whole length. Behind a load balancer,

@@ -61,8 +61,8 @@ internal static class VoiceConversationEndpoint
             .WithTags("Tracon", "Voice")
             .WithSummary("Opens a WebSocket connection for real-time conversation.")
             .WithDescription(
-                "Every frame, field and refusal is described at https://tracon.dev/reference/voice-conversation-protocol/ " +
-                "and in the JSON Schema https://tracon.dev/schemas/voice-conversation-frames.schema.json. " +
+                "Every frame, field and refusal is described on the 'Voice conversation protocol' reference page of the " +
+                "documentation site, and the frames by its JSON Schema, voice-conversation-frames.schema.json. " +
                 "Client -> server: raw audio (binary) and control messages (JSON text). " +
                 "Server -> client: audio chunks (binary) and event frames (JSON text). " +
                 "The token is carried in the 'Sec-WebSocket-Protocol' subprotocol; it is NOT accepted in the query string. " +

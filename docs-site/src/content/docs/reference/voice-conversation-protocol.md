@@ -1,6 +1,6 @@
 ---
 title: Voice conversation protocol
-description: The WebSocket protocol of a Tracon voice conversation: handshake, every frame and field, audio formats, ending, limits and errors, with a JSON Schema.
+description: The WebSocket protocol of a Tracon voice conversation, with its handshake, every frame and field, audio formats, ending, limits and errors, and a JSON Schema.
 ---
 
 This page is what you need to write a client for `UseVoiceConversation()` in any language:
