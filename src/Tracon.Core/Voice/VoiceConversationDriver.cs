@@ -1375,7 +1375,7 @@ internal sealed class VoiceConversationDriver
 
         /// <summary>Starts the read that waits for the client's next message.</summary>
         /// <remarks>
-        /// 🚨 The read is marked observed the moment it starts, not when the connection ends. It stays pending while the
+        /// The read is marked observed the moment it starts, not when the connection ends. It stays pending while the
         /// conversation is closing, and a client that goes away in that time makes it fail, with nobody left to await it: a
         /// handler that is still waiting for the client's answer to the close (or that the host abandoned) never reaches the
         /// end of the connection, and the read was reported as a task nobody observed. The loop still awaits it and still
