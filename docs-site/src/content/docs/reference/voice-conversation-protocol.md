@@ -22,7 +22,7 @@ field is not. A reader ignores a frame type and a field it does not know.
 |---|---|
 | Address | `{origin}{prefix}/api/voice/sessions/{sessionId}/stream`, where the prefix is the one `MapTracon` was given (`/tracon` by default). Use `wss` when the page is `https` |
 | Subprotocol | `tracon.voice.v1`. The server echoes it on a successful handshake |
-| Credential | A second subprotocol, `tracon.token.<token>`, because a browser cannot add an `Authorization` header to a WebSocket handshake. The token is never accepted in the query string, where logs would record it |
+| Credential | A second subprotocol, `tracon.token.<token>`, because a browser cannot add an `Authorization` header to a WebSocket handshake. The token is never accepted in the query string, where logs would record it. A host that has its own sign-in carries its own token in a subprotocol with a prefix of its own, which its authentication reads from the `Sec-WebSocket-Protocol` header and Tracon ignores ([how](/guides/voice-conversation-lifecycle/#carry-your-own-token-from-the-browser)) |
 | Session | `{sessionId}` is the agent session the conversation runs in. An id the server has never seen is not refused: the first turn opens it. The socket does not check the id's length or characters; the other voice endpoints take 1 to 200 characters, so use an id that fits |
 | Token characters | A subprotocol value is limited to the token characters of RFC 6455, so a token or key that holds `=`, `/` or a space cannot travel there. Tracon API keys are base64url and are safe. A free-form `AuthToken` should be one too |
 
@@ -94,8 +94,8 @@ using `InputSampleRate` (16 kHz by default). Say the real rate in the server's s
 | `audioEnd` | none | One spoken sentence ended. Another `audioStart` can follow in the same turn |
 | `done` | `cancelled`, `turn`, `attachmentId` | The turn ended: answered, interrupted (`cancelled`) or failed. `turn` is the number of turns the user has completed; `attachmentId` is present only when the host stores audio |
 | `idle` | none | A `commit` closed no turn: it came before any audio, or the audio held nothing usable. The conversation is listening again. It is neither an error nor a `done` |
-| `error` | `message` | Something went wrong. A failed `start` (no such agent, an unknown audio format, a refused resolver) ends the conversation. A failed turn ends the turn and a `done` follows. A frame the server does not understand (not JSON, or an unknown `type`) answers `error` and changes nothing: the conversation goes on and no `done` follows |
-| `ended` | `reason` | The server ends the conversation and closes the socket right after. `reason` is `agent` when the agent called `end_conversation`; treat a `reason` you do not know the same way, as the server's decision to stop. Do not reconnect on your own. An answer the user cut off or that failed never sends it |
+| `error` | `message` | Something went wrong. A failed `start` (no such agent, an unknown audio format, a run the caller may not start, a refused resolver) ends the conversation. A failed turn ends the turn and a `done` follows; so does a turn the caller may not run, which is not counted, and nothing of it is transcribed. A frame the server does not understand (not JSON, or an unknown `type`) answers `error` and changes nothing: the conversation goes on and no `done` follows |
+| `ended` | `reason` | The server ends the conversation and closes the socket right after. `reason` is `agent` when the agent called `end_conversation`, and `duration` when the time limit the host set for this connection was reached (the turn in progress was cut off first, so its `done` comes before this frame). Treat a `reason` you do not know the same way, as the server's decision to stop. Do not reconnect on your own. An answer the user cut off or that failed never sends it |
 
 Two rules keep a client from hanging. Every `commit` the server accepts ends in a `done` or an
 `idle`, never in silence: a client that put itself in a "thinking" state when it committed
@@ -122,11 +122,17 @@ that tells the client why:
 | Description | Cause |
 |---|---|
 | `The conversation closed.` | The client sent `stop` or closed the socket, or a `start` failed |
-| `The conversation was ended by the agent.` | An `ended` frame came first |
+| `The conversation was ended by the agent.` | An `ended` frame with `agent` came first |
+| `The conversation reached its time limit.` | An `ended` frame with `duration` came first: the host set a limit for this connection and it passed. Do not reconnect |
 | `The connection stayed idle.` | No frame **from the client** for `IdleTimeout` (2 minutes by default); frames the server sends do not count, so a client that stays silent through a long answer is closed |
-| `The connection reached the duration limit.` | `MaxConnectionDuration` (30 minutes by default). Reconnect to continue: the session keeps its history |
-| `The server is shutting down.` | The host is draining |
+| `The connection reached the duration limit.` | `MaxConnectionDuration` (30 minutes by default), the limit of every connection. No `ended` frame comes: reconnect to continue, the session keeps its history |
+| `The server is shutting down.` | The host began to stop; the turn in progress is cut off. Reconnect to another instance |
 | `The conversation closed with an error.` | The connection failed |
+
+A close is a handshake: the server sends its close frame and waits for the client's, then
+drops the connection if none comes within five seconds. A browser answers by itself; another
+client must keep reading until the close arrives, or call its close method when it reads
+one.
 
 An utterance is bounded by `MaxUtteranceDuration` (60 seconds) and `MaxUtteranceBytes` (8 MiB):
 when a client's voice activity detection never commits, the server closes the utterance on its

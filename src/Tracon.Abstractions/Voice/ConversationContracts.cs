@@ -151,13 +151,19 @@ public enum VoiceSessionEndReason
     /// <summary>The connection sat idle and timed out.</summary>
     IdleTimeout = 1,
 
-    /// <summary>The connection reached the maximum allowed duration.</summary>
+    /// <summary>
+    /// The connection reached its time limit: the longest a connection may stay open, or the shorter limit the host set for this
+    /// connection when it decided how the connection runs.
+    /// </summary>
     DurationLimit = 2,
 
     /// <summary>An error closed the connection.</summary>
     Error = 3,
 
-    /// <summary>The server is shutting down.</summary>
+    /// <summary>
+    /// The host that served the connection began to stop, and the server closed the conversation. A client that drops the
+    /// connection on its own is <see cref="Client"/>, whatever the host was doing.
+    /// </summary>
     ServerShutdown = 4,
 
     /// <summary>

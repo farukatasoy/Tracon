@@ -49,6 +49,7 @@ export const sidebar = [
       { label: 'Attachments and multimodal', slug: 'guides/multimodal' },
       { label: 'Knowledge and RAG', slug: 'guides/knowledge' },
       { label: 'Voice and live conversation', slug: 'guides/voice' },
+      { label: 'Voice conversation lifecycle', slug: 'guides/voice-conversation-lifecycle' },
       { label: 'Provider-hosted live voice', slug: 'guides/live-voice' },
       { label: 'Gemini speech and dialogue', slug: 'guides/gemini-speech' },
     ],

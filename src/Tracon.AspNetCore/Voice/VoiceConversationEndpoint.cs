@@ -70,6 +70,8 @@ internal static class VoiceConversationEndpoint
                 "a key without it is refused with 403 before the upgrade. " +
                 "If a registered IRunAuthorizationHandler denies the caller, the handshake is refused with 404 — identical " +
                 "to a session belonging to another tenant, so a denial never confirms the session exists. " +
+                "The handshake does not know the agent, so the run questions (the handler's AuthorizeRunAsync, the session's owner and the " +
+                "tenant's quota) are asked again when the 'start' frame names it and before every turn. " +
                 "If the tenant's egress policy does not allow the speech providers, or the tenant has its own " +
                 "credential that a provider cannot use, the handshake is refused with 403 before a connection slot is taken.");
     }

@@ -3,6 +3,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -117,13 +118,22 @@ public static class VoiceConversationBuilderExtensions
         // built with the registry at setup time: the tool's own service provider is empty at call time.
         builder.AddTool(static provider => new EndConversationTool(provider.GetRequiredService<VoiceConversationEndRegistry>()));
 
+        services.TryAddSingleton(static provider => new VoiceAudioArchive(
+            provider.GetRequiredService<IAttachmentStore>(),
+            provider.GetRequiredService<AttachmentTypeGuard>(),
+            provider.GetRequiredService<ILogger<VoiceAudioArchive>>(),
+            provider.GetService<TimeProvider>()));
+
+        services.TryAddSingleton(static provider => new VoiceHostContext(
+            provider.GetService<IHostApplicationLifetime>(),
+            provider.GetRequiredService<RunAdmission>()));
+
         services.TryAddSingleton(static provider => new VoiceConversationDriver(
             provider.GetRequiredService<IAgentCatalog>(),
             provider.GetRequiredService<AgentSessionManager>(),
             provider.GetRequiredService<ChatHistoryProvider>(),
             provider.GetRequiredService<IVoiceSessionStore>(),
-            provider.GetRequiredService<IAttachmentStore>(),
-            provider.GetRequiredService<AttachmentTypeGuard>(),
+            provider.GetRequiredService<VoiceAudioArchive>(),
             provider.GetRequiredService<IOptions<VoiceConversationOptions>>(),
             provider.GetRequiredService<ILogger<VoiceConversationDriver>>(),
             provider.GetService<ISpeechTranscriber>(),
@@ -131,6 +141,7 @@ public static class VoiceConversationBuilderExtensions
             provider.GetRequiredService<ISpeechProviderResolver>(),
             provider.GetRequiredService<VoiceConversationEndRegistry>(),
             provider.GetService<IVoicePricingReader>(),
+            provider.GetRequiredService<VoiceHostContext>(),
             provider.GetService<TimeProvider>()));
 
         return builder;

@@ -14,7 +14,8 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// The connection has passed the endpoint's access protection, the run authorization gate (<c>SessionAccess.Voice</c>), the
-/// session ownership check and the tenant's provider checks before the resolver is called, and the agent exists for the
+/// session ownership check and the tenant's provider checks before the resolver is called, and the agent it names has passed
+/// the questions of a run start (the authorization handler, the session's owner and the tenant's quota) and exists for the
 /// tenant, so a connection that is turned away never reaches the host's code.
 /// </para>
 /// </remarks>
@@ -82,6 +83,30 @@ public sealed record VoiceConnectionSettings
     /// greeted again.
     /// </remarks>
     public string? Greeting { get; init; }
+
+    /// <summary>
+    /// Gets the longest this connection may stay open, counted from the moment it opened. When it is <see langword="null"/>
+    /// the connection's limit is <see cref="VoiceConversationOptions.MaxConnectionDuration"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A host whose conversations differ in length (a type of conversation, a tenant's plan) sets it per connection. It must be
+    /// greater than zero and no greater than <see cref="VoiceConversationOptions.MaxConnectionDuration"/>, which stays the
+    /// ceiling of every connection: a result outside that range is refused like any other mistake of the resolver, because
+    /// shortening or lengthening it silently would hide the mistake.
+    /// </para>
+    /// <para>
+    /// When this limit is reached the turn in progress is cut off, the server sends an <c>ended</c> frame whose reason is
+    /// <c>duration</c> and closes the socket, and the record ends with <see cref="VoiceSessionEndReason.DurationLimit"/>. The
+    /// client must not reconnect: the conversation is over. The global <see cref="VoiceConversationOptions.MaxConnectionDuration"/>
+    /// is different and unchanged: it closes the socket without an <c>ended</c> frame and the client reconnects.
+    /// </para>
+    /// <para>
+    /// Nothing remembers how long an earlier connection of the same session lasted. A host that allows a conversation a fixed
+    /// total returns the time that is left each time it is asked.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? MaxDuration { get; init; }
 
     /// <summary>
     /// Gets a text the agent answers first, right after the <c>ready</c> frame, as if a user had said it: the agent's answer

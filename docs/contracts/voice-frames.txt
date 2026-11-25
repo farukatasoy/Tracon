@@ -11,6 +11,7 @@ client-frame commit
 client-frame start
 client-frame stop
 ended-reason agent
+ended-reason duration
 input-format pcm16
 input-format webm-opus
 server-field agent

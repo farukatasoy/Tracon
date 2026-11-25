@@ -42,7 +42,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs"] = "TraconSkillScriptOptions.Timeout + constant 5 s executor grace — TraconOptionsValidator (sum in range)",
         ["src/Tracon.Core/Skills/Scripts/SkillScriptProcessRunner.cs"] = "TraconSkillScriptOptions.Timeout — TraconOptionsValidator",
         ["src/Tracon.Core/Voice/LiveVoiceSessionHost.cs"] = "VoiceLiveOptions.DelegationTimeout — VoiceLiveOptionsValidator",
-        ["src/Tracon.Core/Voice/VoiceConversationDriver.cs"] = "VoiceConversationOptions.IdleTimeout / MaxConnectionDuration — VoiceConversationOptionsValidator",
+        ["src/Tracon.Core/Voice/VoiceConversationDriver.cs"] = "VoiceConversationOptions.IdleTimeout / MaxConnectionDuration — VoiceConversationOptionsValidator; VoiceConnectionSettings.MaxDuration — refused unless it is above zero and at most the validated MaxConnectionDuration (VoiceConversationConnectionTests); the close wait is the constant 5 s CloseTimeout",
         ["src/Tracon.Core/Webhooks/WebhookDeliveryJobHandler.cs"] = "TraconWebhookOptions.Timeout — TraconWebhookOptionsValidator",
         ["src/Tracon.Sql.Shared/Migrations/MigrationHostedService.cs"] = "constant 10 s (VerificationTimeout) that no operator sets, bounding one read of the migration ledger at start; a timeout is a logged warning, not a failure (MigrationStartupWarningTests)",
         ["src/Tracon.Sqlite/Internal/SqliteDialect.cs"] = "constant 100 ms poll interval between two tries of the migration lock; the wait itself (the command timeout) is compared with the elapsed monotonic time, not armed as a timer",

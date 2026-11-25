@@ -104,6 +104,42 @@ describe('the address and the handshake', () => {
     expect(voiceSubProtocols('secret')).toEqual([VOICE_SUBPROTOCOL, 'tracon.token.secret']);
   });
 
+  it('offers a host credential after the protocol and the token, in the order it was given', () => {
+    expect(voiceSubProtocols(undefined, ['host.bearer.abc'])).toEqual([VOICE_SUBPROTOCOL, 'host.bearer.abc']);
+    expect(voiceSubProtocols('secret', ['host.bearer.abc', 'other'])).toEqual([
+      VOICE_SUBPROTOCOL,
+      'tracon.token.secret',
+      'host.bearer.abc',
+      'other',
+    ]);
+  });
+
+  it.each([
+    ['an empty value', ''],
+    ['a space', 'host bearer'],
+    ['a comma, which would split the header', 'host.bearer.a,b'],
+    ['an equals sign, which a token may not hold', 'host.bearer.a=='],
+    ['a slash', 'host/bearer'],
+    ['the protocol itself', VOICE_SUBPROTOCOL],
+    ['the prefix of Tracon\'s own token', 'tracon.token.abc'],
+  ])('refuses %s before the socket opens', (_name, value) => {
+    expect(() => voiceSubProtocols(undefined, [value])).toThrow(TypeError);
+    expect(() => conversation({ subProtocols: [value] })).toThrow(TypeError);
+  });
+
+  it('reads the host credential from a function at the time the socket opens, as it does the token', () => {
+    const { socket } = conversation({ token: () => 'fresh', subProtocols: () => ['host.bearer.renewed'] });
+
+    expect(socket.protocols).toEqual([VOICE_SUBPROTOCOL, 'tracon.token.fresh', 'host.bearer.renewed']);
+  });
+
+  it('never puts the host credential in the address', () => {
+    const { conversation: created, socket } = conversation({ subProtocols: ['host.bearer.jwt-secret'] });
+
+    expect(socket.url).not.toContain('jwt-secret');
+    expect(created.url).not.toContain('jwt-secret');
+  });
+
   it('never puts the token in the address', () => {
     const { conversation: created, socket } = conversation({ token: 'secret-token' });
 
@@ -154,6 +190,7 @@ describe('frames', () => {
     expect(parseVoiceFrame('{"type":"idle"}')).toEqual({ type: 'idle' });
     expect(parseVoiceFrame('{"type":"done","cancelled":false,"turn":2}')).toEqual({ type: 'done', cancelled: false, turn: 2 });
     expect(parseVoiceFrame('{"type":"ended","reason":"agent"}')).toEqual({ type: 'ended', reason: 'agent' });
+    expect(parseVoiceFrame('{"type":"ended","reason":"duration"}')).toEqual({ type: 'ended', reason: 'duration' });
     expect(parseVoiceFrame('{"type":"from-the-future"}')).toBeNull();
     expect(parseVoiceFrame('not json')).toBeNull();
     expect(parseVoiceFrame('[1]')).toBeNull();
@@ -272,6 +309,21 @@ describe('what the client may send, and when', () => {
     expect(() => created.sendAudio(new Uint8Array([1]))).toThrow(/ended/);
     expect(() => created.commit()).toThrow(VoiceConversationStateError);
   });
+
+  it.each(['agent', 'duration', 'a-reason-from-the-future'])(
+    'treats the reason %s of an ended frame the same way: the conversation is over and nothing more is sent',
+    async (reason) => {
+      const { conversation: created, socket } = conversation();
+
+      socket.open();
+      socket.frame({ type: 'ready', agent: 'coach', sessionId: 's', persistAudio: false });
+      await created.ready;
+      socket.frame({ type: 'ended', reason });
+
+      expect(() => created.sendAudio(new Uint8Array([1]))).toThrow(/ended/);
+      expect(() => created.cancel()).toThrow(VoiceConversationStateError);
+    },
+  );
 
   it('sends stop only while the socket is open', () => {
     const { conversation: created, socket } = conversation();

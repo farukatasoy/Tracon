@@ -317,6 +317,12 @@ common, so each one calls this binding in its own body:
   refused call starts no run, calls no model and opens no run row. An MCP call that
   asks for a task is refused before the task exists. How the refusal reaches the
   caller is told on the external agents page.
+- **A real-time voice conversation, as a run start:** the handshake asks the session question
+  before the agent is known, so the conversation asks the run question again when the `start`
+  frame names the agent and before every turn. The handler gets `RunAccess.Start` with the
+  agent, the session, the tenant and the user, and the session's owner and the tenant's quota
+  are checked too. A refusal ends the start, or the turn, with an `error` frame; the
+  [voice guide](/guides/voice-conversation-lifecycle/#a-conversation-is-a-run-start) tells what follows.
 - **Every run resource:** the run summary, its tree, its event stream, its
   recorded input, its span tree, its tool calls, its scores, its
   cancellation, its attachments, and its approval requests.

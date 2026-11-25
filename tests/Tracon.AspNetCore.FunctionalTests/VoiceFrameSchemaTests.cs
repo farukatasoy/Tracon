@@ -43,7 +43,7 @@ public sealed class VoiceFrameSchemaTests
 
         Enum(defs, "Start", "inputFormat").Order(StringComparer.Ordinal)
             .ShouldBe(new[] { VoiceAudioFormats.WebmOpus, VoiceAudioFormats.Pcm16 }.Order(StringComparer.Ordinal));
-        Enum(defs, "Ended", "reason").ShouldBe([VoiceConversationProtocol.EndedByAgent]);
+        Enum(defs, "Ended", "reason").ShouldBe([VoiceConversationProtocol.EndedByAgent, VoiceConversationProtocol.EndedByDuration]);
     }
 
     [Fact]

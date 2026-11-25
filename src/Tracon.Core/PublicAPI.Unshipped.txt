@@ -675,6 +675,8 @@ Tracon.VoiceConnectionSettings.<Clone>$() -> Tracon.VoiceConnectionSettings!
 Tracon.VoiceConnectionSettings.Equals(Tracon.VoiceConnectionSettings? other) -> bool
 Tracon.VoiceConnectionSettings.Greeting.get -> string?
 Tracon.VoiceConnectionSettings.Greeting.init -> void
+Tracon.VoiceConnectionSettings.MaxDuration.get -> System.TimeSpan?
+Tracon.VoiceConnectionSettings.MaxDuration.init -> void
 Tracon.VoiceConnectionSettings.OpeningPrompt.get -> string?
 Tracon.VoiceConnectionSettings.OpeningPrompt.init -> void
 Tracon.VoiceConnectionSettings.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?

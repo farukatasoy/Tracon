@@ -143,7 +143,10 @@
       "required": ["type", "reason"],
       "properties": {
         "type": { "const": "ended" },
-        "reason": { "enum": ["agent"], "description": "agent: the agent ended the conversation after its answer." }
+        "reason": {
+          "enum": ["agent", "duration"],
+          "description": "agent: the agent ended the conversation after its answer. duration: the time limit the host set for this connection was reached; the turn in progress was cut off first. A reason you do not know means the same thing: the server ended the conversation, so do not reconnect."
+        }
       }
     }
   }

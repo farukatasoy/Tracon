@@ -16,6 +16,9 @@ export const VOICE_SUBPROTOCOL = 'tracon.voice.v1';
 /** The prefix of the subprotocol that carries the bearer token. */
 export const VOICE_TOKEN_PREFIX = 'tracon.token.';
 
+/** What a subprotocol value may be made of: the `token` characters of RFC 6455 (RFC 7230), at least one. */
+const SUBPROTOCOL_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+
 /** The audio a client sends: `webm-opus` is what `MediaRecorder` produces, `pcm16` is raw mono 16-bit little-endian PCM. */
 export type VoiceInputFormat = 'webm-opus' | 'pcm16';
 
@@ -46,7 +49,7 @@ export type VoiceServerFrame =
   | { type: 'error'; message: string }
   | { type: 'done'; cancelled: boolean; turn: number; attachmentId?: string }
   | { type: 'idle' }
-  | { type: 'ended'; reason: 'agent' };
+  | { type: 'ended'; reason: 'agent' | 'duration' };
 
 /** What {@link VoiceConversation.events} yields, in the order it happened. */
 export type VoiceEvent =
@@ -102,6 +105,17 @@ export interface VoiceConversationOptions {
 
   /** The audio this client sends. The server's default is `webm-opus`. */
   inputFormat?: VoiceInputFormat;
+
+  /**
+   * Subprotocols to offer after the protocol and the token, or a function that returns them when the socket opens: the way a
+   * host that has its own sign-in carries its own credential, such as `['host.bearer.' + jwt]`, which its authentication reads
+   * from the `Sec-WebSocket-Protocol` header. Use it for a token the host issued, and keep `token` for Tracon's own.
+   *
+   * A value must be made of the characters a subprotocol may hold (RFC 6455), and may be neither the protocol nor start with the
+   * prefix of Tracon's own token: Tracon reads that prefix as its credential and refuses what is not one. A value that breaks a
+   * rule throws a `TypeError` before the socket opens.
+   */
+  subProtocols?: readonly string[] | (() => readonly string[]);
 
   /**
    * Opens the socket. Browsers and Node 22 and later have a global `WebSocket`, which is the default; pass a
@@ -199,10 +213,32 @@ export function voiceStreamUrl(baseUrl: string, sessionId: string): string {
  * written to server logs, proxy logs and browser history, and a browser cannot add an `Authorization` header to a
  * WebSocket handshake.
  */
-export function voiceSubProtocols(token?: string | null): string[] {
-  return token === undefined || token === null || token.length === 0
-    ? [VOICE_SUBPROTOCOL]
-    : [VOICE_SUBPROTOCOL, VOICE_TOKEN_PREFIX + token];
+export function voiceSubProtocols(token?: string | null, extra: readonly string[] = []): string[] {
+  const offered = [VOICE_SUBPROTOCOL];
+
+  if (token !== undefined && token !== null && token.length > 0) {
+    offered.push(VOICE_TOKEN_PREFIX + token);
+  }
+
+  for (const value of extra) {
+    if (!SUBPROTOCOL_TOKEN.test(value)) {
+      throw new TypeError(
+        'A subprotocol must be made of the characters RFC 6455 allows in a token, and cannot be empty. ' +
+          'A token that holds "=", "/" or a space cannot travel there: encode it first.',
+      );
+    }
+
+    if (value === VOICE_SUBPROTOCOL || value.startsWith(VOICE_TOKEN_PREFIX)) {
+      throw new TypeError(
+        `The subprotocol "${VOICE_SUBPROTOCOL}" and the prefix "${VOICE_TOKEN_PREFIX}" belong to Tracon: ` +
+          'give the host\'s own credential a prefix of its own, or pass Tracon\'s token as `token`.',
+      );
+    }
+
+    offered.push(value);
+  }
+
+  return offered;
 }
 
 /**
@@ -251,7 +287,8 @@ export function createVoiceConversation(options: VoiceConversationOptions): Voic
   const url = voiceStreamUrl(options.baseUrl, options.sessionId);
   const token = typeof options.token === 'function' ? options.token() : options.token;
   const open = options.webSocket ?? defaultWebSocket;
-  const socket = open(url, voiceSubProtocols(token));
+  const extra = typeof options.subProtocols === 'function' ? options.subProtocols() : options.subProtocols;
+  const socket = open(url, voiceSubProtocols(token, extra));
 
   socket.binaryType = 'arraybuffer';
 

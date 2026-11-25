@@ -132,7 +132,7 @@ every page — three sizes for three questions, published on the documentation s
 
 - [`llms.txt`](/llms.txt) — the capability map, then **which page answers
   what**: one line per hand-written page, with its title, address, and subject. At
-  most 28 KiB; the build refuses a larger file.
+  most 29 KiB; the build refuses a larger file.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
   page concatenated, about 2300 KB. The capability map states the same figure.
 

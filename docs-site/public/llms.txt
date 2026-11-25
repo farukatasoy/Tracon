@@ -335,6 +335,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Structured output](https://tracon.dev/guides/structured-output/) — Ask models for plain text, JSON, or JSON Schema output, validate definitions early, and treat every response as untrusted input.
 - [Test agents without model calls](https://tracon.dev/guides/testing/) — Test agents without network model calls by using the in-memory host, scripted fake provider, recorded requests, and run assertions.
 - [TypeScript client](https://tracon.dev/guides/typescript-client/) — Call the Tracon management API from TypeScript or JavaScript with a client generated from the OpenAPI document, typed end to end.
+- [Voice conversation lifecycle](https://tracon.dev/guides/voice-conversation-lifecycle/) — Who may start a voice conversation, how a browser with its own sign-in opens one, how long it lasts and how it ends.
 - [Voice and live conversation](https://tracon.dev/guides/voice/) — Add speech tools and an opt-in realtime WebSocket conversation with explicit formats, limits, cost, privacy, and deployment rules.
 - [Write your own agent decorator](https://tracon.dev/guides/write-your-own-agent-decorator/) — Wrap every resolved agent with custom cross-cutting behavior via IAgentDecorator.
 - [Write your own agent source](https://tracon.dev/guides/write-your-own-agent-source/) — Add agents from Git, another database, or an external runtime through IAgentDefinitionSource or IAgentSource without bypassing Tracon's catalog and run pipeline.

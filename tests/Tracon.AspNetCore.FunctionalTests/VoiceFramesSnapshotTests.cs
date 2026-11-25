@@ -65,7 +65,8 @@ public sealed class VoiceFramesSnapshotTests
             {
                 names.Add($"subprotocol-prefix {value}");
             }
-            else if (string.Equals(constant.Name, nameof(VoiceConversationProtocol.EndedByAgent), StringComparison.Ordinal))
+            else if (string.Equals(constant.Name, nameof(VoiceConversationProtocol.EndedByAgent), StringComparison.Ordinal)
+                || string.Equals(constant.Name, nameof(VoiceConversationProtocol.EndedByDuration), StringComparison.Ordinal))
             {
                 names.Add($"ended-reason {value}");
             }

@@ -220,6 +220,51 @@ public sealed class VoiceConversationConnectionTests
         model.Requests.ShouldBeEmpty();
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(1801)]
+    public async Task A_limit_that_is_not_above_zero_or_is_above_the_global_limit_is_refused(int seconds)
+    {
+        var model = Model().RespondsWith("never");
+
+        // The global limit is 30 minutes, 1800 seconds: it is the ceiling of every connection.
+        await using var host = await StartAsync(
+            new StubVoiceProvider(),
+            model,
+            resolve: (_, _) => ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings
+            {
+                MaxDuration = TimeSpan.FromSeconds(seconds),
+            }));
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+
+        var frames = new List<VoiceEvent>();
+
+        (await client.WaitForAsync("error", frames)).Text("message").ShouldBe("The conversation could not be started.");
+        frames.ShouldNotContain(static frame => frame.Type == "ready");
+        model.Requests.ShouldBeEmpty("no run starts");
+
+        (await WaitForRecordsAsync(host)).EnumerateArray().Single().GetProperty("endReason").GetString().ShouldBe("Error");
+    }
+
+    [Fact]
+    public async Task A_limit_equal_to_the_global_limit_is_accepted()
+    {
+        await using var host = await StartAsync(
+            new StubVoiceProvider(),
+            Model().RespondsWith("an answer"),
+            resolve: static (_, _) => ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings
+            {
+                MaxDuration = TimeSpan.FromMinutes(30),
+            }));
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+    }
+
     [Fact]
     public async Task A_parameter_the_agent_does_not_declare_stops_the_start_and_its_value_is_not_in_the_answer()
     {

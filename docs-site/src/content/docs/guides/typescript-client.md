@@ -238,7 +238,7 @@ for await (const event of conversation.events()) {
       case 'idle': // a commit that closed no turn: listen again
         listen();
         break;
-      case 'ended': // the agent ended it; do not reconnect
+      case 'ended': // the agent or the host's time limit ended it (event.frame.reason); do not reconnect
         break;
     }
   } else if (event.kind === 'audio') {
@@ -248,6 +248,13 @@ for await (const event of conversation.events()) {
   }
 }
 ```
+
+A host that has its own sign-in offers its token in a subprotocol of its own with
+`subProtocols` (a list, or a function that returns one when the socket opens), for example
+`subProtocols: () => ['host.bearer.' + currentJwt()]`. Keep `token` for Tracon's own token. The
+[voice guide](/guides/voice-conversation-lifecycle/#carry-your-own-token-from-the-browser) shows the host side. A value the
+subprotocol header cannot carry, the protocol itself and the prefix of Tracon's own token are refused
+with a `TypeError` before the socket opens.
 
 Three rules the client enforces so you do not learn them by hanging. Audio, `commit` and
 `cancel` are refused until `ready` has arrived, and after the conversation ended or closed:

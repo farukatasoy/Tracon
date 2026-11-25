@@ -91,6 +91,30 @@ public sealed class RunAuthorizationCoverageTests
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
+    /// <summary>
+    /// The voice conversation asks the three questions of a run start through <c>VoiceHostContext</c>, which asks
+    /// <c>RunAdmission</c>; the driver asks it at the start of a connection and before every run it starts.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 The driver is not an HTTP surface and has no <c>RunAuthorizationGate</c> call, so the lists above cannot see it. The
+    /// handshake asks the session gate before the agent is known, so without these questions a caller who may open a
+    /// conversation could name any agent in the <c>start</c> frame and no quota applied to a turn.
+    /// </remarks>
+    private static readonly Regex AdmissionCheckMarker = new(
+        @"_admission\s*\.\s*CheckAsync\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex HostRunCheckMarker = new(
+        @"_host\s*\.\s*CheckRunAsync\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex RunRefusalCallMarker = new(
+        @"await\s+RunRefusalAsync\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
     private static readonly Regex AttributionMarker = new(
         @"RunAttributionGate\s*\.\s*(Check|Validate)\s*\(",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
@@ -324,6 +348,21 @@ public sealed class RunAuthorizationCoverageTests
             ],
             "the drain refusal — a run can start there while the process drains, and is cut off " +
             "when it stops");
+
+    /// <summary>
+    /// The voice conversation driver asks whether a run may start when the connection starts, before the host's own code is
+    /// called, and before the turn and the opening prompt: three call sites of one method that asks the host once.
+    /// </summary>
+    [Fact]
+    public void The_voice_conversation_asks_run_admission_at_its_start_and_before_each_run()
+        => AssertEveryFileMatches(
+            [
+                ("src/Tracon.Core/Voice/VoiceHostContext.cs", AdmissionCheckMarker, 1),
+                ("src/Tracon.Core/Voice/VoiceConversationDriver.cs", HostRunCheckMarker, 1),
+                ("src/Tracon.Core/Voice/VoiceConversationDriver.cs", RunRefusalCallMarker, 3),
+            ],
+            "the run check of the voice conversation — a connection or a turn that is not asked can run an agent its caller " +
+            "may not run, or past the tenant's quota");
 
     /// <summary>Regression coverage for the scan itself, isolated from the real repository tree.</summary>
     /// <remarks>

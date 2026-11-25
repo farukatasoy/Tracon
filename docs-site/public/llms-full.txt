@@ -11722,7 +11722,7 @@ every page — three sizes for three questions, published on the documentation s
 
 - [`llms.txt`](/llms.txt) — the capability map, then **which page answers
   what**: one line per hand-written page, with its title, address, and subject. At
-  most 28 KiB; the build refuses a larger file.
+  most 29 KiB; the build refuses a larger file.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
   page concatenated, about 2300 KB. The capability map states the same figure.
 
@@ -12989,6 +12989,12 @@ common, so each one calls this binding in its own body:
   refused call starts no run, calls no model and opens no run row. An MCP call that
   asks for a task is refused before the task exists. How the refusal reaches the
   caller is told on the external agents page.
+- **A real-time voice conversation, as a run start:** the handshake asks the session question
+  before the agent is known, so the conversation asks the run question again when the `start`
+  frame names the agent and before every turn. The handler gets `RunAccess.Start` with the
+  agent, the session, the tenant and the user, and the session's owner and the tenant's quota
+  are checked too. A refusal ends the start, or the turn, with an `error` frame; the
+  [voice guide](/guides/voice-conversation-lifecycle/#a-conversation-is-a-run-start) tells what follows.
 - **Every run resource:** the run summary, its tree, its event stream, its
   recorded input, its span tree, its tool calls, its scores, its
   cancellation, its attachments, and its approval requests.
@@ -21329,7 +21335,7 @@ for await (const event of conversation.events()) {
       case 'idle': // a commit that closed no turn: listen again
         listen();
         break;
-      case 'ended': // the agent ended it; do not reconnect
+      case 'ended': // the agent or the host's time limit ended it (event.frame.reason); do not reconnect
         break;
     }
   } else if (event.kind === 'audio') {
@@ -21339,6 +21345,13 @@ for await (const event of conversation.events()) {
   }
 }
 ```
+
+A host that has its own sign-in offers its token in a subprotocol of its own with
+`subProtocols` (a list, or a function that returns one when the socket opens), for example
+`subProtocols: () => ['host.bearer.' + currentJwt()]`. Keep `token` for Tracon's own token. The
+[voice guide](/guides/voice-conversation-lifecycle/#carry-your-own-token-from-the-browser) shows the host side. A value the
+subprotocol header cannot carry, the protocol itself and the prefix of Tracon's own token are refused
+with a `TypeError` before the socket opens.
 
 Three rules the client enforces so you do not learn them by hanging. Audio, `commit` and
 `cancel` are refused until `ready` has arrived, and after the conversation ended or closed:
@@ -21379,6 +21392,221 @@ sync.
 - [Typed client and CLI](/guides/cli/) — the .NET counterpart, generated from the same document
 - [Versions and upgrades](/reference/versioning/) — how this package's version tracks the NuGet family
 - [HTTP API conventions](/http-api/) — authentication, paging, and error shapes this client wraps
+
+---
+
+# Voice conversation lifecycle
+
+Source: https://tracon.dev/guides/voice-conversation-lifecycle/
+
+A [voice conversation](/guides/voice/#enable-live-conversation) is a long-lived socket that runs
+an agent turn after turn. This page covers what happens around it: the questions asked before
+it may run, how a host with its own sign-in authenticates it, the time limit of one connection,
+how an agent ends it, and how it closes. The frames themselves are in the
+[protocol reference](/reference/voice-conversation-protocol/).
+
+## A conversation is a run start
+
+```mermaid
+sequenceDiagram
+    accTitle: Where a voice conversation asks whether a run may start
+    accDescr: The handshake asks the session question before the agent is known. When the start frame names the agent, the server asks the run questions, then calls the host's resolver and answers ready. Before every turn it asks them again, and a refusal is an error frame.
+    participant C as Client
+    participant S as Server
+    participant H as Run questions
+    C->>S: open the socket
+    S->>S: session question (SessionAccess.Voice)
+    C->>S: start with the agent
+    S->>H: may this caller run this agent in this session?
+    H-->>S: allowed or refused
+    S->>S: the host's resolver, only if allowed
+    S-->>C: ready, or error and the conversation ends
+    loop every turn
+        C->>S: audio and commit
+        S->>H: asked again, before any audio is transcribed
+        H-->>S: allowed or refused
+        S-->>C: the answer, or error and then done
+    end
+```
+
+The question above is about the session, and it is asked before the agent is known: the
+`start` frame names the agent after the socket is open. So the conversation asks again, with
+the three questions every other way to start a run asks:
+
+1. The registered `IRunAuthorizationHandler` is asked `AuthorizeRunAsync` with
+   `RunAccess.Start`, the agent, the session, the tenant and the user.
+2. The session's owner is checked when session ownership is on.
+3. The tenant's quota is checked.
+
+They are asked when `start` arrives, before `ResolveConnection`, and before every turn,
+including the opening prompt of a conversation that has one. A greeting is not a run and
+asks nothing more. A caller who may open a conversation therefore cannot name another agent
+in it and run it.
+
+| Refused when | What the client reads | What follows |
+|---|---|---|
+| `start` | `error` with the reason the handler or the quota gave, the text an HTTP run would answer | The conversation ends and the record's end reason is `Error`. The host's resolver is not called |
+| A turn | `error`, then `done` with the number of turns already completed | The turn is not counted, its audio is never sent to the transcription provider and no run starts. The conversation goes on, and the next turn is asked again |
+
+A handler or a quota store that throws refuses, with the fixed text
+`The run authorization check failed. Retry the request.`; the exception stays in your log.
+A spent quota refuses a new conversation and the next turn of an open one, and never cuts a
+turn in progress. A voice turn was recorded and counted before, but never refused.
+
+## Carry your own token from the browser
+
+Tracon's `tracon.token.` subprotocol carries a credential **Tracon** checks: its static
+`AuthToken` or one of its API keys. A host that has its own sign-in (a JWT it issued) puts
+that token in a subprotocol **of its own**, and its own authentication reads it from the
+`Sec-WebSocket-Protocol` header. Tracon reads only its own prefix and ignores every other
+offer, so it selects `tracon.voice.v1` and never echoes the token.
+
+On the host, give the endpoints the policy your sign-in satisfies and let the sign-in find
+the token in the header. With the JWT bearer handler that is its `OnMessageReceived` event:
+set `context.Token` to the value `ReadHostToken` returns. The helper reads the value your
+prefix marks:
+
+```csharp
+using Microsoft.AspNetCore.Http;
+
+// "host.bearer." is your choice of prefix. Do not use "tracon.token.": Tracon reads that prefix as its own credential
+// and refuses a value that is not one.
+static string? ReadHostToken(HttpRequest request)
+{
+    const string prefix = "host.bearer.";
+
+    foreach (var header in request.Headers.SecWebSocketProtocol)
+    {
+        foreach (var offer in (header ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (offer.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return offer[prefix.Length..];
+            }
+        }
+    }
+
+    return null;
+}
+
+app.MapTracon("/tracon", options => options.RequireAuthorization("HostAccess"));
+```
+
+In the browser, offer it next to the protocol with the `subProtocols` option of
+[`createVoiceConversation`](/guides/typescript-client/#talk-to-a-voice-conversation), or in
+the second argument of your own `new WebSocket(url, [protocol, 'host.bearer.' + jwt])`:
+
+```ts
+createVoiceConversation({ baseUrl, sessionId, agent, subProtocols: () => ['host.bearer.' + currentJwt()] });
+```
+
+Three limits apply:
+
+- A subprotocol value holds only the characters of an HTTP token. A base64url JWT does
+  (`A-Z a-z 0-9 - _ .`); a value with `=`, `/`, `+` or a space does not, so encode it first.
+- Do not put the token in the query string. It is the one place the address, your proxy's
+  log and the browser's history all keep it. Tracon refuses its own token there for that reason, and the same
+  holds for yours.
+- Tracon's own checks still apply to a socket your sign-in authenticated. Tracon cannot tell
+  a token the page holds from an identity the browser sends by itself (a cookie), so a page
+  of another site is refused unless its origin is in `AllowedOrigins`, a client with no
+  `Origin` header is not judged by it, and the run questions below are asked as for any
+  other conversation.
+
+## Limit how long a conversation lasts
+
+`MaxConnectionDuration` (30 minutes by default) is one limit for every connection. It is a
+hygiene limit: when it passes, the server closes the socket without a word and the client is
+expected to reconnect, and the session keeps its history.
+
+A host whose conversations differ in length (a kind of conversation, a tenant's plan) sets a
+shorter limit for each connection with `MaxDuration`, in the resolver:
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .UseVoiceConversation(options =>
+    {
+        options.MaxConnectionDuration = TimeSpan.FromMinutes(30);
+        options.ResolveConnection = (request, cancellationToken) =>
+            ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings
+            {
+                MaxDuration = request.AgentName == "assessment" ? TimeSpan.FromMinutes(10) : TimeSpan.FromMinutes(15),
+            });
+    });
+```
+
+The value must be greater than zero and no greater than `MaxConnectionDuration`, which stays
+the ceiling of every connection: a resolver that returns anything else fails like any other
+mistake of the resolver, and the limit is never cut or stretched to fit. The time is counted
+from the moment the connection opened.
+
+When the limit is reached the turn in progress is cut off (its `done` carries
+`"cancelled": true`), the server sends `ended` with `"reason": "duration"` and closes the
+socket normally, and the record's end reason is `DurationLimit`. **The client does not
+reconnect:** the conversation is over. That is what tells this limit from the global one,
+whose close carries no `ended` frame.
+
+Nothing remembers how long an earlier connection of the same session lasted. A host that
+allows a conversation a fixed total sums the time already used and returns what is left each
+time it is asked, or refuses the new connection in the resolver.
+
+## Let the agent end the conversation
+
+An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation
+after its answer. It takes no argument. Tell the agent when to use it in its instructions
+(the topic is done, the time is up, the caller said goodbye) and to say a short goodbye in
+the same answer:
+
+```csharp
+tracon.AddAgent(new AgentDefinition
+{
+    Name = "coach",
+    Instructions = "Coach the student. When the exercise is done, say goodbye and call end_conversation.",
+    Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "your-model" },
+    ToolNames = ["end_conversation"],
+});
+```
+
+The server lets the answer finish, speaks it, sends `done`, then `ended` with
+`"reason": "agent"`, and closes the socket normally. The record's end reason is `Agent`.
+If the user interrupts the goodbye (`cancel`), or the turn fails, the request is dropped and
+the conversation goes on. An agent that does not list the tool can never end a conversation,
+and the tool ends nothing when an agent runs outside a voice conversation.
+A conversation also ends when the time limit the host set for its connection passes, and every
+close has its own frame, description and end reason: they are on the
+[voice conversation lifecycle](/guides/voice-conversation-lifecycle/#how-a-conversation-closes) page.
+
+## How a conversation closes
+
+Every close the server starts is a normal closure with a description, and the record carries
+the end reason. What came before the close tells the client whether to come back:
+
+| Cause | Frame before the close | Close description | End reason |
+|---|---|---|---|
+| The client sent `stop` or closed the socket | none | `The conversation closed.` | `Client` |
+| The agent ended it | `ended` (`agent`) | `The conversation was ended by the agent.` | `Agent` |
+| The limit the host set for the connection | `ended` (`duration`) | `The conversation reached its time limit.` | `DurationLimit` |
+| `MaxConnectionDuration`, the global limit | none | `The connection reached the duration limit.` | `DurationLimit` |
+| No frame from the client for `IdleTimeout` | none | `The connection stayed idle.` | `IdleTimeout` |
+| The host is stopping | none | `The server is shutting down.` | `ServerShutdown` |
+| The conversation failed | `error` | `The conversation closed with an error.` | `Error` |
+
+The end reason is decided once, by the first thing that ended the conversation, and a client
+that drops the connection the moment it reads `ended` does not change it. `ServerShutdown` is
+written only when the host is stopping: a client that goes away while the host runs is
+`Client`. A host that stops closes its open conversations and cuts the turn in progress.
+
+A close is a handshake: the server sends its close frame and waits for the client's. A
+browser answers by itself; another client must keep reading until the close arrives. The
+server waits five seconds, and then drops the connection, so a client that reads nothing
+cannot hold a tenant's connection slot.
+
+## Read next
+
+- [Voice and live conversation](/guides/voice/) — enable the layer, decide the voice on the server, open and end the conversation.
+- [Voice conversation protocol](/reference/voice-conversation-protocol/) — every frame, field, handshake answer and close.
+- [Run and session authorization](/guides/embedding/#6--run-and-session-authorization) — the handler these questions ask.
 
 ---
 
@@ -21972,8 +22200,8 @@ frames and binary audio:
 4. Read `transcript`, `runStarted`, `text`, `audioStart`, binary audio, `audioEnd`,
    and `done` frames.
 5. Read `idle` — a commit that closed no turn. Handle it or your client hangs.
-6. Read `ended` — the agent ended the conversation and the server closes the socket
-   right after it. Do not reconnect on your own.
+6. Read `ended` — the agent, or the time limit your host set, ended the conversation and
+   the server closes the socket right after it. Do not reconnect on your own.
 7. Send `cancel` for barge-in or `stop` to close cleanly.
 
 :::caution[A commit does not always produce a turn]
@@ -22028,6 +22256,12 @@ A session id the server has never seen is **not** rejected: the first turn opens
 The handler is still asked, so only you decide whether that caller may open a new
 conversation under that id.
 
+That question is about the session, and it is asked before the agent is known. The run
+questions (the handler, the session's owner and the tenant's quota) are asked again when the
+`start` frame names the agent and before every turn, and a host with its own sign-in carries
+its token in a subprotocol of its own: both are on the
+[voice conversation lifecycle](/guides/voice-conversation-lifecycle/) page.
+
 ### Decide the voice and the parameters on the server
 
 By default the browser chooses the voice: the `voiceId` of its `start` frame is the voice
@@ -22070,9 +22304,11 @@ agent on every turn and recorded with each run. A tool of the run reads them wit
 decide by them what a value from the browser could never decide. The protocol carries no
 parameter from the browser, so there is nothing to forward.
 
-A resolver that throws, that names a parameter the agent does not declare, or that returns
-both a `Greeting` and an `OpeningPrompt` ends the connection with an `error` frame and the
-end reason `Error`. No run starts and nothing is spoken. The browser is told only
+A resolver that throws, that names a parameter the agent does not declare, that returns
+both a `Greeting` and an `OpeningPrompt`, or that returns a `MaxDuration` outside the
+[allowed range](/guides/voice-conversation-lifecycle/#limit-how-long-a-conversation-lasts) ends the
+connection with an `error` frame and the end reason `Error`. No run starts and nothing is spoken.
+The browser is told only
 `The conversation could not be started.`; the exception text stays in your log. A `null`
 result runs the agent with its defaults and the configured voice.
 
@@ -22113,26 +22349,10 @@ like any answer.
 
 ### Let the agent end the conversation
 
-An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation
-after its answer. It takes no argument. Tell the agent when to use it in its instructions
-(the topic is done, the time is up, the caller said goodbye) and to say a short goodbye in
-the same answer:
-
-```csharp
-tracon.AddAgent(new AgentDefinition
-{
-    Name = "coach",
-    Instructions = "Coach the student. When the exercise is done, say goodbye and call end_conversation.",
-    Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "your-model" },
-    ToolNames = ["end_conversation"],
-});
-```
-
-The server lets the answer finish, speaks it, sends `done`, then `ended` with
-`"reason": "agent"`, and closes the socket normally. The record's end reason is `Agent`.
-If the user interrupts the goodbye (`cancel`), or the turn fails, the request is dropped and
-the conversation goes on. An agent that does not list the tool can never end a conversation,
-and the tool ends nothing when an agent runs outside a voice conversation.
+An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation after
+its answer; the server sends `ended` and closes the socket. How to write the agent and what every
+close looks like are on the
+[voice conversation lifecycle](/guides/voice-conversation-lifecycle/#let-the-agent-end-the-conversation) page.
 
 ### What the record says
 
@@ -22195,6 +22415,8 @@ answer.
   agent's parameters are the server's.
 - [ ] `OutputMediaType` matches the configured synthesis format.
 - [ ] Audio persistence, consent, access, backup, and retention policy are explicit.
+- [ ] A host whose conversations differ in length sets `MaxDuration` in the resolver, and its
+  client treats `ended` as final and a bare close as a reason to reconnect.
 - [ ] Barge-in, reconnect, maximum duration, provider outage, and slow clients are
   tested through the real proxy.
 
@@ -33889,7 +34111,7 @@ field is not. A reader ignores a frame type and a field it does not know.
 |---|---|
 | Address | `{origin}{prefix}/api/voice/sessions/{sessionId}/stream`, where the prefix is the one `MapTracon` was given (`/tracon` by default). Use `wss` when the page is `https` |
 | Subprotocol | `tracon.voice.v1`. The server echoes it on a successful handshake |
-| Credential | A second subprotocol, `tracon.token.<token>`, because a browser cannot add an `Authorization` header to a WebSocket handshake. The token is never accepted in the query string, where logs would record it |
+| Credential | A second subprotocol, `tracon.token.<token>`, because a browser cannot add an `Authorization` header to a WebSocket handshake. The token is never accepted in the query string, where logs would record it. A host that has its own sign-in carries its own token in a subprotocol with a prefix of its own, which its authentication reads from the `Sec-WebSocket-Protocol` header and Tracon ignores ([how](/guides/voice-conversation-lifecycle/#carry-your-own-token-from-the-browser)) |
 | Session | `{sessionId}` is the agent session the conversation runs in. An id the server has never seen is not refused: the first turn opens it. The socket does not check the id's length or characters; the other voice endpoints take 1 to 200 characters, so use an id that fits |
 | Token characters | A subprotocol value is limited to the token characters of RFC 6455, so a token or key that holds `=`, `/` or a space cannot travel there. Tracon API keys are base64url and are safe. A free-form `AuthToken` should be one too |
 
@@ -33961,8 +34183,8 @@ using `InputSampleRate` (16 kHz by default). Say the real rate in the server's s
 | `audioEnd` | none | One spoken sentence ended. Another `audioStart` can follow in the same turn |
 | `done` | `cancelled`, `turn`, `attachmentId` | The turn ended: answered, interrupted (`cancelled`) or failed. `turn` is the number of turns the user has completed; `attachmentId` is present only when the host stores audio |
 | `idle` | none | A `commit` closed no turn: it came before any audio, or the audio held nothing usable. The conversation is listening again. It is neither an error nor a `done` |
-| `error` | `message` | Something went wrong. A failed `start` (no such agent, an unknown audio format, a refused resolver) ends the conversation. A failed turn ends the turn and a `done` follows. A frame the server does not understand (not JSON, or an unknown `type`) answers `error` and changes nothing: the conversation goes on and no `done` follows |
-| `ended` | `reason` | The server ends the conversation and closes the socket right after. `reason` is `agent` when the agent called `end_conversation`; treat a `reason` you do not know the same way, as the server's decision to stop. Do not reconnect on your own. An answer the user cut off or that failed never sends it |
+| `error` | `message` | Something went wrong. A failed `start` (no such agent, an unknown audio format, a run the caller may not start, a refused resolver) ends the conversation. A failed turn ends the turn and a `done` follows; so does a turn the caller may not run, which is not counted, and nothing of it is transcribed. A frame the server does not understand (not JSON, or an unknown `type`) answers `error` and changes nothing: the conversation goes on and no `done` follows |
+| `ended` | `reason` | The server ends the conversation and closes the socket right after. `reason` is `agent` when the agent called `end_conversation`, and `duration` when the time limit the host set for this connection was reached (the turn in progress was cut off first, so its `done` comes before this frame). Treat a `reason` you do not know the same way, as the server's decision to stop. Do not reconnect on your own. An answer the user cut off or that failed never sends it |
 
 Two rules keep a client from hanging. Every `commit` the server accepts ends in a `done` or an
 `idle`, never in silence: a client that put itself in a "thinking" state when it committed
@@ -33989,11 +34211,17 @@ that tells the client why:
 | Description | Cause |
 |---|---|
 | `The conversation closed.` | The client sent `stop` or closed the socket, or a `start` failed |
-| `The conversation was ended by the agent.` | An `ended` frame came first |
+| `The conversation was ended by the agent.` | An `ended` frame with `agent` came first |
+| `The conversation reached its time limit.` | An `ended` frame with `duration` came first: the host set a limit for this connection and it passed. Do not reconnect |
 | `The connection stayed idle.` | No frame **from the client** for `IdleTimeout` (2 minutes by default); frames the server sends do not count, so a client that stays silent through a long answer is closed |
-| `The connection reached the duration limit.` | `MaxConnectionDuration` (30 minutes by default). Reconnect to continue: the session keeps its history |
-| `The server is shutting down.` | The host is draining |
+| `The connection reached the duration limit.` | `MaxConnectionDuration` (30 minutes by default), the limit of every connection. No `ended` frame comes: reconnect to continue, the session keeps its history |
+| `The server is shutting down.` | The host began to stop; the turn in progress is cut off. Reconnect to another instance |
 | `The conversation closed with an error.` | The connection failed |
+
+A close is a handshake: the server sends its close frame and waits for the client's, then
+drops the connection if none comes within five seconds. A browser answers by itself; another
+client must keep reading until the close arrives, or call its close method when it reads
+one.
 
 An utterance is bounded by `MaxUtteranceDuration` (60 seconds) and `MaxUtteranceBytes` (8 MiB):
 when a client's voice activity detection never commits, the server closes the utterance on its

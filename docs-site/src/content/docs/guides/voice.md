@@ -589,8 +589,8 @@ frames and binary audio:
 4. Read `transcript`, `runStarted`, `text`, `audioStart`, binary audio, `audioEnd`,
    and `done` frames.
 5. Read `idle` — a commit that closed no turn. Handle it or your client hangs.
-6. Read `ended` — the agent ended the conversation and the server closes the socket
-   right after it. Do not reconnect on your own.
+6. Read `ended` — the agent, or the time limit your host set, ended the conversation and
+   the server closes the socket right after it. Do not reconnect on your own.
 7. Send `cancel` for barge-in or `stop` to close cleanly.
 
 :::caution[A commit does not always produce a turn]
@@ -645,6 +645,12 @@ A session id the server has never seen is **not** rejected: the first turn opens
 The handler is still asked, so only you decide whether that caller may open a new
 conversation under that id.
 
+That question is about the session, and it is asked before the agent is known. The run
+questions (the handler, the session's owner and the tenant's quota) are asked again when the
+`start` frame names the agent and before every turn, and a host with its own sign-in carries
+its token in a subprotocol of its own: both are on the
+[voice conversation lifecycle](/guides/voice-conversation-lifecycle/) page.
+
 ### Decide the voice and the parameters on the server
 
 By default the browser chooses the voice: the `voiceId` of its `start` frame is the voice
@@ -687,9 +693,11 @@ agent on every turn and recorded with each run. A tool of the run reads them wit
 decide by them what a value from the browser could never decide. The protocol carries no
 parameter from the browser, so there is nothing to forward.
 
-A resolver that throws, that names a parameter the agent does not declare, or that returns
-both a `Greeting` and an `OpeningPrompt` ends the connection with an `error` frame and the
-end reason `Error`. No run starts and nothing is spoken. The browser is told only
+A resolver that throws, that names a parameter the agent does not declare, that returns
+both a `Greeting` and an `OpeningPrompt`, or that returns a `MaxDuration` outside the
+[allowed range](/guides/voice-conversation-lifecycle/#limit-how-long-a-conversation-lasts) ends the
+connection with an `error` frame and the end reason `Error`. No run starts and nothing is spoken.
+The browser is told only
 `The conversation could not be started.`; the exception text stays in your log. A `null`
 result runs the agent with its defaults and the configured voice.
 
@@ -730,26 +738,10 @@ like any answer.
 
 ### Let the agent end the conversation
 
-An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation
-after its answer. It takes no argument. Tell the agent when to use it in its instructions
-(the topic is done, the time is up, the caller said goodbye) and to say a short goodbye in
-the same answer:
-
-```csharp
-tracon.AddAgent(new AgentDefinition
-{
-    Name = "coach",
-    Instructions = "Coach the student. When the exercise is done, say goodbye and call end_conversation.",
-    Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "your-model" },
-    ToolNames = ["end_conversation"],
-});
-```
-
-The server lets the answer finish, speaks it, sends `done`, then `ended` with
-`"reason": "agent"`, and closes the socket normally. The record's end reason is `Agent`.
-If the user interrupts the goodbye (`cancel`), or the turn fails, the request is dropped and
-the conversation goes on. An agent that does not list the tool can never end a conversation,
-and the tool ends nothing when an agent runs outside a voice conversation.
+An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation after
+its answer; the server sends `ended` and closes the socket. How to write the agent and what every
+close looks like are on the
+[voice conversation lifecycle](/guides/voice-conversation-lifecycle/#let-the-agent-end-the-conversation) page.
 
 ### What the record says
 
@@ -812,6 +804,8 @@ answer.
   agent's parameters are the server's.
 - [ ] `OutputMediaType` matches the configured synthesis format.
 - [ ] Audio persistence, consent, access, backup, and retention policy are explicit.
+- [ ] A host whose conversations differ in length sets `MaxDuration` in the resolver, and its
+  client treats `ended` as final and a bare close as a reason to reconnect.
 - [ ] Barge-in, reconnect, maximum duration, provider outage, and slow clients are
   tested through the real proxy.
 

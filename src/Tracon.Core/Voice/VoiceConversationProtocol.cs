@@ -90,18 +90,21 @@ internal static class VoiceConversationProtocol
     public const string ServerIdle = "idle";
 
     /// <summary>
-    /// The server ends the conversation: it follows the <c>done</c> of the turn whose answer said goodbye, and the
-    /// connection closes right after it.
+    /// The server ends the conversation: it follows the <c>done</c> of the last turn (the one whose answer said goodbye, or the
+    /// one the host's time limit cut off), and the connection closes right after it.
     /// </summary>
     /// <remarks>
-    /// A client that receives this does not reconnect on its own: the agent decided the conversation is over (the
-    /// <see cref="ServerEnded"/> frame carries the reason in <c>reason</c>). A close without this frame is the client's, the
-    /// idle limit's or the duration limit's.
+    /// A client that receives this does not reconnect on its own: the conversation is over, and the <c>reason</c> of the frame
+    /// says who ended it (the agent, or the time limit the host set for the connection). A close without this frame is the
+    /// client's, the idle limit's, the global duration limit's or the host's shutdown.
     /// </remarks>
     public const string ServerEnded = "ended";
 
     /// <summary>The <c>reason</c> of an <see cref="ServerEnded"/> frame sent because the agent ended the conversation.</summary>
     public const string EndedByAgent = "agent";
+
+    /// <summary>The <c>reason</c> of an <see cref="ServerEnded"/> frame sent because the time limit the host set for the connection was reached.</summary>
+    public const string EndedByDuration = "duration";
 }
 
 /// <summary>The audio formats that the client can send.</summary>

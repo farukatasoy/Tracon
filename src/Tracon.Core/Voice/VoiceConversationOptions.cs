@@ -36,6 +36,11 @@ public sealed class VoiceConversationOptions
     /// <remarks>
     /// When the time expires the connection closes cleanly and the client reconnects.
     /// An endless connection means that a leaking resource is never noticed.
+    /// <para>
+    /// It is also the ceiling of the shorter limit a host can set for one connection
+    /// (<see cref="VoiceConnectionSettings.MaxDuration"/>); that one ends the conversation instead of asking the client to come
+    /// back.
+    /// </para>
     /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan MaxConnectionDuration { get; set; } = TimeSpan.FromMinutes(30);

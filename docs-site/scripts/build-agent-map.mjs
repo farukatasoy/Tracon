@@ -90,8 +90,14 @@ export const agentMapBudgetBytes = 11264;
  * belongs to; writing a provider Tracon has no package for). Two pages are two index lines, and the index then measures
  * 27,907 B, 259 B over the ceiling. A shorter description would not have paid for the lines and the descriptions double
  * as search snippets. 28 KiB leaves about 760 B.
+ *
+ * Raised a sixth time, from 28 KiB to 29 KiB, measured: the voice guide crossed its weight ceiling again (it measured
+ * 63,188 B against 59,500 B) when the rules around a conversation joined it, and the gate asks for a split along a topic
+ * of its own (who may start a conversation, how long it lasts, how it ends). The page adds one index line, and the index
+ * then measures 28,831 B, 159 B over the ceiling. A description shorter than the content gate allows would still have
+ * left it over, and the descriptions double as search snippets. 29 KiB leaves about 865 B.
  */
-export const llmsBudgetBytes = 28672;
+export const llmsBudgetBytes = 29696;
 
 /** The byte ceiling of each budgeted artifact. */
 export const budgets = { agentMap: agentMapBudgetBytes, llms: llmsBudgetBytes };
