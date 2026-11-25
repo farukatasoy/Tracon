@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
@@ -25,6 +26,9 @@ internal sealed record VoiceConversationRequest
 
     /// <summary>Gets the actor that opened the connection, for the audit trail.</summary>
     public string? CreatedBy { get; init; }
+
+    /// <summary>Gets the authenticated caller, handed to the host's connection resolver; <see langword="null"/> when none was given.</summary>
+    public ClaimsPrincipal? User { get; init; }
 }
 
 /// <summary>The two speech providers of one conversation connection.</summary>
@@ -78,6 +82,8 @@ internal sealed class VoiceConversationDriver
     private readonly ILogger<VoiceConversationDriver> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly VoiceHistoryWriter _history;
+    private readonly VoiceConversationEndRegistry _endRegistry;
+    private readonly IVoicePricingReader? _pricing;
 
     /// <summary>Initializes a new instance of the <see cref="VoiceConversationDriver"/> class.</summary>
     /// <param name="catalog">The agent catalog.</param>
@@ -96,6 +102,8 @@ internal sealed class VoiceConversationDriver
     /// <param name="speechProviders">
     /// Resolves the providers of each connection through the tenant's checks.
     /// </param>
+    /// <param name="endRegistry">Finds the connection that runs a turn when the agent asks to end the conversation.</param>
+    /// <param name="pricing">Prices the conversation for its record; <see langword="null"/> leaves the record unpriced.</param>
     /// <param name="timeProvider">The time source.</param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public VoiceConversationDriver(
@@ -110,6 +118,8 @@ internal sealed class VoiceConversationDriver
         ISpeechTranscriber? transcriber,
         ISpeechSynthesizer? synthesizer,
         ISpeechProviderResolver speechProviders,
+        VoiceConversationEndRegistry endRegistry,
+        IVoicePricingReader? pricing,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
@@ -121,6 +131,7 @@ internal sealed class VoiceConversationDriver
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(speechProviders);
+        ArgumentNullException.ThrowIfNull(endRegistry);
 
         _catalog = catalog;
         _sessions = sessions;
@@ -133,6 +144,8 @@ internal sealed class VoiceConversationDriver
         _transcriber = transcriber;
         _synthesizer = synthesizer;
         _speechProviders = speechProviders;
+        _endRegistry = endRegistry;
+        _pricing = pricing;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _history = new VoiceHistoryWriter(chatHistory, sessions, logger);
 
@@ -251,8 +264,23 @@ internal sealed class VoiceConversationDriver
         private string _agentName = string.Empty;
         private string? _voiceId;
 
+        // What the host's resolver decided (null / false without one): the parameter values every turn binds, whether the
+        // run reads them as the host's own, and how the conversation opens.
+        private IReadOnlyDictionary<string, string>? _parameters;
+        private bool _hostDecided;
+        private string? _greeting;
+        private string? _openingPrompt;
+
         private decimal _inputSeconds;
         private long _outputChars;
+        private string? _transcriptionModel;
+
+        // Set by the end_conversation tool from inside a run, read by the turn task when the answer is spoken.
+        private volatile bool _endRequested;
+
+        // Why the connection will close when it is not the client's doing; guarded by the state lock.
+        private VoiceSessionEndReason? _endReason;
+        private CancellationTokenSource? _connectionCancellation;
 
         private Task _turn = Task.CompletedTask;
         private CancellationTokenSource? _turnCancellation;
@@ -264,10 +292,12 @@ internal sealed class VoiceConversationDriver
             var reason = VoiceSessionEndReason.Client;
 
             using var connectionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _connectionCancellation = connectionCancellation;
 
             try
             {
                 reason = await PumpAsync(started, connectionCancellation, cancellationToken).ConfigureAwait(false);
+                reason = GetEndReason() ?? reason;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -323,6 +353,12 @@ internal sealed class VoiceConversationDriver
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
+                    // The agent (or a failed start) closed the connection: that reason, not a limit, is the one to record.
+                    if (GetEndReason() is { } decided)
+                    {
+                        return decided;
+                    }
+
                     // The wait we used tells which limit was reached; the two limits
                     // produce a different close reason.
                     return wait == untilDeadline
@@ -463,9 +499,21 @@ internal sealed class VoiceConversationDriver
                 return;
             }
 
+            if (driver._options.ResolveConnection is { } resolveConnection)
+            {
+                if (!await ResolveConnectionAsync(resolveConnection, agentName, message.VoiceId, cancellationToken).ConfigureAwait(false))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                _voiceId = message.VoiceId ?? _options.VoiceId;
+            }
+
             try
             {
-                _agent = await driver._catalog.ResolveAsync(agentName, cancellationToken: cancellationToken).ConfigureAwait(false);
+                _agent = await driver._catalog.ResolveAsync(agentName, ResolveOptions, cancellationToken).ConfigureAwait(false);
             }
             catch (TraconException exception)
             {
@@ -492,7 +540,6 @@ internal sealed class VoiceConversationDriver
             }
 
             _agentName = agentName;
-            _voiceId = message.VoiceId ?? _options.VoiceId;
 
             _buffer = new VoiceUtteranceBuffer(
                 message.InputFormat ?? VoiceAudioFormats.WebmOpus,
@@ -507,6 +554,126 @@ internal sealed class VoiceConversationDriver
                 SessionId = request.SessionId,
                 PersistAudio = _options.PersistAudio,
             }).ConfigureAwait(false);
+
+            await BeginOpeningAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>The resolve options of every turn: the host's parameter values, or none.</summary>
+        private AgentResolveOptions? ResolveOptions
+            => _parameters is null ? null : new AgentResolveOptions { Parameters = _parameters };
+
+        /// <summary>
+        /// Asks the host's resolver how this connection runs and keeps what it answered; the front end's voice is an input of
+        /// the resolver and nothing more.
+        /// </summary>
+        /// <returns><see langword="true"/> when the connection goes on; <see langword="false"/> when it was refused.</returns>
+        /// <remarks>
+        /// The agent is known to exist before the host's code is asked about it: a name nothing carries is a plain "no such
+        /// agent", not a failure of the resolver. A resolver that fails ends the connection and its text never reaches the
+        /// front end.
+        /// </remarks>
+        private async Task<bool> ResolveConnectionAsync(
+            Func<VoiceConnectionRequest, CancellationToken, ValueTask<VoiceConnectionSettings?>> resolve,
+            string agentName,
+            string? clientVoiceId,
+            CancellationToken cancellationToken)
+        {
+            if (await driver._catalog.DescribeAsync(agentName, cancellationToken).ConfigureAwait(false) is null)
+            {
+                await FailAsync($"There is no agent named '{agentName}'.").ConfigureAwait(false);
+                return false;
+            }
+
+            try
+            {
+                var settings = await resolve(
+                        new VoiceConnectionRequest
+                        {
+                            AgentName = agentName,
+                            SessionId = request.SessionId,
+                            TenantId = request.TenantId,
+                            User = request.User ?? new ClaimsPrincipal(new ClaimsIdentity()),
+                            ClientVoiceId = clientVoiceId,
+                        },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                Accept(settings);
+
+                return true;
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+            {
+                driver._logger.LogError(
+                    exception,
+                    "The voice connection resolver failed for agent '{AgentName}', session {SessionId}; the conversation was not started.",
+                    agentName,
+                    request.SessionId);
+
+                SetEndReason(VoiceSessionEndReason.Error);
+                await FailAsync("The conversation could not be started.").ConfigureAwait(false);
+
+                return false;
+            }
+        }
+
+        /// <summary>Checks what the resolver returned and keeps a copy of it.</summary>
+        /// <exception cref="InvalidOperationException">The result is not one a connection can run on.</exception>
+        private void Accept(VoiceConnectionSettings? settings)
+        {
+            _hostDecided = true;
+            _voiceId = NullIfBlank(settings?.VoiceId) ?? _options.VoiceId;
+
+            var greeting = NullIfBlank(settings?.Greeting);
+            var openingPrompt = NullIfBlank(settings?.OpeningPrompt);
+
+            if (greeting is not null && openingPrompt is not null)
+            {
+                throw new InvalidOperationException(
+                    "The voice connection resolver returned both a Greeting and an OpeningPrompt; a conversation opens one way.");
+            }
+
+            _greeting = greeting;
+            _openingPrompt = openingPrompt;
+
+            if (settings?.Parameters is not { Count: > 0 } supplied)
+            {
+                return;
+            }
+
+            // A copy, made inside the same guard as the call: the resolver may keep its dictionary and change it while it is
+            // read. A value that is not text cannot be checked against the schema, and a run must not start on a guess.
+            var copy = new Dictionary<string, string>(supplied.Count, StringComparer.Ordinal);
+
+            foreach (var (name, value) in supplied)
+            {
+                if (name is null || value is null)
+                {
+                    throw new InvalidOperationException("The voice connection resolver returned a parameter name or value that is null.");
+                }
+
+                copy[name] = value;
+            }
+
+            _parameters = copy;
+        }
+
+        private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+        private void SetEndReason(VoiceSessionEndReason reason)
+        {
+            lock (_state)
+            {
+                _endReason ??= reason;
+            }
+        }
+
+        private VoiceSessionEndReason? GetEndReason()
+        {
+            lock (_state)
+            {
+                return _endReason;
+            }
         }
 
         /// <summary>Closes the current utterance and starts the turn.</summary>
@@ -579,12 +746,15 @@ internal sealed class VoiceConversationDriver
         {
             var spoken = new StringBuilder();
             var cancelled = false;
+            var failed = false;
             string? attachmentId = null;
 
             try
             {
                 var transcript = await TranscribeAsync(utterance, cancellationToken).ConfigureAwait(false);
                 var text = transcript?.Text?.Trim() ?? string.Empty;
+
+                _transcriptionModel ??= transcript?.ModelId;
 
                 await SendAsync(new VoiceServerMessage
                 {
@@ -628,6 +798,8 @@ internal sealed class VoiceConversationDriver
                 //
                 // HttpRequestException and InvalidOperationException are foreign here (the
                 // former can carry a host:port); only TraconException's own message is ours.
+                failed = true;
+
                 var correlationId = SafeErrorText.NewCorrelationId();
                 driver._logger.LogError(exception, "The voice turn failed. (ref: {CorrelationId})", correlationId);
                 await SendAsync(Error(SafeErrorText.ForPersistence(exception, correlationId))).ConfigureAwait(false);
@@ -647,6 +819,190 @@ internal sealed class VoiceConversationDriver
                 Turn = _state.Turns,
                 AttachmentId = attachmentId,
             }).ConfigureAwait(false);
+
+            await EndIfTheAgentAskedAsync(interruptedOrFailed: cancelled || failed).ConfigureAwait(false);
+        }
+
+        /// <summary>Opens the conversation, when the host asked for it and the session has not begun yet.</summary>
+        /// <remarks>
+        /// Only a session without history is opened. A client that reconnects to a conversation in progress would otherwise be
+        /// greeted again, and a greeting is the host's text on the host's terms, not a reply. A history that cannot be read is
+        /// treated as "do not open": talking over a conversation that may exist is the worse mistake.
+        /// </remarks>
+        private async Task BeginOpeningAsync(CancellationToken cancellationToken)
+        {
+            if (_greeting is null && _openingPrompt is null)
+            {
+                return;
+            }
+
+            try
+            {
+                var history = await ChatHistoryReader
+                    .ReadAsync(_agent!, _session!, driver._chatHistory, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (history.Count > 0)
+                {
+                    return;
+                }
+            }
+            catch (Exception exception) when (exception is TraconException or InvalidOperationException or NotSupportedException or JsonException)
+            {
+                driver._logger.LogWarning(exception, "The session history could not be read, so the conversation was not opened.");
+                return;
+            }
+
+            bool begun;
+
+            lock (_state)
+            {
+                begun = _state.BeginGreeting() == VoiceTransitionOutcome.Accepted;
+            }
+
+            if (!begun)
+            {
+                return;
+            }
+
+            _turnCancellation?.Dispose();
+            _turnCancellation = new CancellationTokenSource();
+            _turn = ProcessOpeningAsync(_turnCancellation.Token);
+        }
+
+        /// <summary>Speaks the greeting, or runs the opening prompt, as the first turn of the connection.</summary>
+        private async Task ProcessOpeningAsync(CancellationToken cancellationToken)
+        {
+            var spoken = new StringBuilder();
+            var cancelled = false;
+            var failed = false;
+            string? attachmentId = null;
+
+            try
+            {
+                // The opening runs in the Responding state that BeginGreeting entered; nothing else moves it.
+                attachmentId = _greeting is { } greeting
+                    ? await SayGreetingAsync(greeting, spoken, cancellationToken).ConfigureAwait(false)
+                    : await RespondAsync(_openingPrompt!, spoken, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                cancelled = true;
+            }
+            catch (Exception exception) when (exception is TraconException or HttpRequestException or InvalidOperationException or OperationCanceledException)
+            {
+                failed = true;
+
+                var correlationId = SafeErrorText.NewCorrelationId();
+                driver._logger.LogError(exception, "The voice opening failed. (ref: {CorrelationId})", correlationId);
+                await SendAsync(Error(SafeErrorText.ForPersistence(exception, correlationId))).ConfigureAwait(false);
+            }
+
+            if (cancelled)
+            {
+                await driver._history.RecordInterruptionAsync(_agent!, _session!, spoken.ToString()).ConfigureAwait(false);
+            }
+
+            // The opening is not a turn of the user's: it is not counted, and `done` says so with the turn number it found.
+            FinishTurn(counted: false);
+
+            await SendAsync(new VoiceServerMessage
+            {
+                Type = VoiceConversationProtocol.ServerDone,
+                Cancelled = cancelled,
+                Turn = _state.Turns,
+                AttachmentId = attachmentId,
+            }).ConfigureAwait(false);
+
+            await EndIfTheAgentAskedAsync(interruptedOrFailed: cancelled || failed).ConfigureAwait(false);
+        }
+
+        /// <summary>Says a fixed text the way an answer is said, and records that it was said.</summary>
+        /// <returns>The attachment identifier when the audio was stored.</returns>
+        private async Task<string?> SayGreetingAsync(string greeting, StringBuilder spoken, CancellationToken cancellationToken)
+        {
+            spoken.Append(greeting);
+
+            await SendAsync(new VoiceServerMessage
+            {
+                Type = VoiceConversationProtocol.ServerText,
+                Delta = greeting,
+            }).ConfigureAwait(false);
+
+            var segmenter = CreateSegmenter();
+            var spokenCharacters = 0;
+
+            using var audio = _options.PersistAudio ? new MemoryStream() : null;
+
+            foreach (var segment in segmenter.Append(greeting))
+            {
+                spokenCharacters = await SpeakAsync(segment, spokenCharacters, audio, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (segmenter.Flush() is { Length: > 0 } tail)
+            {
+                spokenCharacters = await SpeakAsync(tail, spokenCharacters, audio, cancellationToken).ConfigureAwait(false);
+            }
+
+            _outputChars += spokenCharacters;
+
+            // The agent has to know it greeted: the next turn's model reads this history.
+            await driver._history
+                .RecordTurnAsync(_agent!, _session!, [new ChatMessage(ChatRole.Assistant, greeting)])
+                .ConfigureAwait(false);
+
+            return audio is null
+                ? null
+                : await PersistAudioAsync(audio, cancellationToken).ConfigureAwait(false);
+        }
+
+        private VoiceSpeechSegmenter CreateSegmenter()
+            // A segment longer than the synthesizer accepts would be refused mid-turn, after the captions already streamed. A
+            // limit that is not positive is a broken implementation; the default limit then applies.
+            => new(
+                synthesizer.MaxCharactersPerRequest is > 0 and var limit
+                    ? Math.Min(VoiceSpeechSegmenter.DefaultMaxSegmentLength, limit)
+                    : VoiceSpeechSegmenter.DefaultMaxSegmentLength);
+
+        /// <summary>
+        /// Ends the conversation when the answer just spoken asked for it: the server says so and closes the connection.
+        /// </summary>
+        /// <remarks>
+        /// An answer the user cut off (barge-in) or that failed does not end the conversation: the agent asked to end it
+        /// after saying goodbye, and the user interrupted that goodbye.
+        /// </remarks>
+        private async Task EndIfTheAgentAskedAsync(bool interruptedOrFailed)
+        {
+            if (!_endRequested || interruptedOrFailed)
+            {
+                _endRequested = false;
+                return;
+            }
+
+            _endRequested = false;
+
+            await SendAsync(new VoiceServerMessage
+            {
+                Type = VoiceConversationProtocol.ServerEnded,
+                Reason = VoiceConversationProtocol.EndedByAgent,
+            }).ConfigureAwait(false);
+
+            SetEndReason(VoiceSessionEndReason.Agent);
+
+            lock (_state)
+            {
+                _state.Stop();
+            }
+
+            // The receive loop is waiting for the next frame; waking it is what lets the connection close.
+            try
+            {
+                _connectionCancellation?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The connection already ended on its own; there is nothing left to wake.
+            }
         }
 
         private async Task<SpeechTranscript?> TranscribeAsync(
@@ -678,14 +1034,13 @@ internal sealed class VoiceConversationDriver
                 RunId = runId.ToString("D"),
             }).ConfigureAwait(false);
 
-            // A segment longer than the synthesizer accepts would be refused
-            // mid-turn, after the captions already streamed. A limit that is not
-            // positive is a broken implementation; the default limit then applies.
-            var segmenter = new VoiceSpeechSegmenter(
-                synthesizer.MaxCharactersPerRequest is > 0 and var limit
-                    ? Math.Min(VoiceSpeechSegmenter.DefaultMaxSegmentLength, limit)
-                    : VoiceSpeechSegmenter.DefaultMaxSegmentLength);
+            var segmenter = CreateSegmenter();
             var spokenCharacters = 0;
+
+            // The run is registered BEFORE it starts: the end_conversation tool finds this connection through the run's
+            // identifier, and only a run this connection started can end this connection.
+            _endRequested = false;
+            using var endLease = driver._endRegistry.Register(runId, () => _endRequested = true);
 
             using var audio = _options.PersistAudio ? new MemoryStream() : null;
 
@@ -695,7 +1050,7 @@ internal sealed class VoiceConversationDriver
             // connection for the rest of the connection after its server was edited
             // or deleted. A cache hit while nothing changed; the name stays the one
             // `start` named. The newest instance also writes the history.
-            _agent = await driver._catalog.ResolveAsync(_agentName!, cancellationToken: cancellationToken).ConfigureAwait(false)
+            _agent = await driver._catalog.ResolveAsync(_agentName!, ResolveOptions, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"There is no agent named '{_agentName}'.");
 
             // A harness loop hands over its final iteration only: every
@@ -704,7 +1059,14 @@ internal sealed class VoiceConversationDriver
                 _agent,
                 [new ChatMessage(ChatRole.User, prompt)],
                 _session,
-                new TraconRunOptions { RunId = runId, SessionId = request.SessionId },
+                new TraconRunOptions
+                {
+                    RunId = runId,
+                    SessionId = request.SessionId,
+
+                    // Values the host's resolver decided are the host's own, whatever the front end said.
+                    ParameterSource = _hostDecided ? ParameterValueSource.Host : null,
+                },
                 cancellationToken);
 
             await foreach (var update in updates.ConfigureAwait(false))
@@ -917,9 +1279,14 @@ internal sealed class VoiceConversationDriver
 
             try
             {
+                var cost = PriceConversation();
+
                 await driver._store.SaveAsync(
                     new VoiceSessionRecord
                     {
+                        Provider = ProviderLabel(),
+                        Model = _transcriptionModel,
+                        Cost = cost,
                         Id = recordId,
                         TenantId = request.TenantId,
                         SessionId = request.SessionId,
@@ -941,6 +1308,45 @@ internal sealed class VoiceConversationDriver
             }
         }
 
+        /// <summary>The speech provider the connection ran on: one name, or both when the two directions differ.</summary>
+        private string ProviderLabel()
+            => string.Equals(transcriber.ProviderName, synthesizer.ProviderName, StringComparison.OrdinalIgnoreCase)
+                ? synthesizer.ProviderName
+                : $"{transcriber.ProviderName}+{synthesizer.ProviderName}";
+
+        /// <summary>
+        /// Prices what the connection used, once, as the record is written: the price is a snapshot, so a later change to the
+        /// price table never re-prices a conversation that is over.
+        /// </summary>
+        /// <returns>
+        /// The cost; <see langword="null"/> when nothing was priced. A direction with no price stays <see langword="null"/>
+        /// and is never written as zero, which would claim it was free.
+        /// </returns>
+        private VoiceSessionCost? PriceConversation()
+        {
+            if (driver._pricing is not { } pricing)
+            {
+                return null;
+            }
+
+            var characterCost = _outputChars > 0
+                ? pricing.ForSynthesis(synthesizer.ProviderName, modelId: null, _outputChars)
+                : null;
+
+            var durationCost = _inputSeconds > 0
+                ? pricing.ForTranscription(transcriber.ProviderName, _transcriptionModel, TimeSpan.FromSeconds((double)_inputSeconds))
+                : null;
+
+            return characterCost is null && durationCost is null
+                ? null
+                : new VoiceSessionCost
+                {
+                    CharacterCost = characterCost,
+                    DurationCost = durationCost,
+                    Currency = pricing.Currency,
+                };
+        }
+
         private async Task CloseSocketAsync(VoiceSessionEndReason reason)
         {
             if (socket.State is not (WebSocketState.Open or WebSocketState.CloseReceived))
@@ -953,6 +1359,7 @@ internal sealed class VoiceConversationDriver
                 VoiceSessionEndReason.DurationLimit => "The connection reached the duration limit.",
                 VoiceSessionEndReason.IdleTimeout => "The connection stayed idle.",
                 VoiceSessionEndReason.ServerShutdown => "The server is shutting down.",
+                VoiceSessionEndReason.Agent => "The conversation was ended by the agent.",
                 VoiceSessionEndReason.Error => "The conversation closed with an error.",
                 _ => "The conversation closed.",
             };

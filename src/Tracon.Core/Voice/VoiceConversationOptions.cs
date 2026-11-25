@@ -121,4 +121,46 @@ public sealed class VoiceConversationOptions
     /// get an answer that was silently truncated.
     /// </remarks>
     public int MaxSpokenCharactersPerTurn { get; set; } = 5_000;
+
+    /// <summary>
+    /// The host's own code that decides, on the server, how one conversation connection runs: its voice, the parameter
+    /// values of the agent and how the conversation opens. Default <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set, it replaces what the front end could choose: the connection calls it once, when the <c>start</c> frame arrives
+    /// and the agent is known to exist, with the agent, the session, the tenant, the caller and the voice the front end
+    /// asked for (<see cref="VoiceConnectionRequest"/>). <strong>Only what it returns reaches the conversation.</strong>
+    /// The front end's <c>voiceId</c> is an input of the resolver and becomes the voice only if the resolver returns it.
+    /// The values it returns are checked against the agent's schema and <c>MaxParameterValueLength</c> like any others, are
+    /// recorded with every run of the connection, and are read by a tool as <see cref="ParameterValueSource.Host"/>.
+    /// </para>
+    /// <para>
+    /// Not set, nothing changes: the front end's <c>voiceId</c> is the voice, the agent runs with its defaults and the
+    /// conversation opens when the user speaks. A host that serves untrusted browsers sets it, because a voice is a
+    /// provider resource the caller should not pick for itself.
+    /// </para>
+    /// <para>
+    /// <strong>It fails closed.</strong> A resolver that throws, or that returns both a greeting and an opening prompt, ends
+    /// the connection with an <c>error</c> frame and the end reason <c>Error</c>; no run starts and nothing is spoken. The
+    /// front end is told only that the conversation could not start, never the exception's message. The resolver reads the
+    /// tenant from <see cref="VoiceConnectionRequest.TenantId"/> and receives a token that is the connection's.
+    /// </para>
+    /// <para>
+    /// It is called for every agent a connection names. It tells them apart by <see cref="VoiceConnectionRequest.AgentName"/>.
+    /// It is not read from configuration.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .UseVoiceConversation(options =&gt; options.ResolveConnection = (request, cancellationToken) =&gt;
+    ///            ValueTask.FromResult&lt;VoiceConnectionSettings?&gt;(new VoiceConnectionSettings
+    ///            {
+    ///                VoiceId = "voice-for-this-tenant",
+    ///                Greeting = "Hello, let's begin.",
+    ///            }));
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public Func<VoiceConnectionRequest, CancellationToken, ValueTask<VoiceConnectionSettings?>>? ResolveConnection { get; set; }
 }

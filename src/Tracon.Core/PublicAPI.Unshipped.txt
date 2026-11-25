@@ -656,6 +656,42 @@ Tracon.TraconWorkspaceOptions.MaxTenantBytes.get -> long
 Tracon.TraconWorkspaceOptions.MaxTenantBytes.set -> void
 Tracon.TraconWorkspaceOptions.TraconWorkspaceOptions() -> void
 Tracon.VoiceConversationBuilderExtensions
+Tracon.VoiceConnectionRequest
+Tracon.VoiceConnectionRequest.<Clone>$() -> Tracon.VoiceConnectionRequest!
+Tracon.VoiceConnectionRequest.AgentName.get -> string!
+Tracon.VoiceConnectionRequest.AgentName.init -> void
+Tracon.VoiceConnectionRequest.ClientVoiceId.get -> string?
+Tracon.VoiceConnectionRequest.ClientVoiceId.init -> void
+Tracon.VoiceConnectionRequest.Equals(Tracon.VoiceConnectionRequest? other) -> bool
+Tracon.VoiceConnectionRequest.SessionId.get -> string!
+Tracon.VoiceConnectionRequest.SessionId.init -> void
+Tracon.VoiceConnectionRequest.TenantId.get -> string!
+Tracon.VoiceConnectionRequest.TenantId.init -> void
+Tracon.VoiceConnectionRequest.User.get -> System.Security.Claims.ClaimsPrincipal!
+Tracon.VoiceConnectionRequest.User.init -> void
+Tracon.VoiceConnectionRequest.VoiceConnectionRequest() -> void
+Tracon.VoiceConnectionSettings
+Tracon.VoiceConnectionSettings.<Clone>$() -> Tracon.VoiceConnectionSettings!
+Tracon.VoiceConnectionSettings.Equals(Tracon.VoiceConnectionSettings? other) -> bool
+Tracon.VoiceConnectionSettings.Greeting.get -> string?
+Tracon.VoiceConnectionSettings.Greeting.init -> void
+Tracon.VoiceConnectionSettings.OpeningPrompt.get -> string?
+Tracon.VoiceConnectionSettings.OpeningPrompt.init -> void
+Tracon.VoiceConnectionSettings.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.VoiceConnectionSettings.Parameters.init -> void
+Tracon.VoiceConnectionSettings.VoiceConnectionSettings() -> void
+Tracon.VoiceConnectionSettings.VoiceId.get -> string?
+Tracon.VoiceConnectionSettings.VoiceId.init -> void
+override Tracon.VoiceConnectionRequest.Equals(object? obj) -> bool
+override Tracon.VoiceConnectionRequest.GetHashCode() -> int
+override Tracon.VoiceConnectionRequest.ToString() -> string!
+override Tracon.VoiceConnectionSettings.Equals(object? obj) -> bool
+override Tracon.VoiceConnectionSettings.GetHashCode() -> int
+override Tracon.VoiceConnectionSettings.ToString() -> string!
+static Tracon.VoiceConnectionRequest.operator !=(Tracon.VoiceConnectionRequest? left, Tracon.VoiceConnectionRequest? right) -> bool
+static Tracon.VoiceConnectionRequest.operator ==(Tracon.VoiceConnectionRequest? left, Tracon.VoiceConnectionRequest? right) -> bool
+static Tracon.VoiceConnectionSettings.operator !=(Tracon.VoiceConnectionSettings? left, Tracon.VoiceConnectionSettings? right) -> bool
+static Tracon.VoiceConnectionSettings.operator ==(Tracon.VoiceConnectionSettings? left, Tracon.VoiceConnectionSettings? right) -> bool
 Tracon.VoiceConversationOptions
 Tracon.VoiceConversationOptions.IdleTimeout.get -> System.TimeSpan
 Tracon.VoiceConversationOptions.IdleTimeout.set -> void
@@ -675,6 +711,8 @@ Tracon.VoiceConversationOptions.OutputMediaType.get -> string!
 Tracon.VoiceConversationOptions.OutputMediaType.set -> void
 Tracon.VoiceConversationOptions.PersistAudio.get -> bool
 Tracon.VoiceConversationOptions.PersistAudio.set -> void
+Tracon.VoiceConversationOptions.ResolveConnection.get -> System.Func<Tracon.VoiceConnectionRequest!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<Tracon.VoiceConnectionSettings?>>?
+Tracon.VoiceConversationOptions.ResolveConnection.set -> void
 Tracon.VoiceConversationOptions.VoiceConversationOptions() -> void
 Tracon.VoiceConversationOptions.VoiceId.get -> string?
 Tracon.VoiceConversationOptions.VoiceId.set -> void

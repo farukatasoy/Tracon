@@ -574,6 +574,11 @@ exist.
 
 ### Protocol
 
+This is the short version. Every frame, every field, the handshake answers and the close
+behavior are in the [voice conversation protocol](/reference/voice-conversation-protocol/),
+with a [JSON Schema](/schemas/voice-conversation-frames.schema.json) and a typed
+[TypeScript client](/guides/typescript-client/#talk-to-a-voice-conversation).
+
 The negotiated subprotocol is `tracon.voice.v1`. The client sends JSON control
 frames and binary audio:
 
@@ -584,7 +589,9 @@ frames and binary audio:
 4. Read `transcript`, `runStarted`, `text`, `audioStart`, binary audio, `audioEnd`,
    and `done` frames.
 5. Read `idle` — a commit that closed no turn. Handle it or your client hangs.
-6. Send `cancel` for barge-in or `stop` to close cleanly.
+6. Read `ended` — the agent ended the conversation and the server closes the socket
+   right after it. Do not reconnect on your own.
+7. Send `cancel` for barge-in or `stop` to close cleanly.
 
 :::caution[A commit does not always produce a turn]
 Two ordinary cases end a commit without a turn: the commit reaches the server
@@ -638,6 +645,119 @@ A session id the server has never seen is **not** rejected: the first turn opens
 The handler is still asked, so only you decide whether that caller may open a new
 conversation under that id.
 
+### Decide the voice and the parameters on the server
+
+By default the browser chooses the voice: the `voiceId` of its `start` frame is the voice
+the answers are spoken in, and no parameter values reach the agent. That is the right
+default for a console you operate, and the wrong one for a browser you do not: a voice is
+a provider resource, and a caller should not pick it for itself.
+
+Set `ResolveConnection`, a property of `VoiceConversationOptions` (it has no configuration key: it
+is code), to decide on the server. It is called once for each connection,
+when the `start` frame arrives and the agent is known to exist, after the access checks,
+the run authorization and the tenant's provider checks have passed:
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .UseVoiceConversation(options =>
+    {
+        options.ResolveConnection = async (request, cancellationToken) =>
+        {
+            // request.TenantId, request.User, request.SessionId and request.AgentName are the
+            // server's. request.ClientVoiceId is what the browser asked for: an input, not an answer.
+            var lesson = await lessons.FindAsync(request.TenantId, request.SessionId, cancellationToken);
+
+            return new VoiceConnectionSettings
+            {
+                VoiceId = lesson.VoiceId,
+                Parameters = new Dictionary<string, string> { ["scenario"] = lesson.ScenarioText },
+                Greeting = "Hello, let's begin.",
+            };
+        };
+    });
+```
+
+Once a resolver is set, **only what it returns reaches the conversation**: the browser's
+`voiceId` is ignored unless the resolver returns it, and the `Parameters` are bound to the
+agent on every turn and recorded with each run. A tool of the run reads them with
+`TraconRunContext.Current.Parameters` and the source `ParameterValueSource.Host`, so it may
+decide by them what a value from the browser could never decide. The protocol carries no
+parameter from the browser, so there is nothing to forward.
+
+A resolver that throws, that names a parameter the agent does not declare, or that returns
+both a `Greeting` and an `OpeningPrompt` ends the connection with an `error` frame and the
+end reason `Error`. No run starts and nothing is spoken. The browser is told only
+`The conversation could not be started.`; the exception text stays in your log. A `null`
+result runs the agent with its defaults and the configured voice.
+
+A host that serves untrusted browsers sets a resolver. Without one, any caller that may
+open a conversation can ask for any voice the provider's account holds.
+
+### Open the conversation
+
+A conversation normally opens when the user speaks. The resolver can make the assistant
+speak first, in one of two ways. They exclude each other, because choosing one silently
+would hide a mistake:
+
+| Setting | What happens | Cost |
+|---|---|---|
+| `Greeting` | A fixed text, spoken right after `ready`. No model is called and no run is recorded. | The synthesized characters |
+| `OpeningPrompt` | The agent answers your text first, as if a user had said it: an ordinary turn. The text is a user message in the history. | A run, as any turn |
+
+Both are spoken through the same path as an answer, so `MaxSpokenCharactersPerTurn`
+applies, and both are written to the session history (a greeting as the assistant's
+message), so the next turn's model knows what was said. An opening happens only when the
+session has no history yet: a client that reconnects to a conversation in progress is not
+greeted again.
+
+The frames are the ones of a turn. A greeting sends `text`, `audioStart`, the audio,
+`audioEnd` and `done`; an opening prompt sends `runStarted` first. The `done` of an opening
+carries the number of turns the user has completed, which is `0`. While the assistant
+opens, the user's audio is ignored and a `commit` is not answered; `cancel` cuts the opening
+like any answer.
+
+### Let the agent end the conversation
+
+An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation
+after its answer. It takes no argument. Tell the agent when to use it in its instructions
+(the topic is done, the time is up, the caller said goodbye) and to say a short goodbye in
+the same answer:
+
+```csharp
+tracon.AddAgent(new AgentDefinition
+{
+    Name = "coach",
+    Instructions = "Coach the student. When the exercise is done, say goodbye and call end_conversation.",
+    Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "your-model" },
+    ToolNames = ["end_conversation"],
+});
+```
+
+The server lets the answer finish, speaks it, sends `done`, then `ended` with
+`"reason": "agent"`, and closes the socket normally. The record's end reason is `Agent`.
+If the user interrupts the goodbye (`cancel`), or the turn fails, the request is dropped and
+the conversation goes on. An agent that does not list the tool can never end a conversation,
+and the tool ends nothing when an agent runs outside a voice conversation.
+
+### What the record says
+
+`GET /api/voice/sessions` lists one record for each connection. For a conversation Tracon
+runs itself, the record carries:
+
+| Field | Value |
+|---|---|
+| `provider` | The speech provider's name, or `transcriber+synthesizer` when the two report different names |
+| `model` | The transcription model the transcriber reported; `null` when it reported none. The synthesis model is not recorded: streaming synthesis does not report one |
+| `inputSeconds`, `outputChars` | What was transcribed and what was synthesized |
+| `cost` | `durationCost` for the transcribed seconds and `characterCost` for the synthesized characters, priced from `Tracon:Pricing:Voice` when the record is written; `currency` is the table's |
+
+A direction with no price in the table stays `null` and is never written as zero, so a
+record cannot claim a conversation was free. The price is a snapshot: changing the table
+later does not re-price a conversation that is over. The cost is the voice connection only;
+each turn is also an ordinary run with its own token cost, so a display that shows only this
+number under-reports.
+
 ## Provider-hosted live voice
 
 Some providers host the whole spoken conversation themselves and carry the audio
@@ -677,6 +797,8 @@ answer.
 - [ ] Proxy and server idle timeouts exceed the configured conversation idle timeout.
 - [ ] Connection limits match file descriptors, memory, provider concurrency, and
   tenant quotas.
+- [ ] A host that serves untrusted browsers sets `ResolveConnection`, so the voice and the
+  agent's parameters are the server's.
 - [ ] `OutputMediaType` matches the configured synthesis format.
 - [ ] Audio persistence, consent, access, backup, and retention policy are explicit.
 - [ ] Barge-in, reconnect, maximum duration, provider outage, and slow clients are

@@ -82,6 +82,19 @@ internal sealed class VoiceConversationStateMachine
         ? Move(VoiceConversationState.Listening)
         : VoiceTransitionOutcome.Rejected;
 
+    /// <summary>
+    /// The server opens the conversation (a greeting or an opening prompt) right after <c>start</c>, before the user has said
+    /// anything.
+    /// </summary>
+    /// <returns>The outcome.</returns>
+    /// <remarks>
+    /// The state is <c>Responding</c> from here, so the user's audio is ignored and a <c>commit</c> is refused until the
+    /// opening ends; an interruption (<c>cancel</c>) still cuts it, like an answer.
+    /// </remarks>
+    public VoiceTransitionOutcome BeginGreeting() => State == VoiceConversationState.Listening && Turns == 0
+        ? Move(VoiceConversationState.Responding)
+        : VoiceTransitionOutcome.Rejected;
+
     /// <summary>Processes a binary audio frame.</summary>
     /// <returns>The outcome.</returns>
     /// <remarks>

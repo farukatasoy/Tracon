@@ -28,6 +28,12 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
     /// <summary>The chunks that were spoken.</summary>
     public List<string> Spoken { get; } = [];
 
+    /// <summary>The voice identifier of every chunk that was spoken (<see langword="null"/> for the provider's default), in order.</summary>
+    public List<string?> VoiceIds { get; } = [];
+
+    /// <summary>The model identifier the transcription reports; <see langword="null"/> reports none.</summary>
+    public string? TranscriptionModelId { get; set; }
+
     /// <summary>Gets or sets whether streaming synthesis starts and never finishes until the caller cancels it.</summary>
     /// <remarks>
     /// The barge-in test needs the response to be still in progress when it sends the
@@ -61,6 +67,7 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
             Text = Transcript,
             LanguageCode = "en",
             AudioDuration = TimeSpan.FromSeconds(1.5),
+            ModelId = TranscriptionModelId,
         };
     }
 
@@ -89,6 +96,7 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
         lock (Spoken)
         {
             Spoken.Add(request.Text);
+            VoiceIds.Add(request.VoiceId);
         }
 
         yield return Mp3;

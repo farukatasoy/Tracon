@@ -503,6 +503,10 @@ Tracon.VectorSearchHit.SourceId
 Tracon.VectorSearchRequest.Collection
 Tracon.VectorSearchRequest.QueryEmbedding
 Tracon.VectorSearchRequest.TenantId
+Tracon.VoiceConnectionRequest.AgentName
+Tracon.VoiceConnectionRequest.SessionId
+Tracon.VoiceConnectionRequest.TenantId
+Tracon.VoiceConnectionRequest.User
 Tracon.VoiceDescriptor.Name
 Tracon.VoiceDescriptor.VoiceId
 Tracon.VoiceHealth.CheckedAt

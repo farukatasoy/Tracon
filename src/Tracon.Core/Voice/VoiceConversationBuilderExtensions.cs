@@ -111,6 +111,12 @@ public static class VoiceConversationBuilderExtensions
 
         services.TryAddTraconDefault<IVoiceSessionStore, InMemoryVoiceSessionStore>();
 
+        services.TryAddSingleton<VoiceConversationEndRegistry>();
+
+        // The tool is listed by name in an agent's ToolNames to take effect; registering it opens nothing by itself. It is
+        // built with the registry at setup time: the tool's own service provider is empty at call time.
+        builder.AddTool(static provider => new EndConversationTool(provider.GetRequiredService<VoiceConversationEndRegistry>()));
+
         services.TryAddSingleton(static provider => new VoiceConversationDriver(
             provider.GetRequiredService<IAgentCatalog>(),
             provider.GetRequiredService<AgentSessionManager>(),
@@ -123,6 +129,8 @@ public static class VoiceConversationBuilderExtensions
             provider.GetService<ISpeechTranscriber>(),
             provider.GetService<ISpeechSynthesizer>(),
             provider.GetRequiredService<ISpeechProviderResolver>(),
+            provider.GetRequiredService<VoiceConversationEndRegistry>(),
+            provider.GetService<IVoicePricingReader>(),
             provider.GetService<TimeProvider>()));
 
         return builder;

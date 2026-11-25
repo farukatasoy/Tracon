@@ -20,6 +20,6 @@ Tracon.Core:Tracon.RunContinuationJobHandler | 13 | The container builds it as t
 Tracon.Core:Tracon.RunReconciliationService | 15 | The container builds it as the hosted service that closes runs a stopped process left open. The fifteenth is the writer of the share an interrupted workflow root owes the quota counter, one collaborator that bundles the store, the counter, the currency and the clock; the four continuation dependencies (tools, definitions, inputs, parameter factory) are the next group to move into one.
 Tracon.Core:Tracon.ToolRegistry | 11 | The container builds it as the code tool registry once the providers are final, and the tests build it directly with fakes for each layer.
 Tracon.Core:Tracon.TraconDiagnosticsCollector | 17 | The container builds it with a factory registration for the diagnostics endpoint and the startup report.
-Tracon.Core:Tracon.VoiceConversationDriver | 12 | The container builds it with a factory registration when the voice conversation is added to the builder.
+Tracon.Core:Tracon.VoiceConversationDriver | 14 | The container builds it with a factory registration when the voice conversation is added to the builder.
 Tracon.Mcp:Tracon.McpOAuthAuthorizationCoordinator | 11 | The container builds it as the MCP OAuth coordinator when MCP is added to the builder.
 Tracon.Mcp:Tracon.McpToolCatalog | 15 | The container builds it as a singleton when MCP is added to the builder; tests build it with a fake transport factory.

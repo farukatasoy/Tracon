@@ -59,12 +59,17 @@ public sealed record VoiceSessionRecord
     public string? CreatedBy { get; init; }
 
     /// <summary>
-    /// The provider that hosted the conversation, e.g. <c>openai</c>;
-    /// <see langword="null"/> when Tracon ran the conversation itself.
+    /// The provider that hosted the conversation, e.g. <c>openai</c>. When Tracon ran the conversation itself
+    /// (<c>UseVoiceConversation</c>) it is the speech provider that synthesized the answers, or
+    /// <c>"{transcriber}+{synthesizer}"</c> when the two report different names; <see langword="null"/> only when the
+    /// connection ended before any provider was resolved.
     /// </summary>
     public string? Provider { get; init; }
 
-    /// <summary>The model the conversation ran on; <see langword="null"/> when unknown.</summary>
+    /// <summary>
+    /// The model the conversation ran on; <see langword="null"/> when unknown. When Tracon ran the conversation itself it
+    /// is the synthesis model the characters were priced on. The transcription model is not recorded here.
+    /// </summary>
     public string? Model { get; init; }
 
     /// <summary>
@@ -163,6 +168,12 @@ public enum VoiceSessionEndReason
 
     /// <summary>The provider closed the session.</summary>
     Provider = 6,
+
+    /// <summary>
+    /// The agent ended the conversation (the <c>end_conversation</c> tool) and the server closed the connection after the
+    /// answer was spoken.
+    /// </summary>
+    Agent = 7,
 }
 
 /// <summary>The filter for listing voice session records.</summary>

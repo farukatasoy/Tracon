@@ -141,4 +141,50 @@ public sealed class VoiceConversationStateMachineTests
         machine.FinishTurn(counted: true).ShouldBe(VoiceTransitionOutcome.Ignored);
         machine.Turns.ShouldBe(0);
     }
+    [Fact]
+    public void An_opening_is_possible_only_right_after_start_and_before_any_turn()
+    {
+        var machine = new VoiceConversationStateMachine();
+
+        machine.BeginGreeting().ShouldBe(VoiceTransitionOutcome.Rejected, "the conversation has not started");
+
+        machine.Start();
+        machine.BeginGreeting().ShouldBe(VoiceTransitionOutcome.Accepted);
+        machine.State.ShouldBe(VoiceConversationState.Responding);
+
+        // While the assistant opens, the user's audio is ignored and a commit is refused, so no second turn can begin.
+        machine.Audio().ShouldBe(VoiceTransitionOutcome.Ignored);
+        machine.Commit().ShouldBe(VoiceTransitionOutcome.Rejected);
+        machine.BeginGreeting().ShouldBe(VoiceTransitionOutcome.Rejected, "an opening happens once");
+
+        // An opening is not a turn of the user's: finishing it does not count one, and the conversation listens again.
+        machine.FinishTurn(counted: false).ShouldBe(VoiceTransitionOutcome.Accepted);
+        machine.Turns.ShouldBe(0);
+        machine.State.ShouldBe(VoiceConversationState.Listening);
+    }
+
+    [Fact]
+    public void An_opening_is_refused_once_a_turn_has_been_counted()
+    {
+        var machine = new VoiceConversationStateMachine();
+
+        machine.Start();
+        machine.Commit();
+        machine.BeginResponse();
+        machine.FinishTurn(counted: true);
+
+        machine.BeginGreeting().ShouldBe(VoiceTransitionOutcome.Rejected);
+    }
+
+    [Fact]
+    public void An_interruption_still_reaches_an_opening()
+    {
+        var machine = new VoiceConversationStateMachine();
+
+        machine.Start();
+        machine.BeginGreeting();
+
+        machine.Cancel().ShouldBe(VoiceTransitionOutcome.Accepted);
+        machine.State.ShouldBe(VoiceConversationState.Responding, "only finishing the opening returns the state to listening");
+    }
 }

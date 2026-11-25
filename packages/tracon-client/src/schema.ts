@@ -2891,7 +2891,7 @@ export interface paths {
         put?: never;
         /**
          * Run endpoint compatible with the OpenAI Chat Completions API.
-         * @description Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path. A tool that needs approval ends the request: this endpoint carries no session, so the approval can never be answered. The run closes as Failed and the answer is 409 with the error type 'approval_required', or, on a stream, an error frame of that type and no [DONE].
+         * @description Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. A 'system' or 'developer' message of the request does not replace the agent's own instructions: the model receives both, and where the instructions sit among the messages is the provider adapter's choice. Request settings the agent definition owns (temperature, max_tokens, tools, ...) are refused with 400; a host can opt in to dropping the generation tuning fields (IgnoreChatCompletionsTuningSettings). If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path. A tool that needs approval ends the request: this endpoint carries no session, so the approval can never be answered. The run closes as Failed and the answer is 409 with the error type 'approval_required', or, on a stream, an error frame of that type and no [DONE].
          */
         post: operations["TraconOpenAIChatCompletions"];
         delete?: never;
@@ -8676,7 +8676,7 @@ export interface components {
          * @description Why a voice session ended: the client stopped it, it idled too long, it reached its duration limit, the server shut down, it was abandoned, or an error or the provider ended it.
          * @enum {unknown}
          */
-        VoiceSessionEndReason: "Client" | "IdleTimeout" | "DurationLimit" | "Error" | "ServerShutdown" | "Abandoned" | "Provider";
+        VoiceSessionEndReason: "Client" | "IdleTimeout" | "DurationLimit" | "Error" | "ServerShutdown" | "Abandoned" | "Provider" | "Agent";
         /** @description The summary record of a real-time voice connection. */
         VoiceSessionRecord: {
             /**
@@ -8724,11 +8724,16 @@ export interface components {
             /** @description The actor who opened the connection. */
             createdBy?: null | string;
             /**
-             * @description The provider that hosted the conversation, e.g. `openai`;
-             *     `null` when Tracon ran the conversation itself.
+             * @description The provider that hosted the conversation, e.g. `openai`. When Tracon ran the conversation itself
+             *     (`UseVoiceConversation`) it is the speech provider that synthesized the answers, or
+             *     `"{transcriber}+{synthesizer}"` when the two report different names; `null` only when the
+             *     connection ended before any provider was resolved.
              */
             provider?: null | string;
-            /** @description The model the conversation ran on; `null` when unknown. */
+            /**
+             * @description The model the conversation ran on; `null` when unknown. When Tracon ran the conversation itself it
+             *     is the synthesis model the characters were priced on. The transcription model is not recorded here.
+             */
             model?: null | string;
             /**
              * Format: double

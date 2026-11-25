@@ -88,6 +88,20 @@ internal static class VoiceConversationProtocol
     /// microphone; it must not add a transcript entry.
     /// </remarks>
     public const string ServerIdle = "idle";
+
+    /// <summary>
+    /// The server ends the conversation: it follows the <c>done</c> of the turn whose answer said goodbye, and the
+    /// connection closes right after it.
+    /// </summary>
+    /// <remarks>
+    /// A client that receives this does not reconnect on its own: the agent decided the conversation is over (the
+    /// <see cref="ServerEnded"/> frame carries the reason in <c>reason</c>). A close without this frame is the client's, the
+    /// idle limit's or the duration limit's.
+    /// </remarks>
+    public const string ServerEnded = "ended";
+
+    /// <summary>The <c>reason</c> of an <see cref="ServerEnded"/> frame sent because the agent ended the conversation.</summary>
+    public const string EndedByAgent = "agent";
 }
 
 /// <summary>The audio formats that the client can send.</summary>
@@ -179,7 +193,7 @@ internal sealed record VoiceServerMessage
     /// <summary>Gets the MIME type of the audio chunks (<c>audioStart</c>).</summary>
     public string? MediaType { get; init; }
 
-    /// <summary>Gets the identifier of the stored audio attachment (<c>audioEnd</c>); absent when nothing was stored.</summary>
+    /// <summary>Gets the identifier of the stored audio attachment (<c>done</c>); absent when nothing was stored.</summary>
     public string? AttachmentId { get; init; }
 
     /// <summary>Gets a value that indicates whether the turn was interrupted (<c>done</c>).</summary>
@@ -190,6 +204,9 @@ internal sealed record VoiceServerMessage
 
     /// <summary>Gets the error description (<c>error</c>).</summary>
     public string? Message { get; init; }
+
+    /// <summary>Gets why the conversation ended (<c>ended</c>).</summary>
+    public string? Reason { get; init; }
 }
 
 /// <summary>The source generator context of the conversation protocol.</summary>

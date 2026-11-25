@@ -144,6 +144,46 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     }
 
     [Fact]
+    public async Task The_agent_end_reason_round_trips()
+    {
+        // The agent ending the conversation is the newest reason, written as the stable number 7.
+        var ended = Record() with { EndReason = VoiceSessionEndReason.Agent };
+
+        await Store.SaveAsync(ended);
+
+        (await Store.QueryAsync(Tenant, new VoiceSessionQuery())).ShouldHaveSingleItem().EndReason
+            .ShouldBe(VoiceSessionEndReason.Agent);
+    }
+
+    [Fact]
+    public async Task A_conversation_record_with_priced_characters_and_duration_round_trips()
+    {
+        // A conversation Tracon ran itself prices both directions: the synthesized characters and the transcribed
+        // duration. Both addends and the provider that served them survive the round trip, and the total is their sum.
+        await Store.SaveAsync(Record() with
+        {
+            Provider = "elevenlabs",
+            Model = "scribe-v1",
+            Cost = new VoiceSessionCost
+            {
+                DurationCost = 0.012500m,
+                CharacterCost = 0.034000m,
+                Currency = "USD",
+            },
+        });
+
+        var loaded = (await Store.QueryAsync(Tenant, new VoiceSessionQuery())).ShouldHaveSingleItem();
+
+        loaded.Provider.ShouldBe("elevenlabs");
+        loaded.Model.ShouldBe("scribe-v1");
+        loaded.Cost.ShouldNotBeNull();
+        loaded.Cost.DurationCost.ShouldBe(0.012500m);
+        loaded.Cost.CharacterCost.ShouldBe(0.034000m);
+        loaded.Cost.Currency.ShouldBe("USD");
+        loaded.Cost.Total().ShouldBe(0.046500m);
+    }
+
+    [Fact]
     public async Task Second_write_with_the_same_id_UPDATES_the_record()
     {
         // A call is first opened (turns = 0), then closed. If two rows were

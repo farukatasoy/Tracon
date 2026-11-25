@@ -35,6 +35,7 @@ public sealed class ParameterSourceSiteTests
     private static readonly (string Path, string MustSay)[] Declared =
     [
         ("src/Tracon.AspNetCore/Internal/AgentTurnService.cs", "ParameterSource = parameterSource"),
+        ("src/Tracon.Core/Voice/VoiceConversationDriver.cs", "ParameterSource = _hostDecided"),
     ];
 
     [Fact]

@@ -53,9 +53,10 @@ public sealed partial class ToolSourceGovernanceTests
         ["src/Tracon.Core/TraconBuilderExtensions.Tools.cs :: AIFunctionFactory.Create ×2"] = "src/Tracon.Core/Tools/ToolRegistry.cs",
         ["src/Tracon.Core/Tools/ToolMethodScanner.cs :: AIFunctionFactory.Create"] = "src/Tracon.Core/Tools/ToolRegistry.cs",
 
-        // The built-in tools (generate_image; speak, transcribe and list_voices), registered like a tool of your own.
+        // The built-in tools (generate_image; speak, transcribe and list_voices; end_conversation), registered like a tool of your own.
         ["src/Tracon.Core/Images/GenerateImageTool.cs :: AIFunction subclass:GenerateImageTool"] = "src/Tracon.Core/Tools/ToolRegistry.cs",
         ["src/Tracon.Voice/Tools/VoiceToolBase.cs :: AIFunction subclass:VoiceToolBase"] = "src/Tracon.Core/Tools/ToolRegistry.cs",
+        ["src/Tracon.Core/Voice/VoiceConversationEndRegistry.cs :: AIFunction subclass:EndConversationTool"] = "src/Tracon.Core/Tools/ToolRegistry.cs",
 
         // The tools of an MCP server, composed with the tenant's tool set.
         ["src/Tracon.Mcp/Internal/McpConnection.cs :: AIFunctionFactory.Create"] = "src/Tracon.Mcp/Internal/McpTenantTools.cs",

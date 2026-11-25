@@ -228,6 +228,7 @@ internal static class VoiceConversationEndpoint
                 TenantId = tenantId,
                 SessionId = sessionId,
                 CreatedBy = actor.Resolve(),
+                User = context.User,
             },
             providers,
             context.RequestAborted).ConfigureAwait(false);

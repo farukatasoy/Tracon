@@ -52,7 +52,9 @@ public sealed class VoiceConversationOptionsBindingTests
         string.Equals(options.OutputMediaType, "audio/wav", StringComparison.Ordinal).ShouldBeTrue();
         options.InputSampleRate.ShouldBe(24_000);
         options.MaxSpokenCharactersPerTurn.ShouldBe(2_000);
-        OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Voice:Conversation", options);
+
+        // ResolveConnection is the host's own code (a delegate); there is no configuration key to bind it from.
+        OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Voice:Conversation", options, nameof(VoiceConversationOptions.ResolveConnection));
     }
 
     [Fact]

@@ -4104,6 +4104,7 @@ Tracon.VoiceSessionCost.Total() -> decimal?
 Tracon.VoiceSessionCost.VoiceSessionCost() -> void
 Tracon.VoiceSessionEndReason
 Tracon.VoiceSessionEndReason.Abandoned = 5 -> Tracon.VoiceSessionEndReason
+Tracon.VoiceSessionEndReason.Agent = 7 -> Tracon.VoiceSessionEndReason
 Tracon.VoiceSessionEndReason.Client = 0 -> Tracon.VoiceSessionEndReason
 Tracon.VoiceSessionEndReason.DurationLimit = 2 -> Tracon.VoiceSessionEndReason
 Tracon.VoiceSessionEndReason.Error = 3 -> Tracon.VoiceSessionEndReason
