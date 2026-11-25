@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -257,7 +258,9 @@ public sealed class VoiceRunGateTests
 
         await client.WaitForAsync("done", frames);
 
-        frames.Single(static frame => string.Equals(frame.Type, "error", StringComparison.Ordinal)).Text("message").ShouldNotBeNullOrEmpty();
+        // The text is the quota's own, the words an HTTP run would answer with, and not the fixed sentence of a failed check.
+        frames.Single(static frame => string.Equals(frame.Type, "error", StringComparison.Ordinal)).Text("message")!
+            .ShouldContain("quota for", Case.Insensitive);
         frames.ShouldNotContain(static frame => frame.Type == "runStarted");
         model.Requests.Count.ShouldBe(1);
 
@@ -270,6 +273,180 @@ public sealed class VoiceRunGateTests
 
         await second.WaitForAsync("error", secondFrames);
         secondFrames.ShouldNotContain(static frame => frame.Type == "ready");
+    }
+
+    [Theory]
+    [InlineData(false, "an answer")]
+    [InlineData(true, "Quota could not be verified.")]
+    public async Task A_quota_store_that_fails_follows_the_hosts_choice_and_never_the_exception(bool strict, string expected)
+    {
+        var failing = false;
+        var plan = new FaultPlan
+        {
+            Fail = call => Volatile.Read(ref failing) && string.Equals(call.Method, nameof(IQuotaStore.GetUsageAsync), StringComparison.Ordinal)
+                ? new IOException("quota-database-secret-detail")
+                : null,
+        };
+
+        var model = Model("an answer");
+
+        await using var host = await StartAsync(
+            handler: null,
+            model,
+            new StubVoiceProvider(),
+            configureServices: services =>
+            {
+                services.Replace(ServiceDescriptor.Singleton<IQuotaStore>(_ => FaultProxy<IQuotaStore>.Create(new InMemoryQuotaStore(), plan)));
+                services.Configure<TraconQuotaOptions>(options => options.AllowOnStoreFailure = !strict);
+            });
+
+        await host.Services.GetRequiredService<IQuotaStore>().SaveAsync(
+            new QuotaDefinition
+            {
+                Id = Guid.NewGuid(),
+                TenantId = host.Services.GetRequiredService<IOptions<TraconOptions>>().Value.DefaultTenantId,
+                AgentName = Agent,
+                Period = QuotaPeriod.Daily,
+                MaxRuns = 100,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            TestContext.Current.CancellationToken);
+
+        await using var client = await ConnectAsync(host);
+
+        await StartConversationAsync(client);
+
+        Volatile.Write(ref failing, true);
+
+        await client.SendAudioAsync(new byte[3200]);
+        await client.SendControlAsync(new { type = "commit" });
+
+        var frames = new List<VoiceEvent>();
+
+        await client.WaitForAsync("done", frames);
+
+        if (strict)
+        {
+            frames.Single(static frame => string.Equals(frame.Type, "error", StringComparison.Ordinal)).Text("message").ShouldBe(expected);
+            model.Requests.ShouldBeEmpty("a quota that cannot be verified refuses when the host asked it to");
+        }
+        else
+        {
+            frames.ShouldNotContain(static frame => string.Equals(frame.Type, "error", StringComparison.Ordinal));
+            model.Requests.Count.ShouldBe(1, "a quota that cannot be verified lets the turn run by default");
+        }
+
+        frames.SelectMany(static frame => new[] { frame.Json?.ToString() }).ShouldAllBe(static text => text == null || !text.Contains("quota-database-secret-detail", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_session_store_that_fails_during_the_check_refuses_with_a_fixed_text_at_the_start_and_at_a_turn()
+    {
+        // With ownership on, the check reads the session. A store that throws there reaches the driver's own fail-closed
+        // catch: the handler never saw the call, so nothing before it could have turned the exception into a decision.
+        var failing = false;
+        var plan = new FaultPlan
+        {
+            Fail = call => Volatile.Read(ref failing) && string.Equals(call.Method, nameof(ISessionStore.GetAsync), StringComparison.Ordinal)
+                ? new IOException("session-database-secret-detail")
+                : null,
+        };
+
+        var model = Model("never");
+
+        await using var host = await StartAsync(
+            handler: null,
+            model,
+            new StubVoiceProvider(),
+            user: "alice",
+            configureServices: services =>
+            {
+                services.Replace(ServiceDescriptor.Singleton<ISessionStore>(_ => FaultProxy<ISessionStore>.Create(new InMemorySessionStore(), plan)));
+                services.Configure<TraconSessionOwnershipOptions>(options => options.Enabled = true);
+            });
+
+        // A start whose check fails: the conversation never begins.
+        await using (var refused = await ConnectAsync(host, "first"))
+        {
+            Volatile.Write(ref failing, true);
+
+            await refused.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+
+            var frames = new List<VoiceEvent>();
+            var error = await refused.WaitForAsync("error", frames);
+
+            error.Text("message").ShouldBe("The run authorization check failed. Retry the request.");
+            error.Text("message")!.ShouldNotContain("session-database-secret-detail");
+            frames.ShouldNotContain(static frame => string.Equals(frame.Type, "ready", StringComparison.Ordinal));
+            Volatile.Write(ref failing, false);
+        }
+
+        // A turn whose check fails: it runs nothing, and the conversation is still open for the next one.
+        await using var client = await ConnectAsync(host, "second");
+
+        await StartConversationAsync(client);
+
+        Volatile.Write(ref failing, true);
+
+        await client.SendAudioAsync(new byte[3200]);
+        await client.SendControlAsync(new { type = "commit" });
+
+        var turnFrames = new List<VoiceEvent>();
+
+        await client.WaitForAsync("done", turnFrames);
+
+        turnFrames.Single(static frame => string.Equals(frame.Type, "error", StringComparison.Ordinal)).Text("message")
+            .ShouldBe("The run authorization check failed. Retry the request.");
+        model.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_blank_agent_name_is_refused_as_a_missing_one_and_the_handler_is_not_asked()
+    {
+        var handler = new RecordingHandler();
+
+        await using var host = await StartAsync(handler, Model("never"), new StubVoiceProvider());
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = "   ", inputFormat = "pcm16" });
+
+        (await client.WaitForAsync("error")).Text("message").ShouldBe("The 'agent' field is required.");
+        handler.RunRequests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Two_conversations_side_by_side_are_each_asked_about_their_own_tenant_and_their_own_caller()
+    {
+        // The identity is read from the request of the connection, on the socket's own flow, and the turns of two
+        // connections interleave: a value kept in a static, a cache or the wrong flow would hand one caller's name to
+        // the other's turn. The attribution here reads the connection's own header, so only the right flow gets it right.
+        var handler = new RecordingHandler();
+
+        await using var host = await StartAsync(handler, Model("One.", "Two.", "Three.", "Four."), new StubVoiceProvider(), headerIdentity: true);
+        await using var alice = await ConnectAsync(host, "alice-session", tenant: "tenant-a", user: "alice");
+        await using var bob = await ConnectAsync(host, "bob-session", tenant: "tenant-b", user: "bob");
+
+        await StartConversationAsync(alice);
+        await StartConversationAsync(bob);
+        await TalkAsync(alice);
+        await TalkAsync(bob);
+        await TalkAsync(bob);
+        await TalkAsync(alice);
+
+        var asked = handler.RunRequests;
+
+        asked.Count.ShouldBe(6, "a start and two turns for each");
+
+        foreach (var request in asked)
+        {
+            var (tenant, user) = string.Equals(request.SessionId, "alice-session", StringComparison.Ordinal)
+                ? ("tenant-a", "alice")
+                : ("tenant-b", "bob");
+
+            request.TenantId.ShouldBe(tenant, $"the tenant asked about for {request.SessionId}");
+            request.UserId.ShouldBe(user, $"the caller asked about for {request.SessionId}");
+        }
     }
 
     [Fact]
@@ -353,7 +530,9 @@ public sealed class VoiceRunGateTests
         FakeModelProvider model,
         StubVoiceProvider voice,
         string? user = null,
-        Func<VoiceConnectionRequest, CancellationToken, ValueTask<VoiceConnectionSettings?>>? resolve = null)
+        Func<VoiceConnectionRequest, CancellationToken, ValueTask<VoiceConnectionSettings?>>? resolve = null,
+        Action<IServiceCollection>? configureServices = null,
+        bool headerIdentity = false)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -378,6 +557,7 @@ public sealed class VoiceRunGateTests
             {
                 services.AddSingleton<ISpeechTranscriber>(voice);
                 services.AddSingleton<ISpeechSynthesizer>(voice);
+                services.AddHttpContextAccessor();
 
                 if (handler is not null)
                 {
@@ -388,6 +568,13 @@ public sealed class VoiceRunGateTests
                 {
                     services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(new FixedAttribution(user)));
                 }
+
+                if (headerIdentity)
+                {
+                    services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext, HeaderAttribution>());
+                }
+
+                configureServices?.Invoke(services);
             });
 
     private static AgentDefinition Definition(string name)
@@ -400,15 +587,27 @@ public sealed class VoiceRunGateTests
             Origin = AgentDefinitionOrigin.Code,
         };
 
-    private static async Task<VoiceConversationClient> ConnectAsync(TraconTestHost host, string sessionId = "session-1", string? tenant = null)
+    private static async Task<VoiceConversationClient> ConnectAsync(
+        TraconTestHost host,
+        string sessionId = "session-1",
+        string? tenant = null,
+        string? user = null)
     {
         var socketClient = host.CreateWebSocketClient();
         socketClient.SubProtocols.Add(VoiceConversationProtocol.SubProtocol);
 
-        if (tenant is not null)
+        socketClient.ConfigureRequest = request =>
         {
-            socketClient.ConfigureRequest = request => request.Headers["X-Tracon-Tenant"] = tenant;
-        }
+            if (tenant is not null)
+            {
+                request.Headers["X-Tracon-Tenant"] = tenant;
+            }
+
+            if (user is not null)
+            {
+                request.Headers["X-Test-User"] = user;
+            }
+        };
 
         var socket = await socketClient.ConnectAsync(
             new Uri($"http://localhost/tracon/api/voice/sessions/{sessionId}/stream"),
@@ -427,6 +626,14 @@ public sealed class VoiceRunGateTests
             "the conversation record to be written");
 
         return records.Single();
+    }
+
+    /// <summary>Names the caller after the header of the request being served, as a host that reads its own identity does.</summary>
+    private sealed class HeaderAttribution(IHttpContextAccessor accessor) : IRunAttributionContext
+    {
+        public string? UserId => accessor.HttpContext?.Request.Headers["X-Test-User"].ToString() is { Length: > 0 } user ? user : null;
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
     }
 
     private sealed class FixedAttribution(string userId) : IRunAttributionContext

@@ -79,7 +79,7 @@ and are shown verbatim — this package does not translate them.
 ## Voice conversations
 
 `createVoiceConversation` speaks the WebSocket protocol of `UseVoiceConversation()`: typed
-frames, the token in a subprotocol, and `ready`/`commit` rules enforced. See
+frames, the token in a subprotocol (`subProtocols` carries a host's own token the same way), and `ready`/`commit` rules enforced. See
 [Talk to a voice conversation](https://tracon.dev/guides/typescript-client/#talk-to-a-voice-conversation)
 and the [protocol](https://tracon.dev/reference/voice-conversation-protocol/).
 

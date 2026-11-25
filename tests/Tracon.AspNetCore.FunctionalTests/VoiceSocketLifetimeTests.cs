@@ -1,4 +1,6 @@
 using System.Net.WebSockets;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Tests.Common;
 
@@ -170,6 +172,7 @@ public sealed class VoiceSocketLifetimeTests
         var ended = await client.WaitForAsync("ended", frames);
 
         ended.Text("reason").ShouldBe("duration");
+        VoiceFrameSchemaTests.ConformToSchema(frames);
 
         (await client.ReceiveAsync()).ShouldBeNull();
         client.CloseStatus.ShouldBe(WebSocketCloseStatus.NormalClosure);
@@ -209,6 +212,10 @@ public sealed class VoiceSocketLifetimeTests
 
         // `done` closes the turn the limit cut off, and only then does the client learn the conversation is over.
         (await client.WaitForAsync("ended", frames)).Text("reason").ShouldBe("duration");
+        VoiceFrameSchemaTests.ConformToSchema(frames);
+
+        // One `ended` only, and it is the limit's.
+        frames.Count(static frame => string.Equals(frame.Type, "ended", StringComparison.Ordinal)).ShouldBe(1);
 
         (await client.ReceiveAsync()).ShouldBeNull();
         client.CloseDescription.ShouldBe("The conversation reached its time limit.");
@@ -253,10 +260,111 @@ public sealed class VoiceSocketLifetimeTests
         // The conversation was ended and holds a slot until the server stops waiting for that answer.
         (await host.WaitForRecordAsync()).EndReason.ShouldBe(VoiceSessionEndReason.Agent);
 
-        var released = WaitUntil.TrueAsync(() => host.Limiter.CountFor("default") == 0, "the connection slot to be released");
+        // The wait for the answer is five seconds, and neither shorter nor longer: the slot is still held four seconds in and is
+        // released at five.
+        var bound = TimeSpan.FromSeconds(5);
 
-        await host.Clock.AdvanceUntilAsync(released, within: TimeSpan.FromSeconds(30));
+        await host.WaitForTimerAsync(bound);
+
+        host.Clock.Advance(TimeSpan.FromSeconds(4));
+        host.Limiter.CountFor("default").ShouldBe(1, "the server still waits for the client's answer");
+
+        host.Clock.Advance(TimeSpan.FromSeconds(1));
+
+        await WaitUntil.TrueAsync(() => host.Limiter.CountFor("default") == 0, "the connection slot to be released");
 
         socket.Abort();
+    }
+
+    [Fact]
+    public async Task A_finished_conversation_leaves_none_of_its_own_timers_armed()
+    {
+        var idle = TimeSpan.FromSeconds(437);
+        var limit = TimeSpan.FromSeconds(3617);
+
+        await using var host = await KestrelVoiceHost.StartAsync(
+            options =>
+            {
+                options.IdleTimeout = idle;
+                options.MaxConnectionDuration = limit;
+            },
+            agentEnds: true);
+
+        var (socket, client) = await host.ConnectAsync();
+
+        await using var _ = client;
+
+        await host.WaitForTimerAsync(idle);
+        await KestrelVoiceHost.SpeakAsync(client);
+        await client.WaitForAsync("ended");
+        (await client.ReceiveAsync()).ShouldBeNull();
+
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => host.Limiter.CountFor("default") == 0, "the connection slot to be released");
+
+        // The waits of the connection (its idle limit and the time left of its duration limit) are timers of this clock: none of
+        // them outlives the connection.
+        host.Clock.Pending.ShouldNotContain(idle);
+        host.Clock.Pending.ShouldNotContain(limit);
+    }
+
+    [Fact]
+    public async Task A_conversation_the_host_resolver_refuses_is_closed_with_the_error_description()
+    {
+        await using var host = await KestrelVoiceHost.StartAsync(
+            resolve: static (_, _) => throw new InvalidOperationException("a failure of the host's own code"));
+
+        var (socket, client) = await host.OpenAsync();
+
+        await using var _ = client;
+
+        await client.SendControlAsync(new { type = "start", agent = KestrelVoiceHost.Agent, inputFormat = "pcm16" });
+
+        var frames = new List<VoiceEvent>();
+
+        (await client.WaitForAsync("error", frames)).Text("message").ShouldBe("The conversation could not be started.");
+
+        (await client.ReceiveAsync()).ShouldBeNull();
+        client.CloseStatus.ShouldBe(WebSocketCloseStatus.NormalClosure);
+        client.CloseDescription.ShouldBe("The conversation closed with an error.");
+
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", TestContext.Current.CancellationToken);
+
+        (await host.WaitForRecordAsync()).EndReason.ShouldBe(VoiceSessionEndReason.Error);
+    }
+
+    [Fact]
+    public async Task A_record_that_cannot_be_written_does_not_take_the_close_with_it()
+    {
+        // A database that is down throws its own exception type, not Tracon's. The record is observability: the client still
+        // reads the close the server owes it, and the connection slot is released.
+        await using var host = await KestrelVoiceHost.StartAsync(
+            agentEnds: true,
+            configureServices: static services => services.Replace(
+                ServiceDescriptor.Singleton<IVoiceSessionStore>(new UnwritableStore())));
+
+        var (socket, client) = await host.ConnectAsync();
+
+        await using var _ = client;
+
+        await KestrelVoiceHost.SpeakAsync(client);
+        await client.WaitForAsync("ended");
+
+        (await client.ReceiveAsync()).ShouldBeNull("the server closes the socket although it could not write the record");
+        client.CloseStatus.ShouldBe(WebSocketCloseStatus.NormalClosure);
+        client.CloseDescription.ShouldBe("The conversation was ended by the agent.");
+
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => host.Limiter.CountFor("default") == 0, "the connection slot to be released");
+    }
+
+    private sealed class UnwritableStore : IVoiceSessionStore
+    {
+        public ValueTask SaveAsync(VoiceSessionRecord record, CancellationToken cancellationToken = default)
+            => throw new IOException("the database is down");
+
+        public ValueTask<IReadOnlyList<VoiceSessionRecord>> QueryAsync(
+            string tenantId, VoiceSessionQuery query, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<VoiceSessionRecord>>([]);
     }
 }

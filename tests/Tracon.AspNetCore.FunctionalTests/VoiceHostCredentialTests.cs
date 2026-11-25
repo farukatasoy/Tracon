@@ -95,15 +95,94 @@ public sealed class VoiceHostCredentialTests
     }
 
     [Fact]
-    public async Task A_value_in_the_prefix_of_Tracons_own_token_is_Tracons_to_judge_and_is_refused_when_it_is_not_its_credential()
+    public async Task A_value_in_the_prefix_of_Tracons_own_token_is_judged_by_Tracon_even_when_the_host_accepts_the_socket()
     {
-        // The host's token under Tracon's prefix is read as a Tracon credential, and it is not one: the prefix is the one place
-        // the host's token cannot travel, which is why the host names its own.
+        // The host's own token is valid and the host's sign-in lets the socket through: the only thing left to refuse it is
+        // Tracon, which reads its own prefix and finds a value that is none of its credentials.
+        await using var host = await StartAsync(new RecordingHandler());
+
+        var connect = async () =>
+        {
+            var socketClient = host.CreateWebSocketClient();
+            socketClient.SubProtocols.Add(VoiceConversationProtocol.SubProtocol);
+            socketClient.SubProtocols.Add(HostPrefix + HostToken);
+            socketClient.SubProtocols.Add(VoiceConversationProtocol.TokenSubProtocolPrefix + "not-a-credential-of-tracon");
+
+            return await socketClient.ConnectAsync(new Uri(StreamPath), TestContext.Current.CancellationToken);
+        };
+
+        (await connect.ShouldThrowAsync<InvalidOperationException>()).Message.ShouldContain("401");
+    }
+
+    [Fact]
+    public async Task The_host_token_under_the_prefix_of_Tracons_own_token_is_not_the_hosts_to_carry()
+    {
+        // The host's sign-in does not find its own prefix, so it authenticates nobody and its policy refuses. The prefix of
+        // Tracon's token is the one place the host's token cannot travel, which is why the host names its own.
         await using var host = await StartAsync(new RecordingHandler());
 
         var connect = async () => await ConnectAsync(host, VoiceConversationProtocol.TokenSubProtocolPrefix + HostToken);
 
         (await connect.ShouldThrowAsync<InvalidOperationException>()).Message.ShouldContain("401");
+    }
+
+    [Fact]
+    public async Task Two_sockets_with_two_host_identities_are_each_asked_about_their_own_caller()
+    {
+        var handler = new RecordingHandler();
+
+        await using var host = await StartAsync(handler);
+
+        using var aliceSocket = await ConnectAsync(host, HostPrefix + HostToken, session: "alice-session");
+        using var bobSocket = await ConnectAsync(host, HostPrefix + HostToken + "-bob", session: "bob-session");
+
+        await using var alice = new VoiceConversationClient(aliceSocket);
+        await using var bob = new VoiceConversationClient(bobSocket);
+
+        foreach (var client in new[] { alice, bob })
+        {
+            await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+            await client.WaitForAsync("ready");
+        }
+
+        foreach (var client in new[] { alice, bob })
+        {
+            await client.SendAudioAsync(new byte[3200]);
+            await client.SendControlAsync(new { type = "commit" });
+            await client.WaitForAsync("done");
+        }
+
+        foreach (var request in handler.RunRequests)
+        {
+            request.UserId.ShouldBe(
+                string.Equals(request.SessionId, "alice-session", StringComparison.Ordinal) ? "alice" : "bob",
+                $"the caller asked about for {request.SessionId}");
+        }
+
+        handler.RunRequests.Count.ShouldBe(4, "a start and a turn for each");
+    }
+
+    [Fact]
+    public async Task On_a_real_socket_the_server_selects_the_protocol_and_the_host_token_opens_it_or_is_refused()
+    {
+        await using var host = await KestrelVoiceHost.StartAsync(
+            configureServices: ConfigureHostSignIn,
+            configureEndpoints: static options => options.RequireAuthorization(Policy));
+
+        var (socket, client) = await host.OpenAsync(extraSubProtocol: HostPrefix + HostToken);
+
+        await using (client)
+        {
+            // What a real client reads from the response of the handshake: the protocol, and never the token's subprotocol.
+            socket.SubProtocol.ShouldBe(VoiceConversationProtocol.SubProtocol);
+
+            await client.SendControlAsync(new { type = "start", agent = KestrelVoiceHost.Agent, inputFormat = "pcm16" });
+            await client.WaitForAsync("ready");
+        }
+
+        var refused = async () => await host.OpenAsync(extraSubProtocol: HostPrefix + "not-a-token-the-host-issued");
+
+        (await refused.ShouldThrowAsync<WebSocketException>()).Message.ShouldContain("401");
     }
 
     [Fact]
@@ -152,22 +231,27 @@ public sealed class VoiceHostCredentialTests
                 services.AddSingleton<ISpeechTranscriber>(voice);
                 services.AddSingleton<ISpeechSynthesizer>(voice);
                 services.Replace(ServiceDescriptor.Singleton<IRunAuthorizationHandler>(handler));
-                services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext, ClaimsAttribution>());
-                services.AddHttpContextAccessor();
-
-                // The host's own sign-in: the scheme reads the token from the subprotocol header, the way a JwtBearer
-                // `OnMessageReceived` handler would, and builds the identity from it.
-                services
-                    .AddAuthentication(HostSignIn.SchemeName)
-                    .AddScheme<AuthenticationSchemeOptions, HostSignIn>(HostSignIn.SchemeName, configureOptions: null);
-
-                services
-                    .AddAuthorizationBuilder()
-                    .AddPolicy(Policy, static policy => policy.AddAuthenticationSchemes(HostSignIn.SchemeName).RequireAuthenticatedUser());
+                ConfigureHostSignIn(services);
             });
     }
 
-    private static async Task<WebSocket> ConnectAsync(TraconTestHost host, string? hostSubProtocol, string? origin = null)
+    private static void ConfigureHostSignIn(IServiceCollection services)
+    {
+        services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext, ClaimsAttribution>());
+        services.AddHttpContextAccessor();
+
+        // The host's own sign-in: the scheme reads the token from the subprotocol header, the way a JwtBearer
+        // `OnMessageReceived` handler would, and builds the identity from it.
+        services
+            .AddAuthentication(HostSignIn.SchemeName)
+            .AddScheme<AuthenticationSchemeOptions, HostSignIn>(HostSignIn.SchemeName, configureOptions: null);
+
+        services
+            .AddAuthorizationBuilder()
+            .AddPolicy(Policy, static policy => policy.AddAuthenticationSchemes(HostSignIn.SchemeName).RequireAuthenticatedUser());
+    }
+
+    private static async Task<WebSocket> ConnectAsync(TraconTestHost host, string? hostSubProtocol, string? origin = null, string session = "session-1")
     {
         var socketClient = host.CreateWebSocketClient();
         socketClient.SubProtocols.Add(VoiceConversationProtocol.SubProtocol);
@@ -182,7 +266,9 @@ public sealed class VoiceHostCredentialTests
             socketClient.ConfigureRequest = request => request.Headers.Origin = origin;
         }
 
-        return await socketClient.ConnectAsync(new Uri(StreamPath), TestContext.Current.CancellationToken);
+        return await socketClient.ConnectAsync(
+            new Uri($"http://localhost/tracon/api/voice/sessions/{session}/stream"),
+            TestContext.Current.CancellationToken);
     }
 
     /// <summary>The host's sign-in: reads <c>host.bearer.&lt;token&gt;</c> from the subprotocol header.</summary>
@@ -213,12 +299,17 @@ public sealed class VoiceHostCredentialTests
                 return Task.FromResult(AuthenticateResult.NoResult());
             }
 
-            if (!string.Equals(token, HostToken, StringComparison.Ordinal))
+            // The host issued two tokens: Alice's, and Bob's, which is Alice's with a suffix.
+            var user = string.Equals(token, HostToken, StringComparison.Ordinal) ? "alice"
+                : string.Equals(token, HostToken + "-bob", StringComparison.Ordinal) ? "bob"
+                : null;
+
+            if (user is null)
             {
                 return Task.FromResult(AuthenticateResult.Fail("The token is not one the host issued."));
             }
 
-            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "alice")], SchemeName);
+            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, user)], SchemeName);
 
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));
         }

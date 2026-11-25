@@ -74,7 +74,7 @@ internal sealed class VoiceLiveOptionsValidator : IValidateOptions<VoiceLiveOpti
 
 /// <summary>Validates the timeouts of <see cref="VoiceConversationOptions"/> when the application starts.</summary>
 /// <remarks>
-/// A connection waits for its next frame with <c>CancelAfter</c> over the
+/// A connection waits for its next frame on a timer over the
 /// shorter of <see cref="VoiceConversationOptions.IdleTimeout"/> and the time left of
 /// <see cref="VoiceConversationOptions.MaxConnectionDuration"/>; a negative value, or
 /// both longer than about 49.7 days, threw on every connection. Nothing validated the

@@ -838,14 +838,20 @@ required middleware when voice conversation is registered.
 
 The page that opened the socket is neither served by the installation nor listed in
 `AllowedOrigins`. A policy-authenticated socket is held to that rule because a browser
-sends its cookie from any page. Add the console's origin to `AllowedOrigins`, or send the
-token or key in the `tracon.token.` subprotocol instead of relying on the cookie.
+sends its cookie from any page. Add the console's origin to `AllowedOrigins`, or send
+Tracon's own token or key in the `tracon.token.` subprotocol instead of relying on the cookie.
+A host with its own sign-in lists its single-page app's origin: its token travels in a
+[subprotocol of its own](/guides/voice-conversation-lifecycle/#carry-your-own-token-from-the-browser),
+and that does not take the socket out of the rule.
 
 ### The WebSocket request returns `401`
 
-Browsers cannot add an `Authorization` header to the handshake. Send the token in the
-documented `Sec-WebSocket-Protocol` subprotocol. Do not put it in the query string;
-URLs reach browser, server, and proxy logs.
+Browsers cannot add an `Authorization` header to the handshake. Send Tracon's token in the
+documented `tracon.token.` subprotocol, or the token of your own sign-in in a
+[subprotocol of its own](/guides/voice-conversation-lifecycle/#carry-your-own-token-from-the-browser)
+that your authentication reads. A host token sent under `tracon.token.` is refused: Tracon
+reads that prefix as its own credential. Do not put either in the query string; URLs reach
+browser, server, and proxy logs.
 
 ### Startup stops with `VoiceOptions: no API key was given`
 

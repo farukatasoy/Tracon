@@ -55,10 +55,16 @@ in it and run it.
 | `start` | `error` with the reason the handler or the quota gave, the text an HTTP run would answer | The conversation ends and the record's end reason is `Error`. The host's resolver is not called |
 | A turn | `error`, then `done` with the number of turns already completed | The turn is not counted, its audio is never sent to the transcription provider and no run starts. The conversation goes on, and the next turn is asked again |
 
-A handler or a quota store that throws refuses, with the fixed text
-`The run authorization check failed. Retry the request.`; the exception stays in your log.
+A handler that throws, or a session store that throws while the owner is checked, refuses
+with the fixed text `The run authorization check failed. Retry the request.`; the exception
+stays in your log. A quota store that throws follows `Tracon:Quotas:AllowOnStoreFailure`, as
+it does for an HTTP run: the turn runs by default, and with the setting off it is refused with
+`Quota could not be verified.`
+
 A spent quota refuses a new conversation and the next turn of an open one, and never cuts a
-turn in progress. A voice turn was recorded and counted before, but never refused.
+turn in progress. A voice turn was recorded and counted before, but never refused. The quota
+counts the runs that have ended, so conversations that start together can pass it together,
+and a slow handler or store delays the turn it is asked about.
 
 ## Carry your own token from the browser
 
@@ -107,17 +113,21 @@ the second argument of your own `new WebSocket(url, [protocol, 'host.bearer.' + 
 createVoiceConversation({ baseUrl, sessionId, agent, subProtocols: () => ['host.bearer.' + currentJwt()] });
 ```
 
-Three limits apply:
+These limits apply:
 
 - A subprotocol value holds only the characters of an HTTP token. A base64url JWT does
-  (`A-Z a-z 0-9 - _ .`); a value with `=`, `/`, `+` or a space does not, so encode it first.
+  (`A-Z a-z 0-9 - _ .`); a value with `=`, `/` or a space does not, so encode it first.
+- The `Sec-WebSocket-Protocol` header is a header like the others to your proxy, your APM
+  and your HTTP logging: most redaction lists name `Authorization` and not this header, so
+  add it. A proxy also caps one header line (8 KB is a common limit), and a JWT with many
+  claims can pass it; the browser then reports only a failed handshake.
 - Do not put the token in the query string. It is the one place the address, your proxy's
   log and the browser's history all keep it. Tracon refuses its own token there for that reason, and the same
   holds for yours.
 - Tracon's own checks still apply to a socket your sign-in authenticated. Tracon cannot tell
   a token the page holds from an identity the browser sends by itself (a cookie), so a page
   of another site is refused unless its origin is in `AllowedOrigins`, a client with no
-  `Origin` header is not judged by it, and the run questions below are asked as for any
+  `Origin` header is not judged by it, and the run questions above are asked as for any
   other conversation.
 
 ## Limit how long a conversation lasts
@@ -179,10 +189,8 @@ The server lets the answer finish, speaks it, sends `done`, then `ended` with
 `"reason": "agent"`, and closes the socket normally. The record's end reason is `Agent`.
 If the user interrupts the goodbye (`cancel`), or the turn fails, the request is dropped and
 the conversation goes on. An agent that does not list the tool can never end a conversation,
-and the tool ends nothing when an agent runs outside a voice conversation.
-A conversation also ends when the time limit the host set for its connection passes, and every
-close has its own frame, description and end reason: they are on the
-[voice conversation lifecycle](/guides/voice-conversation-lifecycle/#how-a-conversation-closes) page.
+and the tool ends nothing when an agent runs outside a voice conversation. Every close has
+its own frame, description and end reason, [below](#how-a-conversation-closes).
 
 ## How a conversation closes
 
@@ -197,7 +205,9 @@ the end reason. What came before the close tells the client whether to come back
 | `MaxConnectionDuration`, the global limit | none | `The connection reached the duration limit.` | `DurationLimit` |
 | No frame from the client for `IdleTimeout` | none | `The connection stayed idle.` | `IdleTimeout` |
 | The host is stopping | none | `The server is shutting down.` | `ServerShutdown` |
-| The conversation failed | `error` | `The conversation closed with an error.` | `Error` |
+| The host's resolver failed or refused, or the run questions refused the `start` | `error` | `The conversation closed with an error.` | `Error` |
+| Any other failed `start` (no such agent, an unknown audio format, a second `start`) | `error` | `The conversation closed.` | `Client` |
+| A turn failed | `error`, then `done` | none: the conversation goes on | none |
 
 The end reason is decided once, by the first thing that ended the conversation, and a client
 that drops the connection the moment it reads `ended` does not change it. `ServerShutdown` is

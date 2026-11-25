@@ -123,8 +123,32 @@ describe('the address and the handshake', () => {
     ['the protocol itself', VOICE_SUBPROTOCOL],
     ['the prefix of Tracon\'s own token', 'tracon.token.abc'],
   ])('refuses %s before the socket opens', (_name, value) => {
+    let opened = 0;
+
     expect(() => voiceSubProtocols(undefined, [value])).toThrow(TypeError);
-    expect(() => conversation({ subProtocols: [value] })).toThrow(TypeError);
+    expect(() =>
+      createVoiceConversation({
+        baseUrl: 'https://example.com/tracon',
+        sessionId: 'lesson-42',
+        agent: 'coach',
+        subProtocols: [value],
+        webSocket: (url, protocols) => {
+          opened += 1;
+
+          return new FakeSocket(url, protocols);
+        },
+      }),
+    ).toThrow(TypeError);
+    expect(opened).toBe(0);
+  });
+
+  it.each([
+    ['a JWT, with its dots, digits, capitals and underscores', 'host.bearer.eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.dozjgNry_P4J-3j'],
+    ['every punctuation mark a token may hold', "host.!#$%&'*+-.^_`|~"],
+    ['digits and capitals alone', 'A0Z9'],
+  ])('offers %s as it is', (_name, value) => {
+    expect(voiceSubProtocols(undefined, [value])).toEqual([VOICE_SUBPROTOCOL, value]);
+    expect(conversation({ subProtocols: [value] }).socket.protocols).toEqual([VOICE_SUBPROTOCOL, value]);
   });
 
   it('reads the host credential from a function at the time the socket opens, as it does the token', () => {

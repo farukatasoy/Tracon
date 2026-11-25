@@ -543,7 +543,7 @@ internal sealed class VoiceConversationDriver
                 return;
             }
 
-            if (message.Agent is not { Length: > 0 } agentName)
+            if (message.Agent is not { } agentName || string.IsNullOrWhiteSpace(agentName))
             {
                 await FailAsync("The 'agent' field is required.").ConfigureAwait(false);
                 return;
@@ -1122,8 +1122,12 @@ internal sealed class VoiceConversationDriver
             _endRequested = false;
 
             // 🚨 Decided BEFORE the frame goes out: a client may drop the connection the moment it reads `ended`, and the
-            // failed read that follows must find the reason already written.
-            SetEndReason(VoiceSessionEndReason.Agent);
+            // failed read that follows must find the reason already written. When something else decided first (a limit, the
+            // host stopping), the frame is not sent: it would say "agent" over a record and a close that say otherwise.
+            if (!TrySetEndReason(VoiceSessionEndReason.Agent))
+            {
+                return;
+            }
 
             lock (_state)
             {
@@ -1359,8 +1363,16 @@ internal sealed class VoiceConversationDriver
 
             try
             {
-                await WriteRecordAsync(recordId, started, reason).ConfigureAwait(false);
-                await CloseSocketAsync(reason).ConfigureAwait(false);
+                // The record is observability, and the close is what the client reads: a record that cannot be written must not
+                // take the close with it.
+                try
+                {
+                    await WriteRecordAsync(recordId, started, reason).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await CloseSocketAsync(reason).ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -1424,9 +1436,10 @@ internal sealed class VoiceConversationDriver
                     },
                     CancellationToken.None).ConfigureAwait(false);
             }
-            catch (Exception exception) when (exception is TraconException or InvalidOperationException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
             {
-                // Observability does not break functionality.
+                // Observability does not break functionality, whatever the store throws (a database that is down throws its own
+                // exception type, not Tracon's).
                 driver._logger.LogWarning(exception, "The voice record could not be written.");
             }
         }

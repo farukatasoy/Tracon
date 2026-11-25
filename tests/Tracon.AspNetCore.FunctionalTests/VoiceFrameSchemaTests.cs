@@ -111,6 +111,11 @@ public sealed class VoiceFrameSchemaTests
         seen.Order(StringComparer.Ordinal).ShouldBe(Constants("Server").Order(StringComparer.Ordinal));
     }
 
+    /// <summary>Checks frames a server wrote against the schema: the fields they carry, their kinds and their constant values.</summary>
+    /// <param name="frames">The frames.</param>
+    internal static void ConformToSchema(IEnumerable<VoiceEvent> frames)
+        => Conform(frames, Defs(), new HashSet<string>(StringComparer.Ordinal));
+
     private static void Conform(IEnumerable<VoiceEvent> frames, JsonElement defs, HashSet<string> seen)
     {
         foreach (var frame in frames.Where(static frame => frame.Type is not null))

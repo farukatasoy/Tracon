@@ -121,13 +121,13 @@ that tells the client why:
 
 | Description | Cause |
 |---|---|
-| `The conversation closed.` | The client sent `stop` or closed the socket, or a `start` failed |
+| `The conversation closed.` | The client sent `stop` or closed the socket, or a `start` failed for a reason that is the client's (no such agent, an unknown audio format, a second `start`) |
 | `The conversation was ended by the agent.` | An `ended` frame with `agent` came first |
 | `The conversation reached its time limit.` | An `ended` frame with `duration` came first: the host set a limit for this connection and it passed. Do not reconnect |
 | `The connection stayed idle.` | No frame **from the client** for `IdleTimeout` (2 minutes by default); frames the server sends do not count, so a client that stays silent through a long answer is closed |
 | `The connection reached the duration limit.` | `MaxConnectionDuration` (30 minutes by default), the limit of every connection. No `ended` frame comes: reconnect to continue, the session keeps its history |
 | `The server is shutting down.` | The host began to stop; the turn in progress is cut off. Reconnect to another instance |
-| `The conversation closed with an error.` | The connection failed |
+| `The conversation closed with an error.` | The connection failed, or the host's resolver failed or refused, or the run questions refused the `start` |
 
 A close is a handshake: the server sends its close frame and waits for the client's, then
 drops the connection if none comes within five seconds. A browser answers by itself; another

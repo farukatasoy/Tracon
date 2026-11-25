@@ -59,11 +59,15 @@ internal sealed class KestrelVoiceHost : IAsyncDisposable
     /// <param name="configure">Changes the conversation options.</param>
     /// <param name="resolve">The host's connection resolver; <see langword="null"/> for none.</param>
     /// <param name="agentEnds">Whether the model calls the tool that ends the conversation on every turn.</param>
+    /// <param name="configureServices">Changes the registrations after the conversation was added: a store that throws, a handler.</param>
+    /// <param name="configureEndpoints">Changes the endpoint settings, such as the authorization policy that guards them.</param>
     /// <returns>The running host.</returns>
     public static async Task<KestrelVoiceHost> StartAsync(
         Action<VoiceConversationOptions>? configure = null,
         Func<VoiceConnectionRequest, CancellationToken, ValueTask<VoiceConnectionSettings?>>? resolve = null,
-        bool agentEnds = false)
+        bool agentEnds = false,
+        Action<IServiceCollection>? configureServices = null,
+        Action<TraconEndpointOptions>? configureEndpoints = null)
     {
         var voice = new StubVoiceProvider();
         var clock = new ManualClock();
@@ -97,8 +101,10 @@ internal sealed class KestrelVoiceHost : IAsyncDisposable
                 configure?.Invoke(options);
             });
 
+        configureServices?.Invoke(builder.Services);
+
         var app = builder.Build();
-        app.MapTracon("/tracon");
+        app.MapTracon("/tracon", configureEndpoints);
 
         await app.StartAsync();
 
@@ -122,11 +128,19 @@ internal sealed class KestrelVoiceHost : IAsyncDisposable
 
     /// <summary>Opens a conversation socket without starting the conversation.</summary>
     /// <param name="sessionId">The session the conversation runs in.</param>
+    /// <param name="extraSubProtocol">A second subprotocol to offer after the protocol, such as a host's own credential.</param>
     /// <returns>The socket and a client that reads its frames.</returns>
-    public async Task<(ClientWebSocket Socket, VoiceConversationClient Client)> OpenAsync(string sessionId = "session-1")
+    public async Task<(ClientWebSocket Socket, VoiceConversationClient Client)> OpenAsync(
+        string sessionId = "session-1",
+        string? extraSubProtocol = null)
     {
         var socket = new ClientWebSocket();
         socket.Options.AddSubProtocol(VoiceConversationProtocol.SubProtocol);
+
+        if (extraSubProtocol is not null)
+        {
+            socket.Options.AddSubProtocol(extraSubProtocol);
+        }
 
         var address = new UriBuilder(Address)
         {
