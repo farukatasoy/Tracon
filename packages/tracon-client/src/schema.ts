@@ -8661,7 +8661,8 @@ export interface components {
         VoiceSessionCost: {
             /**
              * Format: double
-             * @description What the session's duration cost.
+             * @description What the session's duration cost: the provider-hosted session's wall-clock time, or the transcribed audio of a
+             *     conversation Tracon runs itself.
              */
             durationCost?: null | number | string;
             /**
@@ -8732,7 +8733,8 @@ export interface components {
             provider?: null | string;
             /**
              * @description The model the conversation ran on; `null` when unknown. When Tracon ran the conversation itself it
-             *     is the synthesis model the characters were priced on. The transcription model is not recorded here.
+             *     is the transcription model the transcriber reported (streaming synthesis reports no model, so the synthesis model
+             *     is not recorded here; the characters are priced on the configured default).
              */
             model?: null | string;
             /**

@@ -38,6 +38,12 @@ internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposab
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>Gets the close status the server sent; <see langword="null"/> until it closed.</summary>
+    public WebSocketCloseStatus? CloseStatus { get; private set; }
+
+    /// <summary>Gets the close description the server sent; <see langword="null"/> until it closed.</summary>
+    public string? CloseDescription { get; private set; }
+
     /// <summary>Sends a control message.</summary>
     /// <param name="payload">The object to serialize to JSON.</param>
     /// <returns>The completion task.</returns>
@@ -99,6 +105,9 @@ internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposab
 
             if (result.MessageType == WebSocketMessageType.Close)
             {
+                CloseStatus = socket.CloseStatus;
+                CloseDescription = socket.CloseStatusDescription;
+
                 return null;
             }
 

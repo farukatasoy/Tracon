@@ -54,7 +54,7 @@ public sealed class VoiceConversationConnectionTests
         request.ClientVoiceId.ShouldBe("client-voice");
         request.AgentName.ShouldBe(Agent);
         request.SessionId.ShouldBe("session-1");
-        request.TenantId.ShouldNotBeNullOrWhiteSpace();
+        request.TenantId.ShouldBe("default", "the tenant of the connection, not a value the client sent");
         request.User.ShouldNotBeNull();
     }
 
@@ -242,6 +242,8 @@ public sealed class VoiceConversationConnectionTests
         error.Text("message")!.ShouldNotContain("very-private-value");
         frames.ShouldNotContain(static frame => frame.Type == "ready");
         model.Requests.ShouldBeEmpty();
+        // Values the host's own resolver supplied that the agent refuses are the host's mistake: the record says Error.
+        (await WaitForRecordsAsync(host)).EnumerateArray().Single().GetProperty("endReason").GetString().ShouldBe("Error");
     }
 
     [Fact]
@@ -393,9 +395,11 @@ public sealed class VoiceConversationConnectionTests
     {
         var voice = new StubVoiceProvider();
 
+        var model = Model().CallsTool(EndConversationTool.ToolName, new { }).EchoesLastToolResult();
+
         await using var host = await StartAsync(
             voice,
-            Model().CallsTool(EndConversationTool.ToolName, new { }).EchoesLastToolResult(),
+            model,
             resolve: null,
             toolNames: [EndConversationTool.ToolName]);
         await using var client = await ConnectAsync(host);
@@ -411,12 +415,17 @@ public sealed class VoiceConversationConnectionTests
         await client.WaitForAsync("done", frames);
         var ended = await client.WaitForAsync("ended", frames);
 
+        // The model was offered the tool because the agent names it.
+        ToolNames(model.Requests[0]).ShouldContain(EndConversationTool.ToolName, StringComparer.Ordinal);
+
         ended.Text("reason").ShouldBe("agent");
         voice.Spoken.ShouldNotBeEmpty("the goodbye is spoken before the connection closes");
         frames.FindIndex(static frame => string.Equals(frame.Type, "audioEnd", StringComparison.Ordinal))
             .ShouldBeLessThan(frames.FindIndex(static frame => string.Equals(frame.Type, "ended", StringComparison.Ordinal)));
 
         (await client.ReceiveAsync()).ShouldBeNull("the server closes the socket after `ended`");
+        client.CloseStatus.ShouldBe(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure);
+        client.CloseDescription.ShouldBe("The conversation was ended by the agent.");
 
         (await WaitForRecordsAsync(host)).EnumerateArray().Single().GetProperty("endReason").GetString().ShouldBe("Agent");
         host.Services.GetRequiredService<VoiceConversationEndRegistry>().Count.ShouldBe(0, "a closed connection leaves no turn behind");
@@ -477,21 +486,134 @@ public sealed class VoiceConversationConnectionTests
     }
 
     [Fact]
-    public async Task An_agent_that_does_not_list_the_tool_cannot_end_a_conversation()
+    public async Task An_agent_that_does_not_list_the_tool_is_never_offered_it()
     {
+        var model = Model().RespondsWith("Fine.");
+
+        await using var host = await StartAsync(new StubVoiceProvider(), model, resolve: null, toolNames: []);
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+        await TalkAsync(client);
+
+        // The tool is registered, and the model of an agent that does not name it is never offered it.
+        host.Services.GetRequiredService<IToolRegistry>().List()
+            .ShouldContain(static tool => string.Equals(tool.Name, EndConversationTool.ToolName, StringComparison.Ordinal), "the tool exists");
+        ToolNames(model.Requests.ShouldHaveSingleItem()).ShouldNotContain(EndConversationTool.ToolName, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public async Task One_connection_ending_does_not_touch_another_and_each_gets_its_own_greeting()
+    {
+        var voice = new StubVoiceProvider();
+
+        await using var host = await StartAsync(
+            voice,
+            Model().CallsTool(EndConversationTool.ToolName, new { }).EchoesLastToolResult(),
+            resolve: static (_, _) => ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings { Greeting = "Welcome." }),
+            toolNames: [EndConversationTool.ToolName]);
+        await using var first = await ConnectAsync(host, "session-a");
+        await using var second = await ConnectAsync(host, "session-b");
+
+        await first.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await second.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await first.WaitForAsync("done");
+        await second.WaitForAsync("done");
+
+        voice.Spoken.Count(static text => string.Equals(text, "Welcome.", StringComparison.Ordinal)).ShouldBe(2, "each connection was greeted once, in its own session");
+
+        // Only the first one speaks, and the agent ends that conversation.
+        await first.SendAudioAsync(new byte[3200]);
+        await first.SendControlAsync(new { type = "commit" });
+        await first.WaitForAsync("ended");
+
+        // The second is untouched: it is still listening and still answers.
+        await second.SendControlAsync(new { type = "commit" });
+        await second.WaitForAsync("idle").WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        second.CloseStatus.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_greeting_the_user_cut_off_is_written_to_the_history_as_interrupted()
+    {
+        var voice = new StubVoiceProvider { HoldSynthesis = true };
+        var model = Model().RespondsWith("Fine.");
+
+        await using var host = await StartAsync(
+            voice,
+            model,
+            resolve: static (_, _) => ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings { Greeting = "Welcome to the lesson." }));
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+        await client.SendControlAsync(new { type = "cancel" });
+        (await client.WaitForAsync("done")).Flag("cancelled").ShouldBe(true);
+
+        // The next turn's model reads the history: it must know the greeting was cut off.
+        voice.HoldSynthesis = false;
+        await TalkAsync(client);
+
+        model.Requests.ShouldHaveSingleItem().Messages
+            .ShouldContain(static message => message.Text.Contains("interrupted by the user", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task An_opening_prompt_does_not_run_again_when_the_client_reconnects()
+    {
+        var model = Model().RespondsWith("Hello student.", "never");
+
         await using var host = await StartAsync(
             new StubVoiceProvider(),
-            Model().RespondsWith("Fine."),
+            model,
+            resolve: static (_, _) => ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings { OpeningPrompt = "Begin the lesson." }));
+
+        await using (var first = await ConnectAsync(host))
+        {
+            await first.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+            await first.WaitForAsync("done");
+        }
+
+        await using var second = await ConnectAsync(host);
+        var frames = new List<VoiceEvent>();
+
+        await second.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await second.WaitForAsync("ready", frames);
+        await second.SendControlAsync(new { type = "commit" });
+        await second.WaitForAsync("idle", frames).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        model.Requests.ShouldHaveSingleItem("the agent answered the opening once, on the first connection");
+        frames.ShouldNotContain(static frame => frame.Type == "runStarted");
+    }
+
+    [Fact]
+    public async Task A_sentence_cut_off_by_a_barge_in_is_still_counted_and_priced()
+    {
+        var voice = new StubVoiceProvider { HoldSynthesis = true };
+
+        await using var host = await StartAsync(
+            voice,
+            Model().RespondsWith("Twelve chars"),
             resolve: null,
-            toolNames: []);
+            pricing: new FixedPricing());
+        await using var client = await ConnectAsync(host);
 
-        var tools = host.Services.GetRequiredService<IToolRegistry>().List();
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+        await client.SendAudioAsync(new byte[3200]);
+        await client.SendControlAsync(new { type = "commit" });
 
-        tools.ShouldContain(static tool => tool.Name == EndConversationTool.ToolName, "the tool exists");
+        // audioStart is written as the sentence is handed to the provider, and the synthesis then holds it in progress.
+        await client.WaitForAsync("audioStart");
+        await client.SendControlAsync(new { type = "cancel" });
+        (await client.WaitForAsync("done")).Flag("cancelled").ShouldBe(true);
+        await client.SendControlAsync(new { type = "stop" });
 
-        var definition = await host.Services.GetRequiredService<IAgentCatalog>().DescribeAsync(Agent, TestContext.Current.CancellationToken);
+        var record = (await WaitForRecordsAsync(host)).EnumerateArray().Single();
 
-        definition.ShouldNotBeNull().ToolNames.ShouldNotContain(EndConversationTool.ToolName, StringComparer.Ordinal, "and only an agent that names it can call it");
+        record.GetProperty("outputChars").GetInt64().ShouldBe(12, "the sentence was handed to the provider before the user cut it off");
+        record.GetProperty("cost").GetProperty("characterCost").GetDecimal().ShouldBe(6.0m);
     }
 
     [Fact]
@@ -539,6 +661,9 @@ public sealed class VoiceConversationConnectionTests
         record.GetProperty("provider").GetString().ShouldBe("test-voice");
         (record.TryGetProperty("cost", out var cost) && cost.ValueKind != JsonValueKind.Null).ShouldBeFalse("nothing was priced");
     }
+
+    private static IReadOnlyList<string> ToolNames(Tracon.Testing.FakeModelRequest request)
+        => [.. request.Options?.Tools?.Select(static tool => tool.Name) ?? []];
 
     private static FakeModelProvider Model() => new FakeModelProvider(Provider).WithModel(new ModelDescriptor { Name = "voice-1" });
 
@@ -668,9 +793,10 @@ public sealed class VoiceConversationConnectionTests
 
         public decimal? ForCharacters(decimal characters) => characters * 0.5m;
 
-        public decimal? ForSynthesis(string providerName, string? modelId, decimal characters) => characters * 0.5m;
+        public decimal? ForSynthesis(string providerName, string? modelId, decimal characters)
+            => string.Equals(providerName, "test-voice", StringComparison.Ordinal) ? characters * 0.5m : null;
 
         public decimal? ForTranscription(string providerName, string? modelId, TimeSpan duration)
-            => (decimal)duration.TotalSeconds * 2m;
+            => string.Equals(providerName, "test-voice", StringComparison.Ordinal) ? (decimal)duration.TotalSeconds * 2m : null;
     }
 }

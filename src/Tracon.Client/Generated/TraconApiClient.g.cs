@@ -29977,7 +29977,8 @@ namespace Tracon.Client.Generated
     {
 
         /// <summary>
-        /// What the session's duration cost.
+        /// What the session's duration cost: the provider-hosted session's wall-clock time, or the transcribed audio of a
+        /// <br/>conversation Tracon runs itself.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("durationCost")]
         public double? DurationCost { get; set; } = default!;
@@ -30117,7 +30118,8 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// The model the conversation ran on; `null` when unknown. When Tracon ran the conversation itself it
-        /// <br/>is the synthesis model the characters were priced on. The transcription model is not recorded here.
+        /// <br/>is the transcription model the transcriber reported (streaming synthesis reports no model, so the synthesis model
+        /// <br/>is not recorded here; the characters are priced on the configured default).
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("model")]
         public string? Model { get; set; } = default!;

@@ -20725,7 +20725,7 @@
               "number",
               "string"
             ],
-            "description": "What the session\u0027s duration cost.",
+            "description": "What the session\u0027s duration cost: the provider-hosted session\u0027s wall-clock time, or the transcribed audio of a\nconversation Tracon runs itself.",
             "format": "double"
           },
           "characterCost": {
@@ -20860,7 +20860,7 @@
               "null",
               "string"
             ],
-            "description": "The model the conversation ran on; \u0060null\u0060 when unknown. When Tracon ran the conversation itself it\nis the synthesis model the characters were priced on. The transcription model is not recorded here."
+            "description": "The model the conversation ran on; \u0060null\u0060 when unknown. When Tracon ran the conversation itself it\nis the transcription model the transcriber reported (streaming synthesis reports no model, so the synthesis model\nis not recorded here; the characters are priced on the configured default)."
           },
           "liveSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",

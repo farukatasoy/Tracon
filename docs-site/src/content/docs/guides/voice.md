@@ -691,6 +691,10 @@ end reason `Error`. No run starts and nothing is spoken. The browser is told onl
 `The conversation could not be started.`; the exception text stays in your log. A `null`
 result runs the agent with its defaults and the configured voice.
 
+The resolver runs while the conversation starts, and nothing times it out: the connection
+waits for it and the idle and duration limits do not run meanwhile. Keep it to a lookup, not
+a call to a slow service.
+
 A host that serves untrusted browsers sets a resolver. Without one, any caller that may
 open a conversation can ask for any voice the provider's account holds.
 
@@ -704,6 +708,11 @@ would hide a mistake:
 |---|---|---|
 | `Greeting` | A fixed text, spoken right after `ready`. No model is called and no run is recorded. | The synthesized characters |
 | `OpeningPrompt` | The agent answers your text first, as if a user had said it: an ordinary turn. The text is a user message in the history. | A run, as any turn |
+
+The browser chooses the session id of the address, and a session the server has never seen
+has no history, so a caller can open a fresh session and be greeted. A greeting costs the
+synthesized characters and an opening prompt costs a run, so decide in the resolver, which
+receives `request.User` and `request.SessionId`, whether this caller may open one.
 
 Both are spoken through the same path as an answer, so `MaxSpokenCharactersPerTurn`
 applies, and both are written to the session history (a greeting as the assistant's

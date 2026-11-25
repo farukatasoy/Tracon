@@ -517,6 +517,12 @@ internal sealed class VoiceConversationDriver
             }
             catch (TraconException exception)
             {
+                // Values the host's own resolver supplied that the agent refuses are the host's mistake, not the client's.
+                if (_hostDecided)
+                {
+                    SetEndReason(VoiceSessionEndReason.Error);
+                }
+
                 await FailAsync($"The agent could not be compiled: {exception.Message}").ConfigureAwait(false);
                 return;
             }
@@ -944,8 +950,6 @@ internal sealed class VoiceConversationDriver
                 spokenCharacters = await SpeakAsync(tail, spokenCharacters, audio, cancellationToken).ConfigureAwait(false);
             }
 
-            _outputChars += spokenCharacters;
-
             // The agent has to know it greeted: the next turn's model reads this history.
             await driver._history
                 .RecordTurnAsync(_agent!, _session!, [new ChatMessage(ChatRole.Assistant, greeting)])
@@ -1097,8 +1101,6 @@ internal sealed class VoiceConversationDriver
                     .ConfigureAwait(false);
             }
 
-            _outputChars += spokenCharacters;
-
             await driver._sessions
                 .SaveSessionAsync(_agent, _session!, cancellationToken)
                 .ConfigureAwait(false);
@@ -1122,6 +1124,10 @@ internal sealed class VoiceConversationDriver
                 // streaming as captions. The user still sees the whole answer.
                 return spokenCharacters;
             }
+
+            // Counted when the sentence is handed to the provider, not when the turn ends: a sentence that was
+            // sent and then cut off by a barge-in or a failure was still billed.
+            _outputChars += segment.Length;
 
             await SendAsync(new VoiceServerMessage
             {
@@ -1329,13 +1335,26 @@ internal sealed class VoiceConversationDriver
                 return null;
             }
 
-            var characterCost = _outputChars > 0
-                ? pricing.ForSynthesis(synthesizer.ProviderName, modelId: null, _outputChars)
-                : null;
+            decimal? characterCost;
+            decimal? durationCost;
 
-            var durationCost = _inputSeconds > 0
-                ? pricing.ForTranscription(transcriber.ProviderName, _transcriptionModel, TimeSpan.FromSeconds((double)_inputSeconds))
-                : null;
+            try
+            {
+                characterCost = _outputChars > 0
+                    ? pricing.ForSynthesis(synthesizer.ProviderName, modelId: null, _outputChars)
+                    : null;
+
+                durationCost = _inputSeconds > 0
+                    ? pricing.ForTranscription(transcriber.ProviderName, _transcriptionModel, TimeSpan.FromSeconds((double)_inputSeconds))
+                    : null;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // A price table is the host's code and may throw anything; the record is still written, unpriced.
+                driver._logger.LogWarning(exception, "The voice conversation could not be priced.");
+
+                return null;
+            }
 
             return characterCost is null && durationCost is null
                 ? null

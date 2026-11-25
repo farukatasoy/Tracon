@@ -68,7 +68,8 @@ public sealed record VoiceSessionRecord
 
     /// <summary>
     /// The model the conversation ran on; <see langword="null"/> when unknown. When Tracon ran the conversation itself it
-    /// is the synthesis model the characters were priced on. The transcription model is not recorded here.
+    /// is the transcription model the transcriber reported (streaming synthesis reports no model, so the synthesis model
+    /// is not recorded here; the characters are priced on the configured default).
     /// </summary>
     public string? Model { get; init; }
 
@@ -92,9 +93,9 @@ public sealed record VoiceSessionRecord
 /// <summary>What one voice conversation cost.</summary>
 /// <remarks>
 /// <para>
-/// The total has two addends because the two voice paths bill differently: a
-/// provider-hosted live session bills by duration, while the conversation layer
-/// Tracon runs itself bills the synthesized characters.
+/// The total has two addends because voice bills in two units: duration and synthesized characters. A
+/// provider-hosted live session bills by duration only. A conversation Tracon runs itself bills both: the transcribed
+/// duration and the synthesized characters.
 /// </para>
 /// <para>
 /// The sum lives in <see cref="Total"/> and nowhere else. A bare
@@ -112,7 +113,10 @@ public sealed record VoiceSessionRecord
 /// </remarks>
 public sealed record VoiceSessionCost
 {
-    /// <summary>What the session's duration cost.</summary>
+    /// <summary>
+    /// What the session's duration cost: the provider-hosted session's wall-clock time, or the transcribed audio of a
+    /// conversation Tracon runs itself.
+    /// </summary>
     public decimal? DurationCost { get; init; }
 
     /// <summary>What the synthesized characters cost.</summary>
