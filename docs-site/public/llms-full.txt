@@ -151,7 +151,7 @@ claim to provide an operating-system sandbox.
 | Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy; per-request provider settings (`elevenlabs.*`) are refused, never ignored, when unknown |
 | Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host; a Microsoft.Extensions.AI speech client binds to a name with `TextToSpeechClientBinding` or `SpeechToTextClientBinding`, `UseOpenAISpeech()` registers OpenAI speech as the provider `openai`, `UseGoogleSpeech()` Gemini speech as `gemini` |
 | Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and ISpeechDialogueSynthesizer | Several voices in one request and one audio result, with each turn's time range where the provider reports it, from a workflow function node; the built-in ElevenLabs client and `UseGoogleSpeech()` (two voices) implement it, and a request over the provider's voice or character limit is refused rather than split |
-| Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered. `ResolveConnection` lets the host decide the voice and the agent's parameters on the server, open the conversation with a `Greeting` or an `OpeningPrompt`, and the `end_conversation` tool lets an agent end it; the [protocol](/reference/voice-conversation-protocol/) is published with a JSON Schema and a TypeScript client |
+| Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; the host can decide the voice and open or end the conversation; it is absent until registered |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
 A run is the unit of evidence. What is recorded is recorded against a run id, and a
@@ -265,7 +265,7 @@ graph instead of reporting it.
 | .NET API | `AddTracon()` and `IAgentCatalog`, tuned with `ITraconBuilder.Configure(...)` and extended through `ITraconBuilder.Services` | Application code that wants direct MAF objects |
 | Management HTTP API | `MapTracon()` | The embedded console, automation, or your own client |
 | Typed management client | `Tracon.Client`'s `AddTraconClient()` | .NET code calling a running instance from outside the process that hosts it; every SSE endpoint also has a `...StreamAsync` method yielding one raw frame at a time |
-| Typed TypeScript client | `@tracon/client`'s `createTraconClient()` and `createVoiceConversation()` | Browser or Node.js code calling a running instance from outside the process that hosts it; `parseAs: 'stream'` plus the exported `readSse` decoder reads an SSE endpoint, and `createVoiceConversation()` speaks the [voice conversation protocol](/reference/voice-conversation-protocol/) with typed frames |
+| Typed TypeScript client | `@tracon/client`'s `createTraconClient()` | Browser or Node.js code calling a running instance from outside the process that hosts it; `parseAs: 'stream'` plus the exported `readSse` decoder reads an SSE endpoint; `createVoiceConversation()` speaks the voice socket |
 | CLI | `tracon` global tool (`Tracon.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `state-check` reports read-only whether this build can still read the stored session and checkpoint state before an upgrade, `health` checks model provider health, `eval` gates a build on agent quality, absolutely or against an earlier run |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapTracon()` | Existing Chat Completions, Responses, and Conversations clients |
@@ -275,7 +275,7 @@ graph instead of reporting it.
 | MCP server | `UseMcpServer()` and `MapTraconMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
 | AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. `TraconAGUIOptions.AcceptForwardedParameters` (off by default) lets the front end send run parameters in `forwardedProps.parameters`, and `TraconAGUIOptions.ResolveParameters` lets your own code decide them on the server instead, read by the run as `Host` values; the endpoint can be mapped under more than one pattern; an API key with the `ChatRun` scope reaches this endpoint and no other that asks for a scope; no frame carries `rawEvent`. See [AG-UI front ends](/guides/ag-ui/) |
 | A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents; a `contextId` continues a conversation scoped to the caller |
-| Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients; the [protocol](/reference/voice-conversation-protocol/) is published with a JSON Schema |
+| Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients; the protocol is published |
 | Live voice sessions | `UseLiveVoice()`, a live provider, and `MapTracon()` | Browsers that speak to a provider-hosted model over WebRTC while Tracon supervises the session |
 
 `MapTracon()` exposes the documented management and OpenAI operations. The
@@ -2522,79 +2522,10 @@ starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting)).
 
 ## Retention
 
-Recorded runs accumulate. A retention policy sets an age or row limit per target — run
-events, tool calls, traces, jobs, webhook deliveries, eval results, checkpoints,
-attachments, sessions, and more.
-
-A database policy takes precedence, and an enabled one applies whether or not
-retention is enabled in configuration. When a target has none and retention is
-enabled in configuration, Tracon falls back to the default of every target at
-once, including 30 days for run events and 14 days for spans; the flag cannot turn
-on only some of them. With retention disabled and no policy, nothing is eligible
-for deletion. A policy with `enabled: false` is configured but paused.
-
-When a policy has `archive: true`, cleanup first sends its batch to the registered
-`IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
-growth for protection from silent data loss. A column that
-[content protection](#content-protection) encrypts reaches the sink as plaintext, as
-it does in an export: the sink decides how the archive is stored, so encrypt it there
-if it must stay encrypted at rest.
-
-An archiving run deletes exactly the rows it sent to the sink, and only after the
-sink returns. If the sink throws, nothing in that batch is deleted. A row that
-changes between the read and the delete (for example, a session that is used again)
-stays, and a later run archives it again, so your sink can receive the same row more
-than once. If you write your own `IRetentionStore`, override `ArchiveBatchAsync`: its
-default reads and deletes in two separate calls, which can delete a row that was never
-archived. `RetentionStoreContract` in `Tracon.Testing.Contracts.Xunit` checks this.
-
-The `sessions` target also deletes the conversation memory of each expired session,
-when memory is set up, the files of its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session)
-and, on SQL storage, the chat history of the session (its conversation and items).
-The batch is read first, the memory records, the files and the histories of its sessions are
-deleted tenant by tenant, and only then are the session rows deleted. If a store cannot
-delete, the run fails with the rows still in place, and the next run reads the same sessions.
-
-The `attachments` target deletes only **orphaned** attachments: those with no
-session id, or whose session id has no owner in the same tenant. An owner is a
-session, or a [workflow](/concepts/workflows/#checkpoints) run with that session id
-that waits for input, has not finished, or finished after the cutoff. A workflow's
-session id never gets a session row, so without the run rule an image a workflow
-step made would go while the run still waits for a human.
-
-With an `IAttachmentStorage` registered, the bytes live outside the database.
-Retention deletes the bytes first and the row second. If the byte delete fails,
-the row stays, a warning is logged, and the next run tries again — the row is the
-only record of where the bytes are. See
-[production storage](/guides/multimodal/#persistence-and-production-storage) for
-what your storage's `DeleteAsync` must do.
-
-Without an `IAttachmentStorage`, retention keeps the attachment rows that point at
-external content. Deleting such a row would leave the bytes in your store with nothing
-that names them, so the row stays. Rows with their content in the database are deleted
-as usual, and the preview does not count the kept rows. The last batch of a run logs one
-warning with the number of rows kept — never a tenant or a location. Register the
-`IAttachmentStorage` that wrote the bytes, and the next run deletes the bytes and the rows.
-
-No endpoint deletes synchronously. Preview first — it is the only way to see the size
-of a deletion before it happens — then run, which queues a job. Rows are deleted only
-when the `tracon.retention` job runs, and nothing schedules it for you: call `run`,
-or save a recurring schedule for the `tracon.retention` handler (see
-[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever)).
-A host that runs no job worker deletes nothing.
-
-A retention job is one tenant's: it reads that tenant's policy and deletes that tenant's rows.
-The `*` policy is the default each tenant without a policy of its own is given, not a sweep.
-One `tracon.retention.fanout` schedule in the default tenant queues the job for every tenant
-([Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant)).
-
-```bash
-curl 'http://localhost:5081/tracon/api/retention/preview'
-curl -X POST 'http://localhost:5081/tracon/api/retention/run'
-curl 'http://localhost:5081/tracon/api/retention/history'
-```
-
-The history of what was deleted is itself never cleaned up.
+A retention policy sets an age or row limit per target, and a retention job deletes what the
+policy marks. Rows go only when the `tracon.retention` job runs, one tenant at a time, and
+nothing schedules it unless you do. The policies, the archive fail-safe, what sessions and
+attachments take with them and how the job is queued are on [Retention](/concepts/retention/).
 
 ## Data subject rights
 
@@ -2949,6 +2880,97 @@ See [choosing packages](/packages/) for which to install.
 - [Agents and definitions](/concepts/agents/) — what an agent is here
 - [Runs and recording](/concepts/runs/) — what gets written, and when
 - [Governance](/concepts/governance/) — tenancy, audit, quotas, retention
+
+---
+
+# Retention
+
+Source: https://tracon.dev/concepts/retention/
+
+Recorded runs accumulate, and retention is how they stop. This page says what a policy
+covers, what a run of it deletes and keeps, and which part of the system queues the work. The
+audit trail, tenancy and the other guarantees around it are on
+[Governance](/concepts/governance/).
+
+Recorded runs accumulate. A retention policy sets an age or row limit per target — run
+events, tool calls, traces, jobs, webhook deliveries, eval results, checkpoints,
+attachments, sessions, and more.
+
+A database policy takes precedence, and an enabled one applies whether or not
+retention is enabled in configuration. When a target has none and retention is
+enabled in configuration, Tracon falls back to the default of every target at
+once, including 30 days for run events and 14 days for spans; the flag cannot turn
+on only some of them. With retention disabled and no policy, nothing is eligible
+for deletion. A policy with `enabled: false` is configured but paused.
+
+When a policy has `archive: true`, cleanup first sends its batch to the registered
+`IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
+growth for protection from silent data loss. A column that
+[content protection](/concepts/governance/#content-protection) encrypts reaches the sink as plaintext, as
+it does in an export: the sink decides how the archive is stored, so encrypt it there
+if it must stay encrypted at rest.
+
+An archiving run deletes exactly the rows it sent to the sink, and only after the
+sink returns. If the sink throws, nothing in that batch is deleted. A row that
+changes between the read and the delete (for example, a session that is used again)
+stays, and a later run archives it again, so your sink can receive the same row more
+than once. If you write your own `IRetentionStore`, override `ArchiveBatchAsync`: its
+default reads and deletes in two separate calls, which can delete a row that was never
+archived. `RetentionStoreContract` in `Tracon.Testing.Contracts.Xunit` checks this.
+
+The `sessions` target also deletes the conversation memory of each expired session,
+when memory is set up, the files of its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session)
+and, on SQL storage, the chat history of the session (its conversation and items).
+The batch is read first, the memory records, the files and the histories of its sessions are
+deleted tenant by tenant, and only then are the session rows deleted. If a store cannot
+delete, the run fails with the rows still in place, and the next run reads the same sessions.
+
+The `attachments` target deletes only **orphaned** attachments: those with no
+session id, or whose session id has no owner in the same tenant. An owner is a
+session, or a [workflow](/concepts/workflows/#checkpoints) run with that session id
+that waits for input, has not finished, or finished after the cutoff. A workflow's
+session id never gets a session row, so without the run rule an image a workflow
+step made would go while the run still waits for a human.
+
+With an `IAttachmentStorage` registered, the bytes live outside the database.
+Retention deletes the bytes first and the row second. If the byte delete fails,
+the row stays, a warning is logged, and the next run tries again — the row is the
+only record of where the bytes are. See
+[production storage](/guides/multimodal/#persistence-and-production-storage) for
+what your storage's `DeleteAsync` must do.
+
+Without an `IAttachmentStorage`, retention keeps the attachment rows that point at
+external content. Deleting such a row would leave the bytes in your store with nothing
+that names them, so the row stays. Rows with their content in the database are deleted
+as usual, and the preview does not count the kept rows. The last batch of a run logs one
+warning with the number of rows kept — never a tenant or a location. Register the
+`IAttachmentStorage` that wrote the bytes, and the next run deletes the bytes and the rows.
+
+No endpoint deletes synchronously. Preview first — it is the only way to see the size
+of a deletion before it happens — then run, which queues a job. Rows are deleted only
+when the `tracon.retention` job runs, and nothing schedules it for you: call `run`,
+or save a recurring schedule for the `tracon.retention` handler (see
+[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever)).
+A host that runs no job worker deletes nothing.
+
+A retention job is one tenant's: it reads that tenant's policy and deletes that tenant's rows.
+The `*` policy is the default each tenant without a policy of its own is given, not a sweep.
+One `tracon.retention.fanout` schedule in the default tenant queues the job for every tenant
+([Cleaning every tenant](/getting-started/persistence/#cleaning-every-tenant)).
+
+```bash
+curl 'http://localhost:5081/tracon/api/retention/preview'
+curl -X POST 'http://localhost:5081/tracon/api/retention/run'
+curl 'http://localhost:5081/tracon/api/retention/history'
+```
+
+The history of what was deleted is itself never cleaned up.
+
+## Read next
+
+- [Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever): schedule the retention job and read what it did
+- [Governance](/concepts/governance/): the audit trail, tenancy and approvals that retention works beside
+- [Multimodal input and output](/guides/multimodal/#persistence-and-production-storage): what the byte storage of an attachment must do when retention deletes it
 
 ---
 

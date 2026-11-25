@@ -283,6 +283,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Evaluation and experiments](https://tracon.dev/concepts/evaluation/) — Improve agents with regression suites, production-run promotion, online judges, human feedback, and controlled experiments.
 - [Governance](https://tracon.dev/concepts/governance/) — Govern agents with tenant isolation, audit, approvals, quotas, retention, content guards, API keys, and webhooks.
 - [Architecture](https://tracon.dev/concepts/) — The layers, the dependency direction, and the four conventions behind the default setup and the extension model.
+- [Retention](https://tracon.dev/concepts/retention/) — How Tracon deletes recorded data, with policies per target, the archive fail-safe, and how a retention job is queued and scoped.
 - [Run errors](https://tracon.dev/concepts/run-errors/) — How a failed run carries an error class, a fingerprint and a safe message, and what truncated and filtered output mean.
 - [Runs and recording](https://tracon.dev/concepts/runs/) — Understand default-on run recording, ordered events, streaming, errors, replay, comparison, and traces.
 - [Sessions and conversations](https://tracon.dev/concepts/sessions/) — Learn how sessions carry conversation state, how branching copies history, and how attachments are owned and removed.
@@ -356,6 +357,6 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Security policy](https://tracon.dev/reference/security-policy/) — How to report a vulnerability in Tracon privately, what is in scope, which versions get security fixes, and what response to expect.
 - [Threat model](https://tracon.dev/reference/threat-model/) — Who attacks a Tracon deployment, from where, and which boundary stops them — with the gaps named instead of hidden.
 - [Versions and upgrades](https://tracon.dev/reference/versioning/) — Understand which Tracon release these docs describe, pin preview packages safely, and upgrade the full package family without drift.
-- [Voice conversation protocol](https://tracon.dev/reference/voice-conversation-protocol/) — The WebSocket protocol of a Tracon voice conversation, with its handshake, every frame and field, audio formats, ending, limits and errors, and a JSON Schema.
+- [Voice conversation protocol](https://tracon.dev/reference/voice-conversation-protocol/) — The WebSocket protocol of a Tracon voice conversation, with its handshake, frames, audio formats, limits, errors and a JSON Schema.
 - [Troubleshooting](https://tracon.dev/troubleshooting/) — Symptom-first fixes for installation, providers, tools, storage, security, streaming, background work, MCP, voice, and the console.
 - [The console](https://tracon.dev/ui/) — Tour the embedded Tracon console by task, understand its security model, and know which features remain code or HTTP only.

@@ -102,6 +102,7 @@ export const sidebar = [
       { label: 'Observability and cost', slug: 'guides/observability' },
       { label: 'Governance', slug: 'concepts/governance' },
       { label: 'Webhooks', slug: 'concepts/webhooks' },
+      { label: 'Retention', slug: 'concepts/retention' },
       { label: 'Typed client and CLI', slug: 'guides/cli' },
       { label: 'Move definitions', slug: 'guides/move-definitions' },
       { label: 'TypeScript client', slug: 'guides/typescript-client' },
