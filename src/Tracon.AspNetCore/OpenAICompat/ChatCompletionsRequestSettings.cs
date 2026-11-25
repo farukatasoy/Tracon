@@ -7,7 +7,8 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>A setting is honored or refused, never ignored.</strong> The model
+/// <strong>A setting is honored or refused, never ignored</strong>, unless the host chose to drop the generation tuning
+/// fields (<see cref="TraconEndpointOptions.IgnoreChatCompletionsTuningSettings"/>). The model
 /// in a Chat Completions request names a Tracon agent, and that agent's
 /// definition sets its sampling, its output limit, its tools and its response
 /// format. A client that sends one of them expects it to apply; answering

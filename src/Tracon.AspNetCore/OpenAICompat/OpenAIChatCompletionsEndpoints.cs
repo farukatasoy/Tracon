@@ -113,9 +113,9 @@ internal static class OpenAIChatCompletionsEndpoints
             .Accepts<JsonElement>("application/json")
             .WithDescription(
                 "Stateless: the client carries history. The agent is selected from the " +
-                "'model' field; if not found, 'metadata.entity_id' is tried. The agent's own instructions " +
-                "come first: a 'system' or 'developer' message of the request is sent to the model after " +
-                "them, in request order, and does not replace them. Request settings the agent definition " +
+                "'model' field; if not found, 'metadata.entity_id' is tried. A 'system' or 'developer' message " +
+                "of the request does not replace the agent's own instructions: the model receives both, and " +
+                "where the instructions sit among the messages is the provider adapter's choice. Request settings the agent definition " +
                 "owns (temperature, max_tokens, tools, ...) are refused with 400; a host can opt in to " +
                 "dropping the generation tuning fields (IgnoreChatCompletionsTuningSettings). If a registered " +
                 "IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the " +

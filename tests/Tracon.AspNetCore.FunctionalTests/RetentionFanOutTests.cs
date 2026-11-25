@@ -116,10 +116,6 @@ public sealed class RetentionFanOutTests
     }
 
     /// <summary>
-    /// The same refusal when the schedule is written from code and never meets the HTTP check: the job fails for good
-    /// when it runs and queues nothing for any tenant.
-    /// </summary>
-    /// <summary>
     /// The refusal is final and the schedule fires again every night, so the operator has to see it where logs are read, and
     /// the line has to say what to change: which tenant asked, which tenant the handler serves, and the setting that names it.
     /// </summary>
@@ -145,6 +141,10 @@ public sealed class RetentionFanOutTests
         refusal.ShouldContain("Tracon:DefaultTenantId");
     }
 
+    /// <summary>
+    /// The same refusal when the schedule is written from code and never meets the HTTP check: the job fails for good
+    /// when it runs and queues nothing for any tenant.
+    /// </summary>
     [Fact]
     public async Task A_fan_out_job_of_another_tenant_fails_without_queueing_anything()
     {

@@ -327,7 +327,8 @@ public sealed class TraconEndpointOptions
     /// The agent definition sets how its model generates, so by default a request that sets <c>temperature</c> or
     /// <c>max_tokens</c> is refused with <c>400</c> and the message names every such field: a setting is applied or
     /// refused, never ignored. A voice platform or another orchestrator that sends the same tuning fields with every
-    /// request (ElevenLabs, for one) cannot be configured to stop, so a host that serves one turns this on.
+    /// request (ElevenLabs, for one) cannot be configured to stop, so a host that serves one turns this on. A client that
+    /// used <c>max_tokens</c> to cap an answer loses that cap: set <c>MaxOutputTokens</c> on the agent's model binding.
     /// </para>
     /// <para>
     /// Turned on, these fields are dropped and the definition decides them: <c>temperature</c>, <c>top_p</c>,

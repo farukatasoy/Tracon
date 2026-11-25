@@ -220,16 +220,18 @@ or `function` message, and an assistant message with `tool_calls` or `function_c
 answer `400`: Tracon runs the agent's tools on the server, so there is no client-side
 tool call to report.
 
-The agent's own instructions come first. A `system` or `developer` message of the request
-does not replace them: the model receives the agent's instructions, then the request's
-messages in the order you sent them, so a `system` message sits after the instructions
-and before the first `assistant` or `user` message. When the two disagree, the model sees
-both and decides; Tracon does not merge or rank them. Put what must always hold in the
-agent definition and keep the request's `system` message for what is true of this
-conversation only.
+A `system` or `developer` message of the request does not replace the agent's own
+instructions: the model receives both. Tracon hands the provider the agent's instructions
+as the request's instructions and your messages as you sent them, in your order. How the
+provider's adapter orders the two is its own choice, so do not depend on it: the Anthropic
+adapter, for one, puts the request's leading `system` messages before the agent's
+instructions. When the two disagree,
+the model sees both and decides; Tracon does not merge or rank them. Put what must always
+hold in the agent definition and keep the request's `system` message for what is true of
+this conversation only.
 
-The agent definition owns the model settings, so a request setting is never silently
-ignored. These fields answer `400` (`invalid_request_error`), and the message names every
+The agent definition owns the model settings, so by default a request setting is never
+silently ignored. These fields answer `400` (`invalid_request_error`), and the message names every
 one the request sets: `temperature`, `top_p`, `max_tokens`, `max_completion_tokens`,
 `frequency_penalty`, `presence_penalty`, `seed`, `stop`, `logit_bias`, `reasoning_effort`,
 `response_format`, `tools`, `tool_choice`, `functions`, `function_call`, `n`, `logprobs`,
@@ -245,8 +247,8 @@ setting fields (`temperature`, `top_p`, `max_output_tokens`, `instructions`, `to
 ### A client that sends tuning fields on every request
 
 Some clients cannot be told to stop. A voice platform that calls your agent as its custom
-language model (ElevenLabs, Vapi, Retell) sends `temperature` and `max_tokens` with every
-request, and `400` ends the conversation. For a host that serves one, turn on
+language model (ElevenLabs does) sends `temperature` and `max_tokens` with every request,
+and `400` ends the conversation. For a host that serves one, turn on
 `IgnoreChatCompletionsTuningSettings`:
 
 ```csharp
@@ -255,7 +257,9 @@ app.MapTracon("/tracon", options => options.IgnoreChatCompletionsTuningSettings 
 
 The option is off by default. On, the endpoint drops `temperature`, `top_p`, `max_tokens`,
 `max_completion_tokens`, `frequency_penalty`, `presence_penalty`, `seed` and `logit_bias`:
-the agent definition decides them and the model never sees the request's values. Every
+the agent definition decides them and the model never sees the request's values. A client
+that used `max_tokens` to cap the length of an answer loses that cap: set `MaxOutputTokens`
+on the agent's `ModelBinding` instead. Every
 other setting is still refused, because it changes the answer or the agent rather than how
 it samples: `stop`, `reasoning_effort`, `response_format`, `tools`, `functions`,
 `tool_choice`, `function_call`, `n`, `logprobs`, `top_logprobs`, `modalities`, `audio` and

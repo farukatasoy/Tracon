@@ -160,6 +160,48 @@ public sealed class ChatCompletionsRequestSettingsTests
         request.Options?.Seed.ShouldBeNull();
     }
 
+    [Fact]
+    public async Task With_the_option_on_a_tuning_field_is_dropped_whatever_its_value_looks_like()
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider, ignoreTuning: true);
+
+        using var response = await PostAsync(host, ChatCompletions, $$$"""
+            {"model":"{{{AgentName}}}","messages":[{"role":"user","content":"hi"}],"temperature":"warm","max_tokens":{"a":1},"seed":[1]}
+            """);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        provider.Requests.ShouldHaveSingleItem();
+    }
+
+    /// <summary>
+    /// A request <c>system</c> message does not replace the agent's instructions: the model receives both. Tracon hands the
+    /// provider the agent's instructions as the request's instructions and the request's messages as they were sent; how the
+    /// provider's adapter orders the two is its own (the Anthropic adapter puts the request's leading <c>system</c> messages
+    /// first, and its own test pins that).
+    /// </summary>
+    [Fact]
+    public async Task A_request_system_message_is_handed_over_beside_the_agents_instructions_and_replaces_nothing()
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider);
+
+        using var response = await PostAsync(host, ChatCompletions, """
+            {"model":"settings-agent","messages":[
+              {"role":"system","content":"Answer in French."},
+              {"role":"assistant","content":"Bonjour."},
+              {"role":"user","content":"hi"}]}
+            """);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var request = provider.Requests.ShouldHaveSingleItem();
+
+        request.Options.ShouldNotBeNull().Instructions.ShouldBe(TestData.Definition(AgentName).Instructions);
+        request.Messages.Select(static message => message.Role.Value).ShouldBe(["system", "assistant", "user"]);
+        request.Messages.Select(static message => message.Text).ShouldBe(["Answer in French.", "Bonjour.", "hi"]);
+    }
+
     [Theory]
     [InlineData("stop", "[\"END\"]")]
     [InlineData("reasoning_effort", "\"low\"")]
