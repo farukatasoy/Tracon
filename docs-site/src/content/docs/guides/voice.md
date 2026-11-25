@@ -658,22 +658,24 @@ when the `start` frame arrives and the agent is known to exist, after the access
 the run authorization and the tenant's provider checks have passed:
 
 ```csharp
+var voiceByTenant = new Dictionary<string, string> { ["acme"] = "voice-id-of-acme" };
+
 builder.AddTracon()
     .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
     .UseVoiceConversation(options =>
     {
-        options.ResolveConnection = async (request, cancellationToken) =>
+        options.ResolveConnection = (request, cancellationToken) =>
         {
             // request.TenantId, request.User, request.SessionId and request.AgentName are the
             // server's. request.ClientVoiceId is what the browser asked for: an input, not an answer.
-            var lesson = await lessons.FindAsync(request.TenantId, request.SessionId, cancellationToken);
+            voiceByTenant.TryGetValue(request.TenantId, out var voiceId);
 
-            return new VoiceConnectionSettings
+            return ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings
             {
-                VoiceId = lesson.VoiceId,
-                Parameters = new Dictionary<string, string> { ["scenario"] = lesson.ScenarioText },
+                VoiceId = voiceId,
+                Parameters = new Dictionary<string, string> { ["scenario"] = $"Lesson {request.SessionId}" },
                 Greeting = "Hello, let's begin.",
-            };
+            });
         };
     });
 ```
