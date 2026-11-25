@@ -10550,6 +10550,7 @@ idempotent.
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
 | A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |
+| A `tracon.retention.fanout` job fails with `tracon.job.host-only-handler-refused` every time its schedule fires | The schedule belongs to a tenant that is not the default tenant, and the refusal is final: running it again cannot change the tenant. The worker writes one `Error` line per refusal that names the job, the tenant that asked and the default tenant (`Tracon:DefaultTenantId`); the `ref` in the line is the one on the job. Save the schedule in the default tenant, or set `Tracon:DefaultTenantId` to the tenant that owns the installation. A schedule written from code does not meet the HTTP check, so this is where the mistake shows |
 
 ## Read next
 
@@ -18034,6 +18035,14 @@ or `function` message, and an assistant message with `tool_calls` or `function_c
 answer `400`: Tracon runs the agent's tools on the server, so there is no client-side
 tool call to report.
 
+The agent's own instructions come first. A `system` or `developer` message of the request
+does not replace them: the model receives the agent's instructions, then the request's
+messages in the order you sent them, so a `system` message sits after the instructions
+and before the first `assistant` or `user` message. When the two disagree, the model sees
+both and decides; Tracon does not merge or rank them. Put what must always hold in the
+agent definition and keep the request's `system` message for what is true of this
+conversation only.
+
 The agent definition owns the model settings, so a request setting is never silently
 ignored. These fields answer `400` (`invalid_request_error`), and the message names every
 one the request sets: `temperature`, `top_p`, `max_tokens`, `max_completion_tokens`,
@@ -18047,6 +18056,30 @@ default passes: `n: 1`, `response_format: {"type": "text"}`, `logprobs: false`, 
 run's usage, before `[DONE]`. `/v1/responses` refuses its own
 setting fields (`temperature`, `top_p`, `max_output_tokens`, `instructions`, `tools`,
 `tool_choice`) the same way. To change a setting, change the agent.
+
+### A client that sends tuning fields on every request
+
+Some clients cannot be told to stop. A voice platform that calls your agent as its custom
+language model (ElevenLabs, Vapi, Retell) sends `temperature` and `max_tokens` with every
+request, and `400` ends the conversation. For a host that serves one, turn on
+`IgnoreChatCompletionsTuningSettings`:
+
+```csharp
+app.MapTracon("/tracon", options => options.IgnoreChatCompletionsTuningSettings = true);
+```
+
+The option is off by default. On, the endpoint drops `temperature`, `top_p`, `max_tokens`,
+`max_completion_tokens`, `frequency_penalty`, `presence_penalty`, `seed` and `logit_bias`:
+the agent definition decides them and the model never sees the request's values. Every
+other setting is still refused, because it changes the answer or the agent rather than how
+it samples: `stop`, `reasoning_effort`, `response_format`, `tools`, `functions`,
+`tool_choice`, `function_call`, `n`, `logprobs`, `top_logprobs`, `modalities`, `audio` and
+`web_search_options`. A platform that also sends its own `tools` (a webhook or a built-in
+such as an end-of-call tool) still gets `400`: turn those tools off on the platform
+side, because Tracon runs an agent's tools on the server and cannot hand a platform's
+tools back to it. The names of the dropped fields (never their values) are written to the
+log at the `Debug` level. The option applies to `/v1/chat/completions` only;
+`/v1/responses` keeps refusing the same fields.
 
 ## Calling these endpoints from a typed client
 
@@ -18127,7 +18160,7 @@ for await (const frame of readSse(response)) {
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
 | Cut-off answer | `status: "incomplete"`, `incomplete_details.reason: "max_output_tokens"` | `finish_reason: "length"` | See below |
 | Answer a content filter stopped after it wrote text | `status: "incomplete"`, `incomplete_details.reason: "content_filter"` | `finish_reason: "content_filter"` | See below |
-| Request model settings (`temperature`, `tools`, `response_format`, …) | no: `400` | no: `400` | The agent definition sets them |
+| Request model settings (`temperature`, `tools`, `response_format`, …) | no: `400` | no: `400` | The agent definition sets them; Chat Completions can [drop the tuning fields](#a-client-that-sends-tuning-fields-on-every-request) when the host opts in |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 
@@ -26457,6 +26490,7 @@ configuration section.
 | `MapOpenAIConversations` | `true` |
 | `MapInboundTriggers` | `true` |
 | `MapMcpOAuthCallback` | `true` |
+| `IgnoreChatCompletionsTuningSettings` | `false` |
 | `RunEventPollInterval` | 250 ms |
 | `StreamKeepAliveInterval` | 15 seconds |
 | `MaxJsonBodyBytes` | 8 MiB |
@@ -26490,6 +26524,13 @@ through OAuth sets both to `false` and carries neither address: they answer `404
 and disappear from the OpenAPI document. With `MapInboundTriggers` off, a trigger
 you define can no longer be fired from outside; with `MapMcpOAuthCallback` off, an
 MCP server that needs the authorization code flow cannot finish its sign-in.
+
+`IgnoreChatCompletionsTuningSettings` is `false`.<!-- claim:option TraconEndpointOptions.IgnoreChatCompletionsTuningSettings=false --> A `/v1/chat/completions` request that sets `temperature`,
+`max_tokens` or another generation tuning field is refused with `400`, because the agent
+definition owns them. Set the option to `true` for a host that serves a client that sends those
+fields with every request (a voice platform that uses your agent as its language model): the
+eight tuning fields are dropped and every other request setting is still refused. See
+[a client that sends tuning fields on every request](/guides/openai-api/#a-client-that-sends-tuning-fields-on-every-request).
 
 `StreamKeepAliveInterval` is the longest a streaming response (an agent or
 workflow run, a resume or answer, the OpenAI-compatible endpoints) stays

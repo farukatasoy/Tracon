@@ -167,12 +167,16 @@ internal sealed class RetentionFanOutJobHandler(
 
         var correlationId = SafeErrorText.NewCorrelationId();
 
+        // The refusal is final and a schedule fires again at its next time, so the line has to say what to change: the
+        // tenant that asked, the tenant the handler serves, and the setting that names it.
         if (logger is not null && logger.IsEnabled(LogLevel.Error))
         {
             logger.LogError(
-                "Job {JobId} of tenant '{Tenant}' asked for the retention fan-out, which runs only in the default tenant, and was refused. (ref: {CorrelationId})",
+                "Job {JobId} of tenant '{Tenant}' asked for the retention fan-out, which runs only in the default tenant '{DefaultTenant}', and was refused. " +
+                "Save the schedule in that tenant, or set Tracon:DefaultTenantId to the tenant that owns the installation. (ref: {CorrelationId})",
                 job.Id,
                 job.TenantId,
+                coreOptions.CurrentValue.DefaultTenantId,
                 correlationId);
         }
 

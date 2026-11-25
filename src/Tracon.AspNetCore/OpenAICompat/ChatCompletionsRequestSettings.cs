@@ -28,8 +28,16 @@ namespace Tracon;
 /// </remarks>
 internal static class ChatCompletionsRequestSettings
 {
-    /// <summary>Fields the definition owns whenever they carry a value.</summary>
-    private static readonly string[] OwnedFields =
+    /// <summary>
+    /// The fields that tune how the model generates: a host may choose to ignore them
+    /// (<see cref="TraconEndpointOptions.IgnoreChatCompletionsTuningSettings"/>).
+    /// </summary>
+    /// <remarks>
+    /// The list is closed on purpose. A field that changes the <em>shape</em> of the answer (<c>stop</c>,
+    /// <c>response_format</c>, <c>n</c>) or the agent's abilities (<c>tools</c>, <c>tool_choice</c>) is not tuning, and
+    /// <c>reasoning_effort</c> moves cost: the definition owns all of them whatever the host chose.
+    /// </remarks>
+    private static readonly string[] TuningFields =
     [
         "temperature",
         "top_p",
@@ -38,8 +46,13 @@ internal static class ChatCompletionsRequestSettings
         "frequency_penalty",
         "presence_penalty",
         "seed",
-        "stop",
         "logit_bias",
+    ];
+
+    /// <summary>The other fields the definition owns whenever they carry a value.</summary>
+    private static readonly string[] OwnedFields =
+    [
+        "stop",
         "reasoning_effort",
         "tool_choice",
         "function_call",
@@ -50,8 +63,11 @@ internal static class ChatCompletionsRequestSettings
 
     /// <summary>Returns the owned fields the request sets, in request order.</summary>
     /// <param name="body">The request body.</param>
+    /// <param name="ignoreTuning">
+    /// <see langword="true"/> when the host chose to ignore the tuning fields: they are then not refused.
+    /// </param>
     /// <returns>The field names; empty when the request sets none.</returns>
-    public static IReadOnlyList<string> FindRefused(JsonElement body)
+    public static IReadOnlyList<string> FindRefused(JsonElement body, bool ignoreTuning = false)
     {
         if (body.ValueKind != JsonValueKind.Object)
         {
@@ -76,7 +92,8 @@ internal static class ChatCompletionsRequestSettings
                 "response_format" => !IsTextFormat(value),
                 "tools" or "functions" => !(value.ValueKind == JsonValueKind.Array && value.GetArrayLength() == 0),
                 "modalities" => !IsTextOnly(value),
-                _ => Array.IndexOf(OwnedFields, property.Name) >= 0,
+                _ => Array.IndexOf(OwnedFields, property.Name) >= 0
+                    || (!ignoreTuning && Array.IndexOf(TuningFields, property.Name) >= 0),
             };
 
             if (isRefused)
@@ -86,6 +103,29 @@ internal static class ChatCompletionsRequestSettings
         }
 
         return refused ?? (IReadOnlyList<string>)[];
+    }
+
+    /// <summary>Returns the tuning fields the request sets, which an ignoring host drops. Names only, never values.</summary>
+    /// <param name="body">The request body.</param>
+    /// <returns>The field names, in request order; empty when the request sets none.</returns>
+    public static IReadOnlyList<string> FindIgnored(JsonElement body)
+    {
+        if (body.ValueKind != JsonValueKind.Object)
+        {
+            return [];
+        }
+
+        List<string>? ignored = null;
+
+        foreach (var property in body.EnumerateObject())
+        {
+            if (property.Value.ValueKind != JsonValueKind.Null && Array.IndexOf(TuningFields, property.Name) >= 0)
+            {
+                (ignored ??= []).Add(property.Name);
+            }
+        }
+
+        return ignored ?? (IReadOnlyList<string>)[];
     }
 
     /// <summary>Describes the refused fields for the error message.</summary>

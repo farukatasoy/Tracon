@@ -144,6 +144,8 @@ Tracon.TraconEndpointOptions.AuthToken.set -> void
 Tracon.TraconEndpointOptions.AuthorizationPolicy.get -> string?
 Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.get -> bool
 Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.set -> void
+Tracon.TraconEndpointOptions.IgnoreChatCompletionsTuningSettings.get -> bool
+Tracon.TraconEndpointOptions.IgnoreChatCompletionsTuningSettings.set -> void
 Tracon.TraconEndpointOptions.MapOpenAIConversations.get -> bool
 Tracon.TraconEndpointOptions.MapOpenAIConversations.set -> void
 Tracon.TraconEndpointOptions.MapInboundTriggers.get -> bool

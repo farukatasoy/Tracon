@@ -816,6 +816,7 @@ idempotent.
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
 | A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |
+| A `tracon.retention.fanout` job fails with `tracon.job.host-only-handler-refused` every time its schedule fires | The schedule belongs to a tenant that is not the default tenant, and the refusal is final: running it again cannot change the tenant. The worker writes one `Error` line per refusal that names the job, the tenant that asked and the default tenant (`Tracon:DefaultTenantId`); the `ref` in the line is the one on the job. Save the schedule in the default tenant, or set `Tracon:DefaultTenantId` to the tenant that owns the installation. A schedule written from code does not meet the HTTP check, so this is where the mistake shows |
 
 ## Read next
 

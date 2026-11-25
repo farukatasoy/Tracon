@@ -119,6 +119,32 @@ public sealed class RetentionFanOutTests
     /// The same refusal when the schedule is written from code and never meets the HTTP check: the job fails for good
     /// when it runs and queues nothing for any tenant.
     /// </summary>
+    /// <summary>
+    /// The refusal is final and the schedule fires again every night, so the operator has to see it where logs are read, and
+    /// the line has to say what to change: which tenant asked, which tenant the handler serves, and the setting that names it.
+    /// </summary>
+    [Fact]
+    public async Task A_refused_fan_out_job_writes_one_error_line_that_names_the_tenant_and_the_setting_to_fix()
+    {
+        await using var host = await StartAsync(tenants: ["tenant-a"]);
+        var dispatcher = host.Services.GetRequiredService<IJobDispatcher>();
+
+        var job = await dispatcher.EnqueueAsync(
+            new JobRequest { TenantId = "tenant-a", HandlerKey = JobHandlerKeys.RetentionFanOut, TargetName = "*" },
+            TestContext.Current.CancellationToken);
+
+        await WaitForJobAsync(host, "tenant-a", job.Id);
+
+        var lines = host.Logs.Entries.Where(static entry => entry.Contains("RetentionFanOutJobHandler", StringComparison.Ordinal)).ToArray();
+        var refusal = lines.ShouldHaveSingleItem(string.Join('\n', lines));
+
+        refusal.ShouldStartWith("Error ");
+        refusal.ShouldContain(job.Id.ToString(), Case.Insensitive);
+        refusal.ShouldContain("'tenant-a'");
+        refusal.ShouldContain("default tenant 'default'");
+        refusal.ShouldContain("Tracon:DefaultTenantId");
+    }
+
     [Fact]
     public async Task A_fan_out_job_of_another_tenant_fails_without_queueing_anything()
     {

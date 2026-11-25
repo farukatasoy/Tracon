@@ -319,6 +319,32 @@ public sealed class TraconEndpointOptions
     public bool MapMcpOAuthCallback { get; set; } = true;
 
     /// <summary>
+    /// Whether <c>POST /v1/chat/completions</c> drops the generation tuning fields of a request instead of refusing the
+    /// request. Default <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The agent definition sets how its model generates, so by default a request that sets <c>temperature</c> or
+    /// <c>max_tokens</c> is refused with <c>400</c> and the message names every such field: a setting is applied or
+    /// refused, never ignored. A voice platform or another orchestrator that sends the same tuning fields with every
+    /// request (ElevenLabs, for one) cannot be configured to stop, so a host that serves one turns this on.
+    /// </para>
+    /// <para>
+    /// Turned on, these fields are dropped and the definition decides them: <c>temperature</c>, <c>top_p</c>,
+    /// <c>max_tokens</c>, <c>max_completion_tokens</c>, <c>frequency_penalty</c>, <c>presence_penalty</c>, <c>seed</c> and
+    /// <c>logit_bias</c>. Every other setting is still refused: <c>tools</c>, <c>functions</c>, <c>tool_choice</c>,
+    /// <c>response_format</c>, <c>stop</c>, <c>n</c>, <c>logprobs</c>, <c>reasoning_effort</c>, <c>modalities</c>, <c>audio</c>
+    /// and <c>web_search_options</c> change what the answer is or what the agent can do, not how it samples. The names of the
+    /// dropped fields, never their values, are written to the log at the Debug level.
+    /// </para>
+    /// <para>
+    /// The setting is read once, when <c>MapTracon</c> maps the endpoint. It applies to every client of the endpoint, and it
+    /// does not touch <c>/v1/responses</c>, which keeps refusing them.
+    /// </para>
+    /// </remarks>
+    public bool IgnoreChatCompletionsTuningSettings { get; set; }
+
+    /// <summary>
     /// Origins allowed to call the Tracon endpoints from a browser. Empty
     /// by default — no <c>Access-Control-Allow-Origin</c> header is ever
     /// sent, so a cross-origin browser request is blocked by the browser

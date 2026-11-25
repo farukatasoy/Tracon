@@ -274,7 +274,7 @@ public static class TraconEndpointRouteBuilderExtensions
         }
 
         OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services), roles, normalizedPrefix, idempotencyFilter);
-        OpenAIChatCompletionsEndpoints.Map(group, roles, normalizedPrefix, idempotencyFilter);
+        OpenAIChatCompletionsEndpoints.Map(group, roles, normalizedPrefix, idempotencyFilter, options.IgnoreChatCompletionsTuningSettings);
         if (options.MapOpenAIConversations)
         {
             OpenAIConversationsEndpoints.Map(group, roles);

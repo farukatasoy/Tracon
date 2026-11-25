@@ -59,7 +59,16 @@ internal static class OpenAIChatCompletionsEndpoints
     /// <param name="roles">Resolved role policies.</param>
     /// <param name="prefix">The endpoint path prefix; an embedded file becomes an attachment reference under it.</param>
     /// <param name="idempotencyFilter">The filter that adds <c>Idempotency-Key</c> support.</param>
-    public static void Map(IEndpointRouteBuilder builder, TraconRolePolicies roles, string prefix, IdempotencyFilter idempotencyFilter)
+    /// <param name="ignoreTuningSettings">
+    /// Whether the generation tuning fields of a request (<c>temperature</c>, <c>max_tokens</c> and the like) are dropped
+    /// instead of refused. Read once here; a later change does not reach a mapped endpoint.
+    /// </param>
+    public static void Map(
+        IEndpointRouteBuilder builder,
+        TraconRolePolicies roles,
+        string prefix,
+        IdempotencyFilter idempotencyFilter,
+        bool ignoreTuningSettings = false)
     {
         builder.MapPost("/v1/chat/completions", (
                 HttpContext httpContext,
@@ -83,6 +92,7 @@ internal static class OpenAIChatCompletionsEndpoints
                     attributionContext,
                     drainState,
                     prefix,
+                    ignoreTuningSettings,
                     cancellationToken))
             .RequireRole(roles.Operator)
             .WithMetadata(OpenAIDenialShapeMarker.Instance)
@@ -103,7 +113,11 @@ internal static class OpenAIChatCompletionsEndpoints
             .Accepts<JsonElement>("application/json")
             .WithDescription(
                 "Stateless: the client carries history. The agent is selected from the " +
-                "'model' field; if not found, 'metadata.entity_id' is tried. If a registered " +
+                "'model' field; if not found, 'metadata.entity_id' is tried. The agent's own instructions " +
+                "come first: a 'system' or 'developer' message of the request is sent to the model after " +
+                "them, in request order, and does not replace them. Request settings the agent definition " +
+                "owns (temperature, max_tokens, tools, ...) are refused with 400; a host can opt in to " +
+                "dropping the generation tuning fields (IgnoreChatCompletionsTuningSettings). If a registered " +
                 "IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the " +
                 "streaming and the non-streaming path. A tool that needs approval ends the request: " +
                 "this endpoint carries no session, so the approval can never be answered. The run " +
@@ -140,6 +154,7 @@ internal static class OpenAIChatCompletionsEndpoints
         IRunAttributionContext? attributionContext,
         ITraconDrainState drainState,
         string prefix,
+        bool ignoreTuningSettings,
         CancellationToken cancellationToken)
     {
         // 🚨 Checked BEFORE anything else, like the agent run endpoint.
@@ -170,9 +185,18 @@ internal static class OpenAIChatCompletionsEndpoints
 
         // A setting the agent definition owns is refused, never ignored;
         // /v1/responses refuses the same kind through MAF's request mapping.
-        if (ChatCompletionsRequestSettings.FindRefused(body) is { Count: > 0 } refused)
+        if (ChatCompletionsRequestSettings.FindRefused(body, ignoreTuningSettings) is { Count: > 0 } refused)
         {
             return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, ChatCompletionsRequestSettings.Describe(refused));
+        }
+
+        // A host that opted in drops the tuning fields. The drop is not silent: the names (never the values) are logged.
+        if (ignoreTuningSettings
+            && ChatCompletionsRequestSettings.FindIgnored(body) is { Count: > 0 } ignored
+            && httpContext.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("Tracon.OpenAICompat") is { } log
+            && log.IsEnabled(LogLevel.Debug))
+        {
+            log.LogDebug("The Chat Completions request set {Fields}, which the host chose to ignore; the agent definition decides them.", string.Join(", ", ignored));
         }
 
         var agentName = OpenAICompatSupport.ReadAgentName(body);

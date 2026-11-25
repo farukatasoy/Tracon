@@ -760,6 +760,7 @@ configuration section.
 | `MapOpenAIConversations` | `true` |
 | `MapInboundTriggers` | `true` |
 | `MapMcpOAuthCallback` | `true` |
+| `IgnoreChatCompletionsTuningSettings` | `false` |
 | `RunEventPollInterval` | 250 ms |
 | `StreamKeepAliveInterval` | 15 seconds |
 | `MaxJsonBodyBytes` | 8 MiB |
@@ -793,6 +794,13 @@ through OAuth sets both to `false` and carries neither address: they answer `404
 and disappear from the OpenAPI document. With `MapInboundTriggers` off, a trigger
 you define can no longer be fired from outside; with `MapMcpOAuthCallback` off, an
 MCP server that needs the authorization code flow cannot finish its sign-in.
+
+`IgnoreChatCompletionsTuningSettings` is `false`.<!-- claim:option TraconEndpointOptions.IgnoreChatCompletionsTuningSettings=false --> A `/v1/chat/completions` request that sets `temperature`,
+`max_tokens` or another generation tuning field is refused with `400`, because the agent
+definition owns them. Set the option to `true` for a host that serves a client that sends those
+fields with every request (a voice platform that uses your agent as its language model): the
+eight tuning fields are dropped and every other request setting is still refused. See
+[a client that sends tuning fields on every request](/guides/openai-api/#a-client-that-sends-tuning-fields-on-every-request).
 
 `StreamKeepAliveInterval` is the longest a streaming response (an agent or
 workflow run, a resume or answer, the OpenAI-compatible endpoints) stays

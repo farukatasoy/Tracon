@@ -135,12 +135,97 @@ public sealed class ChatCompletionsRequestSettingsTests
         empty.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// A voice platform sends the same tuning fields with every request and cannot be configured to stop. A host that
+    /// serves one turns the option on: the tuning fields are dropped and the definition decides them.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task With_the_option_on_the_tuning_fields_are_dropped_and_the_model_never_sees_them(bool stream)
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider, ignoreTuning: true);
+
+        using var response = await PostAsync(host, ChatCompletions, $$$"""
+            {"model":"{{{AgentName}}}","messages":[{"role":"user","content":"hi"}],"stream":{{{(stream ? "true" : "false")}}},
+             "temperature":0.0,"top_p":0.5,"max_tokens":8192,"max_completion_tokens":100,"frequency_penalty":0.1,
+             "presence_penalty":0.1,"seed":7,"logit_bias":{"50256":-100}}
+            """);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var request = provider.Requests.ShouldHaveSingleItem();
+        request.Options?.Temperature.ShouldBeNull("the request's temperature is dropped, not applied");
+        request.Options?.MaxOutputTokens.ShouldBeNull();
+        request.Options?.Seed.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("stop", "[\"END\"]")]
+    [InlineData("reasoning_effort", "\"low\"")]
+    [InlineData("response_format", "{\"type\":\"json_object\"}")]
+    [InlineData("tools", "[{\"type\":\"function\",\"function\":{\"name\":\"f\",\"parameters\":{}}}]")]
+    [InlineData("tool_choice", "\"auto\"")]
+    [InlineData("n", "3")]
+    [InlineData("logprobs", "true")]
+    [InlineData("top_logprobs", "2")]
+    [InlineData("modalities", "[\"text\",\"audio\"]")]
+    public async Task With_the_option_on_every_other_setting_is_still_refused_and_only_it_is_named(string field, string value)
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider, ignoreTuning: true);
+
+        using var response = await PostAsync(host, ChatCompletions, $$$"""
+            {"model":"{{{AgentName}}}","messages":[{"role":"user","content":"hi"}],"temperature":0.1,"max_tokens":50,"{{{field}}}":{{{value}}}}
+            """);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var message = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("error").GetProperty("message").GetString()!;
+        message.ShouldContain(field);
+        message.ShouldNotContain("temperature");
+        message.ShouldNotContain("max_tokens");
+        provider.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task The_option_does_not_reach_the_responses_endpoint()
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider, ignoreTuning: true);
+
+        using var response = await PostAsync(host, Responses, $$$"""
+            {"model":"{{{AgentName}}}","input":"hi","temperature":0.2}
+            """);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        provider.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task The_dropped_fields_are_logged_by_name_and_never_by_value()
+    {
+        await using var host = await StartAsync(Provider(), ignoreTuning: true);
+
+        using var response = await PostAsync(host, ChatCompletions, $$$"""
+            {"model":"{{{AgentName}}}","messages":[{"role":"user","content":"hi"}],"temperature":0.7312,"max_tokens":4093}
+            """);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var line = host.Logs.Entries.Single(static entry => entry.Contains("chose to ignore", StringComparison.Ordinal));
+        line.ShouldContain("temperature, max_tokens");
+        line.ShouldNotContain("0.7312");
+        line.ShouldNotContain("4093");
+    }
+
     private static FakeModelProvider Provider() => new FakeModelProvider("settings").RespondsWith("ok");
 
-    private static Task<TraconTestHost> StartAsync(FakeModelProvider provider)
-        => TraconTestHost.StartAsync(builder => builder
-            .AddModelProvider(provider)
-            .AddAgent(TestData.Definition(AgentName) with { Model = new ModelBinding { Provider = "settings", Model = "settings-1" } }));
+    private static Task<TraconTestHost> StartAsync(FakeModelProvider provider, bool ignoreTuning = false)
+        => TraconTestHost.StartAsync(
+            builder => builder
+                .AddModelProvider(provider)
+                .AddAgent(TestData.Definition(AgentName) with { Model = new ModelBinding { Provider = "settings", Model = "settings-1" } }),
+            configureEndpoints: ignoreTuning ? static options => options.IgnoreChatCompletionsTuningSettings = true : null);
 
     private static Task<HttpResponseMessage> PostAsync(TraconTestHost host, Uri uri, string json)
         => host.Client.PostAsync(

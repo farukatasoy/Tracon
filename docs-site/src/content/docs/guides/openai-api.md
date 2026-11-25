@@ -220,6 +220,14 @@ or `function` message, and an assistant message with `tool_calls` or `function_c
 answer `400`: Tracon runs the agent's tools on the server, so there is no client-side
 tool call to report.
 
+The agent's own instructions come first. A `system` or `developer` message of the request
+does not replace them: the model receives the agent's instructions, then the request's
+messages in the order you sent them, so a `system` message sits after the instructions
+and before the first `assistant` or `user` message. When the two disagree, the model sees
+both and decides; Tracon does not merge or rank them. Put what must always hold in the
+agent definition and keep the request's `system` message for what is true of this
+conversation only.
+
 The agent definition owns the model settings, so a request setting is never silently
 ignored. These fields answer `400` (`invalid_request_error`), and the message names every
 one the request sets: `temperature`, `top_p`, `max_tokens`, `max_completion_tokens`,
@@ -233,6 +241,30 @@ default passes: `n: 1`, `response_format: {"type": "text"}`, `logprobs: false`, 
 run's usage, before `[DONE]`. `/v1/responses` refuses its own
 setting fields (`temperature`, `top_p`, `max_output_tokens`, `instructions`, `tools`,
 `tool_choice`) the same way. To change a setting, change the agent.
+
+### A client that sends tuning fields on every request
+
+Some clients cannot be told to stop. A voice platform that calls your agent as its custom
+language model (ElevenLabs, Vapi, Retell) sends `temperature` and `max_tokens` with every
+request, and `400` ends the conversation. For a host that serves one, turn on
+`IgnoreChatCompletionsTuningSettings`:
+
+```csharp
+app.MapTracon("/tracon", options => options.IgnoreChatCompletionsTuningSettings = true);
+```
+
+The option is off by default. On, the endpoint drops `temperature`, `top_p`, `max_tokens`,
+`max_completion_tokens`, `frequency_penalty`, `presence_penalty`, `seed` and `logit_bias`:
+the agent definition decides them and the model never sees the request's values. Every
+other setting is still refused, because it changes the answer or the agent rather than how
+it samples: `stop`, `reasoning_effort`, `response_format`, `tools`, `functions`,
+`tool_choice`, `function_call`, `n`, `logprobs`, `top_logprobs`, `modalities`, `audio` and
+`web_search_options`. A platform that also sends its own `tools` (a webhook or a built-in
+such as an end-of-call tool) still gets `400`: turn those tools off on the platform
+side, because Tracon runs an agent's tools on the server and cannot hand a platform's
+tools back to it. The names of the dropped fields (never their values) are written to the
+log at the `Debug` level. The option applies to `/v1/chat/completions` only;
+`/v1/responses` keeps refusing the same fields.
 
 ## Calling these endpoints from a typed client
 
@@ -313,7 +345,7 @@ for await (const frame of readSse(response)) {
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
 | Cut-off answer | `status: "incomplete"`, `incomplete_details.reason: "max_output_tokens"` | `finish_reason: "length"` | See below |
 | Answer a content filter stopped after it wrote text | `status: "incomplete"`, `incomplete_details.reason: "content_filter"` | `finish_reason: "content_filter"` | See below |
-| Request model settings (`temperature`, `tools`, `response_format`, …) | no: `400` | no: `400` | The agent definition sets them |
+| Request model settings (`temperature`, `tools`, `response_format`, …) | no: `400` | no: `400` | The agent definition sets them; Chat Completions can [drop the tuning fields](#a-client-that-sends-tuning-fields-on-every-request) when the host opts in |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 

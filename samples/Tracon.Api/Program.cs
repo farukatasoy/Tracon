@@ -1957,6 +1957,13 @@ app.MapTracon("/tracon", options =>
         options.MapOpenAIConversations = mapConversations;
     }
 
+    // The same reason, for the Chat Completions tuning fields: the option is decided at MapTracon time, and the
+    // key binds the real option so both positions can be shown without editing this file.
+    if (builder.Configuration.GetValue<bool?>("Tracon:Demo:IgnoreChatCompletionsTuningSettings") is { } ignoreTuning)
+    {
+        options.IgnoreChatCompletionsTuningSettings = ignoreTuning;
+    }
+
     // CORS: empty by default. Enables the embeddable chat
     // widget to be hosted on a different origin than this API.
     foreach (string origin in builder.Configuration.GetSection("Tracon:Ui:AllowedOrigins").Get<string[]>() ?? [])
