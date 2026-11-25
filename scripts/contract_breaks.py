@@ -149,6 +149,8 @@ NAME_SURFACES = (
     _surface("error code", "error-codes.txt", "hata-kodlari.txt", _whole_line),  # legacy-name
     _surface("validation code", "validation-codes.txt", "dogrulama-kodlari.txt", _whole_line),
     _surface("CLI", "cli.txt", "cli.txt", _cli_ident),
+    # `server-frame idle` -> `server-frame idle`: the kind is part of the name, a frame and a field can share a word
+    _surface("voice frame", "voice-frames.txt", "voice-frames.txt", _whole_line),
 )
 
 

@@ -33,6 +33,7 @@ export {
 export {
   createVoiceConversation,
   parseVoiceFrame,
+  VOICE_SERVER_FRAME_TYPES,
   VOICE_SUBPROTOCOL,
   VOICE_TOKEN_PREFIX,
   voiceStreamUrl,

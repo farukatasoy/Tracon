@@ -154,7 +154,8 @@ export interface VoiceConversation {
   close(): void;
 }
 
-const KNOWN_FRAMES: ReadonlySet<string> = new Set([
+/** The `type` of every text frame the server sends: the frames of {@link VoiceServerFrame}. */
+export const VOICE_SERVER_FRAME_TYPES = [
   'ready',
   'transcript',
   'runStarted',
@@ -165,7 +166,9 @@ const KNOWN_FRAMES: ReadonlySet<string> = new Set([
   'done',
   'idle',
   'ended',
-]);
+] as const satisfies readonly VoiceServerFrame['type'][];
+
+const KNOWN_FRAMES: ReadonlySet<string> = new Set<string>(VOICE_SERVER_FRAME_TYPES);
 
 const OPEN = 1;
 
@@ -175,7 +178,16 @@ const OPEN = 1;
  * `baseUrl` is the application root plus the `MapTracon` prefix. The scheme follows it: `https` is `wss`.
  */
 export function voiceStreamUrl(baseUrl: string, sessionId: string): string {
-  const url = new URL(`${baseUrl.replace(/\/+$/, '')}/api/voice/sessions/${encodeURIComponent(sessionId)}/stream`);
+  const path = `${baseUrl.replace(/\/+$/, '')}/api/voice/sessions/${encodeURIComponent(sessionId)}/stream`;
+
+  // A relative base (`/tracon`) is read against the page, like the REST client reads it. Outside a browser there is no page.
+  const page = (globalThis as { location?: { href?: string } }).location?.href;
+
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(path) && page === undefined) {
+    throw new Error(`baseUrl '${baseUrl}' is relative and this runtime has no page to resolve it against: pass an absolute URL.`);
+  }
+
+  const url = new URL(path, page);
 
   url.protocol = url.protocol === 'https:' || url.protocol === 'wss:' ? 'wss:' : 'ws:';
 
@@ -338,11 +350,25 @@ export function createVoiceConversation(options: VoiceConversationOptions): Voic
     }
   };
 
-  socket.onclose = (event) => {
+  const close = (code: number, reason: string, clean: boolean, why: string): void => {
+    if (state === 'closed') {
+      return;
+    }
+
     state = 'closed';
-    rejectReady(new Error(`The socket closed before the conversation was ready (code ${event.code}).`));
-    push({ kind: 'closed', code: event.code, reason: event.reason, clean: event.wasClean });
+    rejectReady(new Error(why));
+    push({ kind: 'closed', code, reason, clean });
     finish();
+  };
+
+  socket.onclose = (event) => {
+    close(event.code, event.reason, event.wasClean, `The socket closed before the conversation was ready (code ${event.code}).`);
+  };
+
+  // A handshake the server refuses (a wrong token, a host without voice, a limit) raises `error`, and some runtimes (the
+  // global WebSocket of Node, `ws`) never follow it with `close`. Without this the conversation hangs, or the process dies.
+  socket.onerror = () => {
+    close(1006, 'The socket failed before it opened or while it was open.', false, 'The socket failed before the conversation was ready.');
   };
 
   return {

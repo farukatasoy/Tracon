@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   createVoiceConversation,
   parseVoiceFrame,
+  VOICE_SERVER_FRAME_TYPES,
   VOICE_SUBPROTOCOL,
   VoiceConversationStateError,
   voiceStreamUrl,
@@ -338,5 +340,77 @@ describe('failure before the conversation is ready', () => {
       'done',
       'closed',
     ]);
+  });
+});
+
+describe('a socket that fails', () => {
+  it('rejects ready and ends the events when only error arrives, as Node and ws do for a refused handshake', async () => {
+    const { conversation: created, socket } = conversation();
+
+    socket.onerror?.({});
+
+    await expect(created.ready).rejects.toThrow(/failed/);
+    expect(await collect(created.events())).toEqual([
+      { kind: 'closed', code: 1006, reason: 'The socket failed before it opened or while it was open.', clean: false },
+    ]);
+  });
+
+  it('reports one close when error is followed by close', async () => {
+    const { conversation: created, socket } = conversation();
+
+    socket.onerror?.({});
+    socket.shut(1006, '', false);
+
+    expect((await collect(created.events())).filter((event) => event.kind === 'closed')).toHaveLength(1);
+  });
+
+  it('refuses sends after the failure', async () => {
+    const { conversation: created, socket } = conversation();
+
+    socket.open();
+    socket.frame({ type: 'ready', agent: 'coach', sessionId: 's', persistAudio: false });
+    await created.ready;
+    socket.onerror?.({});
+
+    expect(() => created.sendAudio(new Uint8Array([1]))).toThrow(/closed/);
+  });
+});
+
+describe('the address of a relative base', () => {
+  it('is refused outside a page, with the way out in the message', () => {
+    expect(() => voiceStreamUrl('/tracon', 'a')).toThrow(/absolute URL/);
+  });
+
+  it('is read against the page when there is one', () => {
+    const original = (globalThis as { location?: unknown }).location;
+
+    (globalThis as { location?: unknown }).location = { href: 'https://app.example.com/lesson' };
+
+    try {
+      expect(voiceStreamUrl('/tracon', 'a')).toBe('wss://app.example.com/tracon/api/voice/sessions/a/stream');
+    } finally {
+      (globalThis as { location?: unknown }).location = original;
+    }
+  });
+});
+
+describe('the published schema', () => {
+  const schema = JSON.parse(
+    readFileSync(new URL('../../../docs-site/public/schemas/voice-conversation-frames.schema.json', import.meta.url), 'utf8'),
+  ) as { $defs: Record<string, { oneOf?: { $ref: string }[]; properties?: { type?: { const?: string } } }> };
+
+  const typesOf = (union: string): string[] =>
+    (schema.$defs[union]?.oneOf ?? []).map((reference) => {
+      const definition = schema.$defs[reference.$ref.replace('#/$defs/', '')];
+
+      return definition?.properties?.type?.const ?? '';
+    });
+
+  it('names exactly the server frames this client types', () => {
+    expect([...typesOf('ServerFrame')].sort()).toEqual([...VOICE_SERVER_FRAME_TYPES].sort());
+  });
+
+  it('names the client frames this client sends', () => {
+    expect([...typesOf('ClientFrame')].sort()).toEqual(['cancel', 'commit', 'start', 'stop']);
   });
 });

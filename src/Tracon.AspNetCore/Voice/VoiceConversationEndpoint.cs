@@ -54,9 +54,15 @@ internal static class VoiceConversationEndpoint
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("TraconVoiceStream")
+
+            // A generated client takes an upgrade request for an HTTP operation and writes a method that cannot work, so the
+            // socket is described by the protocol page and the frame schema (see the description), not by the OpenAPI document.
+            .ExcludeFromDescription()
             .WithTags("Tracon", "Voice")
             .WithSummary("Opens a WebSocket connection for real-time conversation.")
             .WithDescription(
+                "Every frame, field and refusal is described at https://tracon.dev/reference/voice-conversation-protocol/ " +
+                "and in the JSON Schema https://tracon.dev/schemas/voice-conversation-frames.schema.json. " +
                 "Client -> server: raw audio (binary) and control messages (JSON text). " +
                 "Server -> client: audio chunks (binary) and event frames (JSON text). " +
                 "The token is carried in the 'Sec-WebSocket-Protocol' subprotocol; it is NOT accepted in the query string. " +

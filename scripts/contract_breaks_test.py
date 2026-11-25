@@ -542,6 +542,7 @@ SNAPSHOTS = {
     "docs/contracts/error-codes.txt": "# header\ntool_timeout\ncontent_blocked\n",
     "docs/contracts/validation-codes.txt": "# header\nunknown_tool\nunknown_model\n",
     "docs/contracts/cli.txt": "# header\ncommand eval\noption eval --timeout\n",
+    "docs/contracts/voice-frames.txt": "# header\nserver-frame idle\nserver-field delta\n",
 }
 
 
@@ -584,7 +585,7 @@ class NameSetTests(unittest.TestCase):
             repo = _repo_with_baseline(directory)
             results = sk.surface_results(repo, "1.0.0")
 
-            self.assertEqual(7, len(results))
+            self.assertEqual(8, len(results))
             self.assertTrue(all(not r.breaks and not r.additions and r.note is None for r in results))
 
     def test_a_removed_line_is_a_break_and_an_added_line_is_not(self):
@@ -849,6 +850,7 @@ LEGACY_PATHS = {
     "docs/contracts/error-codes.txt": "docs/sozlesme/hata-kodlari.txt",  # legacy-name
     "docs/contracts/validation-codes.txt": "docs/sozlesme/dogrulama-kodlari.txt",  # legacy-name
     "docs/contracts/cli.txt": "docs/sozlesme/cli.txt",  # legacy-name
+    "docs/contracts/voice-frames.txt": "docs/sozlesme/voice-frames.txt",  # legacy-name
 }
 
 
@@ -890,7 +892,7 @@ class LegacyPathTests(unittest.TestCase):
 
             results = sk.surface_results(repo, "1.0.0-preview.8")
 
-            self.assertEqual(7, len(results))
+            self.assertEqual(8, len(results))
             self.assertTrue(all(r.note is None and not r.breaks and not r.additions for r in results))
 
     def test_the_old_paths_give_the_same_delta_as_the_current_paths(self):
@@ -970,7 +972,7 @@ class OutputLanguageTests(unittest.TestCase):
 
     def test_the_labels_of_the_name_sets_are_english(self):
         self.assertEqual(
-            ["SSE", "telemetry", "configuration", "error code", "validation code", "CLI"],
+            ["SSE", "telemetry", "configuration", "error code", "validation code", "CLI", "voice frame"],
             [surface.label for surface in sk.NAME_SURFACES])
 
     def test_a_red_frozen_run_prints_english_only(self):
