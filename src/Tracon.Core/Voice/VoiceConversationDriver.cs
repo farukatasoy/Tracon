@@ -1348,7 +1348,7 @@ internal sealed class VoiceConversationDriver
                     ? pricing.ForTranscription(transcriber.ProviderName, _transcriptionModel, TimeSpan.FromSeconds((double)_inputSeconds))
                     : null;
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
             {
                 // A price table is the host's code and may throw anything; the record is still written, unpriced.
                 driver._logger.LogWarning(exception, "The voice conversation could not be priced.");

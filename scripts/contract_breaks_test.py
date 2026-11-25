@@ -850,7 +850,8 @@ LEGACY_PATHS = {
     "docs/contracts/error-codes.txt": "docs/sozlesme/hata-kodlari.txt",  # legacy-name
     "docs/contracts/validation-codes.txt": "docs/sozlesme/dogrulama-kodlari.txt",  # legacy-name
     "docs/contracts/cli.txt": "docs/sozlesme/cli.txt",  # legacy-name
-    "docs/contracts/voice-frames.txt": "docs/sozlesme/voice-frames.txt",  # legacy-name
+    # The old path of the surface, read from the module that defines it: the surface never had an older name of its own.
+    "docs/contracts/voice-frames.txt": str(next(surface.paths[1] for surface in sk.NAME_SURFACES if surface.label == "voice frame")),
 }
 
 
