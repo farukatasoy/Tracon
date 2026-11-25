@@ -76,6 +76,13 @@ try {
 `title` and `detail` come from the server's `application/problem+json` body
 and are shown verbatim — this package does not translate them.
 
+## Voice conversations
+
+`createVoiceConversation` speaks the WebSocket protocol of `UseVoiceConversation()`: typed
+frames, the token in a subprotocol, and `ready`/`commit` rules enforced. See
+[Talk to a voice conversation](https://tracon.dev/guides/typescript-client/#talk-to-a-voice-conversation)
+and the [protocol](https://tracon.dev/reference/voice-conversation-protocol/).
+
 ## Streaming responses
 
 Seven operations answer `text/event-stream`: agent `run`, the run event stream,

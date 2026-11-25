@@ -142,6 +142,7 @@ export const sidebar = [
       { label: 'Package configuration', slug: 'reference/configuration-packages' },
       { label: 'Compatibility matrices', slug: 'reference/compatibility' },
       { label: 'Read contract views', slug: 'reference/read-views' },
+      { label: 'Voice conversation protocol', slug: 'reference/voice-conversation-protocol' },
       { label: 'Versions and upgrades', slug: 'reference/versioning' },
       { label: 'Release notes', slug: 'reference/changelog' },
       { label: 'Licensing', slug: 'reference/licensing' },

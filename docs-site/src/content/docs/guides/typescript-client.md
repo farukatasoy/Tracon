@@ -205,6 +205,61 @@ The two OpenAI-compatible endpoints choose JSON or SSE from the `stream` flag in
 the request body, so send `stream: true` when you read them this way — see
 [the OpenAI-compatible API guide](/guides/openai-api/).
 
+## Talk to a voice conversation
+
+A host that called `UseVoiceConversation()` serves a WebSocket, and `createVoiceConversation`
+speaks its [protocol](/reference/voice-conversation-protocol/): it opens the socket with the
+token in a subprotocol (never in the address), sends `start`, and gives you every frame as a
+typed value.
+
+```ts
+import { createVoiceConversation } from '@tracon/client';
+
+const conversation = createVoiceConversation({
+  baseUrl: 'https://example.com/tracon', // the same base as createTraconClient
+  sessionId: 'lesson-42',
+  agent: 'coach',
+  token: () => currentToken(),
+  inputFormat: 'pcm16',
+});
+
+await conversation.ready; // rejects with the server's text if start was refused
+
+conversation.sendAudio(pcmChunk); // from your AudioWorklet
+conversation.commit(); // your voice activity detection decided the utterance ended
+
+for await (const event of conversation.events()) {
+  if (event.kind === 'frame') {
+    switch (event.frame.type) {
+      case 'text':
+        caption(event.frame.delta);
+        break;
+      case 'done':
+      case 'idle': // a commit that closed no turn: listen again
+        listen();
+        break;
+      case 'ended': // the agent ended it; do not reconnect
+        break;
+    }
+  } else if (event.kind === 'audio') {
+    play(event.data); // between an audioStart and an audioEnd
+  } else if (event.kind === 'closed') {
+    break;
+  }
+}
+```
+
+Three rules the client enforces so you do not learn them by hanging. Audio, `commit` and
+`cancel` are refused until `ready` has arrived, and after the conversation ended or closed:
+they throw `VoiceConversationStateError` instead of writing to a socket that will ignore them.
+`events()` can be taken once. And a text frame the client does not know (a newer server) comes
+as `{ kind: 'unknown' }` and is safe to ignore.
+
+The runtime needs a global `WebSocket`: browsers and Node 22 and later have one. For an older
+Node, pass `webSocket: (url, protocols) => new WebSocket(url, protocols)` from the `ws`
+package. The client does not record the microphone, play the audio or detect the end of
+speech: the server runs no voice activity detection, so `commit()` is your call.
+
 ## What this client does not cover
 
 **Token storage.** This client reads the token you supply on every request —

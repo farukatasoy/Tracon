@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tracon.dev/schemas/voice-conversation-frames.schema.json",
+  "title": "Tracon voice conversation frames",
+  "description": "The JSON text frames of the voice conversation WebSocket (subprotocol tracon.voice.v1). Binary frames are raw audio and are not described here. A reader ignores a frame type and a property it does not know: new ones can be added without a new subprotocol.",
+  "$defs": {
+    "ClientFrame": {
+      "description": "A text frame the client sends. Binary frames the client sends are audio of the utterance being spoken.",
+      "oneOf": [
+        { "$ref": "#/$defs/Start" },
+        { "$ref": "#/$defs/Commit" },
+        { "$ref": "#/$defs/Cancel" },
+        { "$ref": "#/$defs/Stop" }
+      ]
+    },
+    "ServerFrame": {
+      "description": "A text frame the server sends. Binary frames the server sends are audio chunks of the answer, between an audioStart and an audioEnd.",
+      "oneOf": [
+        { "$ref": "#/$defs/Ready" },
+        { "$ref": "#/$defs/Transcript" },
+        { "$ref": "#/$defs/RunStarted" },
+        { "$ref": "#/$defs/Text" },
+        { "$ref": "#/$defs/AudioStart" },
+        { "$ref": "#/$defs/AudioEnd" },
+        { "$ref": "#/$defs/Error" },
+        { "$ref": "#/$defs/Done" },
+        { "$ref": "#/$defs/Idle" },
+        { "$ref": "#/$defs/Ended" }
+      ]
+    },
+    "Start": {
+      "description": "Starts the conversation. It is the first frame the client sends and it is sent once: the agent, the session and the tenant are fixed for the connection.",
+      "type": "object",
+      "required": ["type", "agent"],
+      "properties": {
+        "type": { "const": "start" },
+        "agent": { "type": "string", "minLength": 1, "description": "The name of the agent to talk to." },
+        "voiceId": { "type": "string", "description": "The voice the answers are spoken in. A host that set a connection resolver ignores it." },
+        "inputFormat": { "enum": ["webm-opus", "pcm16"], "description": "The audio the client sends: webm-opus (the default) or raw mono 16-bit little-endian pcm16." }
+      }
+    },
+    "Commit": {
+      "description": "The utterance ended; answer now.",
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "commit" } }
+    },
+    "Cancel": {
+      "description": "Barge-in: stop the answer that is being generated or spoken. While the client is listening it discards the audio gathered so far.",
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "cancel" } }
+    },
+    "Stop": {
+      "description": "Closes the conversation cleanly.",
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "stop" } }
+    },
+    "Ready": {
+      "description": "The server accepted start. The client may send audio.",
+      "type": "object",
+      "required": ["type", "agent", "sessionId", "persistAudio"],
+      "properties": {
+        "type": { "const": "ready" },
+        "agent": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "persistAudio": { "type": "boolean", "description": "Whether the audio of the answers is stored. Show it to the user: nothing is recorded silently." }
+      }
+    },
+    "Transcript": {
+      "description": "What the server heard. The text can be empty, and then the turn ends with an idle frame.",
+      "type": "object",
+      "required": ["type", "text", "final"],
+      "properties": {
+        "type": { "const": "transcript" },
+        "text": { "type": "string" },
+        "final": { "type": "boolean" }
+      }
+    },
+    "RunStarted": {
+      "description": "The agent's run started. The identifier is the run's, the one the run endpoints take.",
+      "type": "object",
+      "required": ["type", "runId"],
+      "properties": {
+        "type": { "const": "runStarted" },
+        "runId": { "type": "string", "format": "uuid" }
+      }
+    },
+    "Text": {
+      "description": "A piece of the answer, as a caption.",
+      "type": "object",
+      "required": ["type", "delta"],
+      "properties": {
+        "type": { "const": "text" },
+        "delta": { "type": "string" }
+      }
+    },
+    "AudioStart": {
+      "description": "The binary frames that follow are audio chunks of the answer, in this media type.",
+      "type": "object",
+      "required": ["type", "mediaType"],
+      "properties": {
+        "type": { "const": "audioStart" },
+        "mediaType": { "type": "string", "examples": ["audio/mpeg"] }
+      }
+    },
+    "AudioEnd": {
+      "description": "The audio chunks of one spoken sentence ended.",
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "audioEnd" } }
+    },
+    "Error": {
+      "description": "Something went wrong. Before ready it ends the conversation; during a turn it ends the turn and a done frame follows.",
+      "type": "object",
+      "required": ["type", "message"],
+      "properties": {
+        "type": { "const": "error" },
+        "message": { "type": "string" }
+      }
+    },
+    "Done": {
+      "description": "The turn ended, answered, interrupted or failed. An opening (a greeting or an opening prompt) ends with a done frame too, and its turn is 0.",
+      "type": "object",
+      "required": ["type", "cancelled", "turn"],
+      "properties": {
+        "type": { "const": "done" },
+        "cancelled": { "type": "boolean", "description": "Whether the user interrupted the turn." },
+        "turn": { "type": "integer", "minimum": 0, "description": "The number of turns the user has completed." },
+        "attachmentId": { "type": "string", "description": "The stored audio of the answer; absent when nothing was stored." }
+      }
+    },
+    "Idle": {
+      "description": "A commit closed no turn: it came before any audio, or the audio held nothing usable. The conversation is listening again. It is not an error and not a done.",
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "idle" } }
+    },
+    "Ended": {
+      "description": "The server ends the conversation and closes the socket right after this frame. The client does not reconnect on its own.",
+      "type": "object",
+      "required": ["type", "reason"],
+      "properties": {
+        "type": { "const": "ended" },
+        "reason": { "enum": ["agent"], "description": "agent: the agent ended the conversation after its answer." }
+      }
+    }
+  }
+}

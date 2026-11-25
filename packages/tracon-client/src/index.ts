@@ -27,3 +27,24 @@ export {
   type ReadSseOptions,
   type SseFrame,
 } from './sse.js';
+
+// The voice conversation WebSocket: typed frames, the handshake, and the rules a client
+// otherwise learns by hanging. See https://tracon.dev/reference/voice-conversation-protocol/.
+export {
+  createVoiceConversation,
+  parseVoiceFrame,
+  VOICE_SUBPROTOCOL,
+  VOICE_TOKEN_PREFIX,
+  voiceStreamUrl,
+  voiceSubProtocols,
+  VoiceConversationStateError,
+  type VoiceClientFrame,
+  type VoiceConversation,
+  type VoiceConversationOptions,
+  type VoiceEvent,
+  type VoiceInputFormat,
+  type VoiceReadyFrame,
+  type VoiceServerFrame,
+  type WebSocketFactory,
+  type WebSocketLike,
+} from './voice.js';
