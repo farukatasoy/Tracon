@@ -182,7 +182,9 @@ key to match any value of it). Only root runs are shown by default — otherwise
 single question that fanned out to four agents would fill the list with rows nobody
 started.
 
-A run's detail header names the user it belongs to and shows its labels as badges.
+A run's detail header names the user it belongs to and shows its labels as badges. A **step
+run** your own code opened ([Step runs](/guides/step-runs/)) is named by the host's step name, with
+no link to an agent page, and offers no "Promote to eval case": it keeps no input to build one from.
 
 Opening a run gives the summary and the full event stream in order: message deltas,
 tool calls with arguments and results, errors with their class. The summary names
@@ -207,7 +209,8 @@ measurement the tool reported: the quantity and its unit, the amount (or **unpri
 when none was reported, which means unknown, not free), an **estimated** badge when the
 quantity rests on an estimate, and the provider and model that did the work. A finished run
 that reported anything also gets a **Non-token usage** panel: one row per item a workflow
-function node reported, with the node's name and the same measurement line, ending in
+function node or a media service call reported, with the node's name (none for a media call)
+and the same measurement line, ending in
 **Reported in this run** and, on a root with runs below it, **Reported in the whole tree**.
 A badge such as **1 not added** counts the items left out of the total because they carry no
 amount or are in another currency than the configured one. A run that reported nothing

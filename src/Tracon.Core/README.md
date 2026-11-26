@@ -143,17 +143,31 @@ and records image or token usage in the normal tool invocation row.
 ```csharp
 builder.AddTracon()
        .UseOpenAI(apiKey)
-       .UseOpenAIImages(options =>
-       {
-           options.Enabled = true;
-           options.Model = "gpt-image-1";
-       });
+       .UseOpenAIImages(provider => provider.Model = "gpt-image-1")
+       .ConfigureImages(images => images.Enabled = true);
 ```
 
 `UseOpenAIImages`, `UseAzureOpenAIImages`, and `UseGoogleImages` use keyed
-generators. Select one with `TraconImageOptions.Provider`; an unkeyed consumer
+generators, and each keeps its own model and settings in
+`TraconImageOptions.Providers`. With one provider registered it is the default; with
+more than one, name the default with `TraconImageOptions.Provider`. An unkeyed consumer
 `IImageGenerator` remains the fallback for a custom provider. Configure image pricing
 under `Tracon:Pricing:Images`; a missing price always records a `null` cost.
+
+## Steps your own code runs
+
+A job without a model call (draw a cover, voice a script) can be a run too.
+`ITraconStepRunner` opens a run of kind `Step` around your code, and
+`IImageGenerationService` and `ISpeechSynthesisService` call the providers under the
+tenant's rules and record what each call spent on that run.
+
+```csharp
+await steps.RunAsync(
+    new TraconStepOptions { Name = "cover" },
+    async stepToken => await images.GenerateAsync(
+        new TraconImageRequest { Prompt = "A lighthouse at dawn" }, stepToken),
+    cancellationToken);
+```
 
 ## In-memory by default, durable when configured
 

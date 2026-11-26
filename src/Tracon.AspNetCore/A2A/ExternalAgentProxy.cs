@@ -212,6 +212,7 @@ internal sealed class ExternalAgentProxy : AIAgent
             .CheckRunAsync(
                 handler,
                 services.GetRequiredService<ITenantContext>(),
+                RunChannel.A2A,
                 _agentName,
                 session is null ? null : AgentSessionIdentity.GetId(session),
                 services.GetService<IRunAttributionContext>(),

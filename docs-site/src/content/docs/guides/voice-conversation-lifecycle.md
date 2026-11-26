@@ -113,6 +113,13 @@ the second argument of your own `new WebSocket(url, [protocol, 'host.bearer.' + 
 createVoiceConversation({ baseUrl, sessionId, agent, subProtocols: () => ['host.bearer.' + currentJwt()] });
 ```
 
+OpenIddict validation has no `OnMessageReceived`. Add an event handler for its
+`ProcessAuthenticationContext` event with `AddValidation(...)`, ordered just after
+`ExtractAccessTokenFromQueryString`, and set `context.AccessToken` to the value
+`ReadHostToken` returns. Reject the request there (`context.Reject`) when it also carries a
+token in the query string or an `Authorization` header, or two values with your prefix, so one
+request carries one credential.
+
 These limits apply:
 
 - A subprotocol value holds only the characters of an HTTP token. A base64url JWT does
@@ -168,6 +175,31 @@ Nothing remembers how long an earlier connection of the same session lasted. A h
 allows a conversation a fixed total sums the time already used and returns what is left each
 time it is asked, or refuses the new connection in the resolver.
 
+### How long a person may stay silent
+
+`IdleTimeout` (2 minutes by default) closes a connection that sends no frame for that long. A
+host whose conversations differ in how long a person may think between turns (a long interview
+and a quick question) sets a different value for each connection with `IdleTimeout` in the
+resolver, next to `MaxDuration`:
+
+```csharp
+builder.AddTracon()
+    .UseVoiceConversation(options =>
+    {
+        options.ResolveConnection = (request, cancellationToken) =>
+            ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings
+            {
+                IdleTimeout = request.AgentName == "interview" ? TimeSpan.FromSeconds(90) : null,
+            });
+    });
+```
+
+The rule is `MaxDuration`'s: the value must be greater than zero and no greater than the
+`IdleTimeout` of the conversation options, which stays the ceiling, and anything else fails
+like any other mistake of the resolver. The close is the same as for the global limit
+(`The connection stayed idle.`, record end reason `IdleTimeout`). A client that must keep a
+quiet line open sends any frame, a silent audio frame for instance, inside the limit.
+
 ## Let the agent end the conversation
 
 An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation
@@ -191,6 +223,29 @@ If the user interrupts the goodbye (`cancel`), or the turn fails, the request is
 the conversation goes on. An agent that does not list the tool can never end a conversation,
 and the tool ends nothing when an agent runs outside a voice conversation. Every close has
 its own frame, description and end reason, [below](#how-a-conversation-closes).
+
+## What the agent says before a tool call
+
+An agent can say "one moment" before a lookup if its instructions tell it to. The words reach the
+caller **while the tool runs**: when the model's answer contains a tool call, the text it has
+produced so far is spoken before the tool starts, and the text after the tool is a sentence of its
+own. A sentence that ends the answer before the call needs no full stop to be heard.
+
+## Keep a batch from queueing a live turn
+
+The built-in speech client holds one concurrency pool (`MaxConcurrentRequests`, 2 by default) for synthesis, dialogue and
+transcription together. A batch that voices a podcast takes the slots a live conversation's turn waits for. Give the batch a
+**second built-in client** with a pool of its own and call it by name; the conversation keeps the default. The second client
+starts from the options of `UseVoice`; to the tenant's egress policy, its own key and the price it is still `elevenlabs`:
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .AddElevenLabsSynthesizer("batch", options => options.MaxConcurrentRequests = 4);
+```
+
+A failed call of the built-in client throws a `ProviderInvocationException`
+([run errors](/concepts/run-errors/#decide-a-retry-from-the-failure-not-from-its-text)).
 
 ## How a conversation closes
 

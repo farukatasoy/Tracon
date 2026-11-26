@@ -3,12 +3,13 @@ using System.Text.Json.Serialization;
 namespace Tracon;
 
 /// <summary>
-/// One non-token item a workflow function node reported: the persistent record behind
+/// One non-token item reported inside a run: the persistent record behind
 /// <c>GET /api/runs/{runId}/usage</c>.
 /// </summary>
 /// <remarks>
-/// A node reports with <c>IWorkflowContext.ReportUsageAsync</c> and every report is an
-/// item. A retried node keeps the items of its failed attempts: the work was done and
+/// A workflow function node reports with <c>IWorkflowContext.ReportUsageAsync</c>, and a call of
+/// <see cref="IImageGenerationService"/> or <see cref="ISpeechSynthesisService"/> made inside a run reports what it spent.
+/// Every report is an item. A retried node keeps the items of its failed attempts: the work was done and
 /// the provider billed it.
 /// </remarks>
 public sealed record NonTokenUsageRecord
@@ -22,7 +23,7 @@ public sealed record NonTokenUsageRecord
     /// <summary>
     /// Gets the name of the function node that reported the item, or <see langword="null"/>
     /// when the reporting code did not run inside a function node Tracon registered
-    /// (a custom executor in a graph built in code, for example).
+    /// (a custom executor in a graph built in code, or a media service call).
     /// </summary>
     public string? NodeName { get; init; }
 

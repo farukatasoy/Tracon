@@ -1,5 +1,6 @@
 #nullable enable
 Tracon.ElevenLabsProviderNames
+Tracon.ElevenLabsSynthesizerBuilderExtensions
 Tracon.VoiceBuilderExtensions
 Tracon.VoiceOptions
 Tracon.VoiceOptions.ApiKey.get -> string?
@@ -46,6 +47,7 @@ const Tracon.ElevenLabsProviderNames.StyleSetting = "elevenlabs.style" -> string
 const Tracon.ElevenLabsProviderNames.UseSpeakerBoostSetting = "elevenlabs.useSpeakerBoost" -> string!
 const Tracon.VoiceOptions.DefaultOutputFormat = "mp3_44100_128" -> string!
 const Tracon.VoiceOptions.SectionName = "Tracon:Voice" -> string!
+static Tracon.ElevenLabsSynthesizerBuilderExtensions.AddElevenLabsSynthesizer(this Tracon.ITraconBuilder! builder, string! name, System.Action<Tracon.VoiceOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.ElevenLabsProviderNames.DialogueSupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.ElevenLabsProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.VoiceBuilderExtensions.UseVoice(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection, System.Action<Tracon.VoiceOptions!>? configure = null) -> Tracon.ITraconBuilder!

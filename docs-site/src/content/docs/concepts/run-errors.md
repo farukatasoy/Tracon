@@ -52,11 +52,19 @@ replace or compose with your own rules — see
 ### Decide a retry from the failure, not from its text
 
 A model call that fails throws `ProviderInvocationException`, a `TraconException` with
-error type `upstream_error`. Three properties answer what a job or a pipeline step asks:
-`Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when the
-failure carried none) and `IsTransient`. A failure with no status is one of three things:
-the provider answered nothing, it answered with a body the client could not read, or the
-request was never sent. `IsTransient` tells the last from the other two.
+error type `upstream_error`. The built-in speech client and the image generators throw the same
+type, so one `catch` covers every provider call. Four properties answer what a job or a pipeline
+step asks: `Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when the
+failure carried none), `IsTransient` and `ProviderErrorCode`. A failure with no status is one of
+three things: the provider answered nothing, it answered with a body the client could not read, or
+the request was never sent. `IsTransient` tells the last from the other two.
+
+`ProviderErrorCode` is the machine-readable code the provider put in its answer, and `null` when it
+put none: a short token such as `insufficient_quota` or `content_policy_violation` (letters, digits,
+`_`, `.` and `-`, at most 64 characters), never the provider's sentence. It tells a spent quota from a
+rate limit when both are a `429`. It is read from the OpenAI and Azure OpenAI client library's
+message, from the body the OpenAI image generator and the speech client read, and from nowhere else:
+a provider that reports its code another way leaves it `null`. The vocabulary is each provider's own.
 
 ```csharp
 async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken cancellationToken)

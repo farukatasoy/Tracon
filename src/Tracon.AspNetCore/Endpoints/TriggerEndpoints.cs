@@ -343,7 +343,7 @@ internal static class TriggerEndpoints
         // a trigger cannot bypass the installation's run
         // authorization policy just because it has no bearer token.
         if (await RunAuthorizationGate
-                .CheckRunAsync(runAuthorizationHandler, triggerTenant, validated.Trigger.TargetName, sessionId: null, attributionContext, httpContext, cancellationToken)
+                .CheckRunAsync(runAuthorizationHandler, triggerTenant, RunChannel.Trigger, validated.Trigger.TargetName, sessionId: null, attributionContext, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationResult)
         {
             await dispatcher.ReleaseAsync(validated, cancellationToken).ConfigureAwait(false);

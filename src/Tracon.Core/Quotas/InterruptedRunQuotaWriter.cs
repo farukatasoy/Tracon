@@ -74,9 +74,10 @@ internal sealed class InterruptedRunQuotaWriter(
                 row = await runStore.GetRunAsync(row.Id, cancellationToken).ConfigureAwait(false) ?? row;
             }
 
-            var snapshot = row.Kind == RunKind.Workflow
-                ? await NonTokenCostAccumulator.SnapshotFromItemsAsync(runStore, row.Id, currency, cancellationToken).ConfigureAwait(false)
-                : await NonTokenCostAccumulator.SnapshotFromToolInvocationsAsync(runStore, row.Id, currency, cancellationToken).ConfigureAwait(false);
+            // A run's non-token spend is on its items (a function node, a step, a media service) and on its tool calls; every
+            // kind of run can hold both, since a tool of an agent run may call a media service.
+            var snapshot = await NonTokenCostAccumulator.SnapshotFromRecordsAsync(runStore, row.Id, currency, cancellationToken)
+                .ConfigureAwait(false);
 
             _ = await TreeQuota.RecordClosedRootAsync(
                 quota,

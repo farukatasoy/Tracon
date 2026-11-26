@@ -109,6 +109,26 @@ public sealed record VoiceConnectionSettings
     public TimeSpan? MaxDuration { get; init; }
 
     /// <summary>
+    /// Gets the longest this connection may stay open without a frame from the client. When it is <see langword="null"/> the
+    /// connection's limit is <see cref="VoiceConversationOptions.IdleTimeout"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A host whose conversations differ in how long a person may think between turns (a long interview and a quick
+    /// question) sets it per connection. It must be greater than zero and no greater than
+    /// <see cref="VoiceConversationOptions.IdleTimeout"/>, which stays the ceiling of every connection: a result outside that
+    /// range is refused like any other mistake of the resolver, because shortening or lengthening it silently would hide the
+    /// mistake.
+    /// </para>
+    /// <para>
+    /// When it passes the connection closes cleanly and the record ends with <see cref="VoiceSessionEndReason.IdleTimeout"/>,
+    /// as it does for the global limit. A client that keeps the line alive sends any frame (a silent audio frame, or a
+    /// control frame) inside the limit.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? IdleTimeout { get; init; }
+
+    /// <summary>
     /// Gets a text the agent answers first, right after the <c>ready</c> frame, as if a user had said it: the agent's answer
     /// is the opening.
     /// </summary>

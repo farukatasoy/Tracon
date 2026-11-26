@@ -26,6 +26,15 @@ namespace Tracon;
 /// presented value is looked up in that store; when a valid, non-revoked and non-expired
 /// key is found, the request continues with the tenant and the scopes of that key.
 /// </para>
+/// <para>
+/// A value that is neither is the HOST's credential when the host's authentication has already identified the caller
+/// (<c>User.Identity.IsAuthenticated</c>) and the value does not have the shape of a Tracon API key: a JWT the host's
+/// bearer scheme read from the same header, or a header of another scheme. The request then goes on as if it had
+/// presented no header, the way a request authenticated by a cookie does, and the host's policies, the role policies
+/// and the tenant checks decide it. The store is not asked: no key can have that shape. An anonymous request with an
+/// unknown value, and any request with a value shaped like a Tracon key that the store does not accept, are still
+/// refused with <c>401</c>, so a key's narrower scopes never fall back to the caller's wider identity.
+/// </para>
 /// </remarks>
 internal sealed class TraconEndpointFilter : IEndpointFilter
 {
@@ -149,32 +158,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
 
         if (header.Length == 0)
         {
-            if (_authToken is { Length: > 0 })
-            {
-                return Unauthorized(httpContext);
-            }
-
-            // Neither a static token nor a header: today's behavior does not change
-            // -- EXCEPT on a surface that declares an API key mandatory.
-            if (RejectWhenApiKeyIsMandatory(httpContext) is { } rejectedMissingKey)
-            {
-                return rejectedMissingKey;
-            }
-
-            // The zero-surprise rule admits the anonymous caller as the local operator. Only on the
-            // bearer-token groups: the UI shell and the inbound triggers never
-            // promised loopback, the OAuth callback is bound by its state value
-            // and a provider's form_post carries the provider's Origin, and the
-            // voice socket checks its own subprotocol credential first.
-            if (_requireBearerToken
-                && AnonymousAccessGuard.Check(httpContext, _authorizationPolicyConfigured, _rolePoliciesRegistered) is { } rejectedAnonymous)
-            {
-                return rejectedAnonymous;
-            }
-
-            return CheckTenant(httpContext) is { } rejectedNoAuth
-                ? rejectedNoAuth
-                : await Proceed(httpContext, next, context).ConfigureAwait(false);
+            return await WithoutTraconCredentialAsync(httpContext, next, context).ConfigureAwait(false);
         }
 
         if (_authToken is { Length: > 0 } expected && BearerTokenValidator.IsValid(header, expected))
@@ -220,6 +204,14 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
         }
 
         var candidate = BearerTokenValidator.TryExtractToken(header);
+
+        // The host's own credential: its authentication already read the header (a JwtBearer scheme reads the same
+        // Authorization header Tracon reads) and identified the caller. Only a value no Tracon key can be is handed over;
+        // the static token was compared above.
+        if (IsHostCredential(httpContext, BearerTokenValidator.TryExtractTokenAnyCase(header)))
+        {
+            return await WithoutTraconCredentialAsync(httpContext, next, context).ConfigureAwait(false);
+        }
 
         if (candidate is not null && httpContext.RequestServices.GetService<IApiKeyStore>() is { } apiKeyStore)
         {
@@ -269,6 +261,64 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
 
         return Unauthorized(httpContext);
     }
+
+    /// <summary>Decides a request that presented no credential of Tracon's own.</summary>
+    /// <remarks>
+    /// Two requests take this path: one with no <c>Authorization</c> header, and one whose header is the host's credential
+    /// (<see cref="IsHostCredential"/>). Both are judged the same way, so a caller the host identified through a bearer
+    /// token gets exactly the answer a caller it identified through a cookie gets.
+    /// </remarks>
+    private async ValueTask<object?> WithoutTraconCredentialAsync(
+        HttpContext httpContext,
+        EndpointFilterDelegate next,
+        EndpointFilterInvocationContext context)
+    {
+        if (_authToken is { Length: > 0 })
+        {
+            return Unauthorized(httpContext);
+        }
+
+        // Neither a static token nor a header: today's behavior does not change
+        // -- EXCEPT on a surface that declares an API key mandatory.
+        if (RejectWhenApiKeyIsMandatory(httpContext) is { } rejectedMissingKey)
+        {
+            return rejectedMissingKey;
+        }
+
+        // The zero-surprise rule admits the anonymous caller as the local operator. Only on the
+        // bearer-token groups: the UI shell and the inbound triggers never
+        // promised loopback, the OAuth callback is bound by its state value
+        // and a provider's form_post carries the provider's Origin, and the
+        // voice socket checks its own subprotocol credential first.
+        if (_requireBearerToken
+            && AnonymousAccessGuard.Check(httpContext, _authorizationPolicyConfigured, _rolePoliciesRegistered) is { } rejectedAnonymous)
+        {
+            return rejectedAnonymous;
+        }
+
+        return CheckTenant(httpContext) is { } rejectedNoAuth
+            ? rejectedNoAuth
+            : await Proceed(httpContext, next, context).ConfigureAwait(false);
+    }
+
+    /// <summary>Tells whether the presented header is the host's credential rather than Tracon's.</summary>
+    /// <param name="httpContext">The request.</param>
+    /// <param name="candidate">
+    /// The value of a <c>Bearer</c> header whatever the case of the scheme name, or <see langword="null"/> for a header of
+    /// another scheme or an empty value.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the host's authentication identified the caller and the value cannot be a Tracon API
+    /// key. The static token has been compared before this is asked.
+    /// </returns>
+    /// <remarks>
+    /// The identity is read from the request, as the anonymous guard reads it: an anonymous principal never makes a header
+    /// the host's. A value with the shape of a Tracon key stays Tracon's even for an identified caller, so a revoked or
+    /// mistyped key is refused instead of silently running with the caller's wider rights.
+    /// </remarks>
+    private static bool IsHostCredential(HttpContext httpContext, string? candidate)
+        => httpContext.User.Identity?.IsAuthenticated == true
+           && (candidate is null || !ApiKeyGenerator.HasKeyShape(candidate));
 
     private static ValueTask<object?> Proceed(
         HttpContext httpContext,

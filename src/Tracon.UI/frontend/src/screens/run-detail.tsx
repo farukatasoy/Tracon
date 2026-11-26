@@ -325,6 +325,10 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
                   {record.workflowName ?? record.agentName}
                 </Link>
               </>
+            ) : record.kind === 'Step' ? (
+              <>
+                {t('runDetail.forStep')} <span>{record.agentName}</span>
+              </>
             ) : (
               <>
                 {t('runDetail.forAgent')}{' '}
@@ -452,7 +456,8 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         </div>
       )}
 
-      {(record.status === 'Completed' || record.status === 'Failed') && (
+      {/* A step run has no recorded input to turn into a case. */}
+      {record.kind !== 'Step' && (record.status === 'Completed' || record.status === 'Failed') && (
         <div className="mb-4">
           <PromoteToEvalCase runId={record.id} />
         </div>
@@ -801,9 +806,13 @@ function RunTreeRow({
         )}
       </span>
 
-      <Link to={`agents/${encodeURIComponent(run.agentName)}`} className="text-sm text-muted hover:text-fg">
-        {run.agentName}
-      </Link>
+      {run.kind === 'Step' ? (
+        <span className="text-sm text-muted">{run.agentName}</span>
+      ) : (
+        <Link to={`agents/${encodeURIComponent(run.agentName)}`} className="text-sm text-muted hover:text-fg">
+          {run.agentName}
+        </Link>
+      )}
 
       <StatusBadge status={run.status} />
       {isCurrent && <Badge tone="accent">{t('runDetail.thisRun')}</Badge>}

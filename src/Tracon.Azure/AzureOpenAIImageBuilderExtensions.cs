@@ -10,45 +10,46 @@ public static class AzureOpenAIImageBuilderExtensions
 {
     /// <summary>Registers the Azure OpenAI image generator.</summary>
     /// <param name="builder">The Tracon chain.</param>
-    /// <param name="configure">Optional image-tool settings.</param>
+    /// <param name="configure">Optional settings of this provider: its deployment and its provider settings.</param>
     /// <returns>The continuation of the chain.</returns>
     /// <remarks>
     /// Call <see cref="AzureOpenAIProviderExtensions.UseAzureOpenAI(ITraconBuilder, Uri, string, Action{AzureOpenAIProviderOptions}?)"/>
-    /// first. The image model is an Azure deployment name, not a public model id.
+    /// first. The image model is an Azure deployment name, not a public model id. <paramref name="configure"/> changes the entry
+    /// of <c>azure-openai</c> in <see cref="TraconImageOptions.Providers"/> and no other; <c>azure-openai.quality</c> in
+    /// <see cref="TraconImageProviderOptions.ProviderSettings"/> sets the image quality.
     /// <example>
     /// <code>
     /// builder.AddTracon()
     ///        .UseAzureOpenAI(
     ///            builder.Configuration.GetSection(AzureOpenAIProviderOptions.SectionName))
-    ///        .UseAzureOpenAIImages(options =&gt;
-    ///        {
-    ///            options.Enabled = true;
-    ///            options.Model = "image-deployment";
-    ///        });
+    ///        .UseAzureOpenAIImages(provider =&gt; provider.Model = "image-deployment")
+    ///        .ConfigureImages(images =&gt; images.Enabled = true);
     /// </code>
     /// </example>
     /// </remarks>
 #pragma warning disable MEAI001
     public static ITraconBuilder UseAzureOpenAIImages(
         this ITraconBuilder builder,
-        Action<TraconImageOptions>? configure = null)
+        Action<TraconImageProviderOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         var services = builder.Services;
 
+        ImageProviderRegistrations.Register(services, AzureOpenAIProviderNames.AzureOpenAI);
+
         if (configure is not null)
         {
-            services.Configure(configure);
+            services.Configure<TraconImageOptions>(
+                options => configure(ImageProviderRegistrations.ProviderOptions(options, AzureOpenAIProviderNames.AzureOpenAI)));
         }
 
-        services.PostConfigure<TraconImageOptions>(static options => options.Provider ??= AzureOpenAIProviderNames.AzureOpenAI);
         services.TryAddKeyedSingleton<IImageGenerator>(AzureOpenAIProviderNames.AzureOpenAI, static (provider, _) =>
         {
-            var options = provider.GetRequiredService<IOptions<TraconImageOptions>>().Value;
-            var deploymentName = options.Model
-                ?? throw new TraconException(
-                    $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Model)} is required for Azure OpenAI image generation.");
+            var deploymentName = ImageProviderRegistrations.RequireModel(
+                provider,
+                AzureOpenAIProviderNames.AzureOpenAI,
+                "Azure OpenAI image generation");
 
             return provider.GetRequiredService<AzureOpenAISetup>().CreateImageGenerator(deploymentName);
         });

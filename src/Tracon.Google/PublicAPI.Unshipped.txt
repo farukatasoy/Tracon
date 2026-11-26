@@ -29,7 +29,7 @@ const Tracon.GoogleProviderNames.SettingsPrefix = "google" -> string!
 const Tracon.GoogleProviderNames.ThinkingBudgetTokensSetting = "google.thinking.budgetTokens" -> string!
 const Tracon.GoogleProviderNames.ThinkingIncludeThoughtsSetting = "google.thinking.includeThoughts" -> string!
 const Tracon.GoogleProviderOptions.SectionName = "Tracon:Providers:Google" -> string!
-static Tracon.GoogleImageBuilderExtensions.UseGoogleImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.GoogleImageBuilderExtensions.UseGoogleImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.GoogleProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, System.Action<Tracon.GoogleProviderOptions!>! configure) -> Tracon.ITraconBuilder!

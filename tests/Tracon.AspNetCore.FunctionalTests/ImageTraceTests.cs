@@ -47,7 +47,7 @@ public sealed class ImageTraceTests
         var resolver = host.Services.GetRequiredService<ImageGeneratorResolver>();
 
         var startup = resolver.Resolve();
-        var generation = await resolver.ResolveForTenantAsync("default", TestContext.Current.CancellationToken);
+        var generation = await resolver.ResolveForTenantAsync("default", ProviderName, TestContext.Current.CancellationToken);
 
         startup.ShouldNotBeSameAs(generator, "the startup check handed out the raw generator");
         generation.ShouldNotBeSameAs(generator, "the generation path handed out the raw generator");
@@ -73,7 +73,7 @@ public sealed class ImageTraceTests
                 {
                     options.Enabled = true;
                     options.Provider = ProviderName;
-                    options.Model = "image-1";
+                    options.Providers[ProviderName] = new TraconImageProviderOptions { Model = "image-1" };
                 });
                 services.Configure<TraconOptions>(static options => options.Observability.SuccessSampleRatio = 1);
                 services.AddSingleton<IImageGenerator>(generator);

@@ -103,6 +103,23 @@ authentication pipeline:
 options.RequireAuthorization("TraconAdmin");
 ```
 
+### Your own bearer token
+
+A host that signs its users in with a JWT (or any bearer token of its own) can send that token to Tracon in the
+`Authorization` header. Tracon reads the same header for its static token and its API keys, so it decides whose a value
+is. A value is **yours** when your authentication has identified the caller and the value does not start with `ap_`, the
+mark of a Tracon API key. Tracon then treats the request as one that presented no header: your policies, the role
+policies, the run gate and the tenant checks decide it, and no key lookup is made. This holds on every endpoint
+Tracon maps that reads the bearer token: the management API, the AG-UI endpoint, the OpenAI-compatible routes, A2A and MCP.
+
+One surface keeps asking for a key: the MCP server and the A2A routes, once `AllowRemoteAccess` publishes them beyond
+loopback, answer `401 API key required` to a request without an API key of the `external:invoke` scope, whoever your
+authentication says the caller is.
+
+What does not change: a caller your authentication did not identify and who sends a value Tracon does not know is
+refused with `401`; a value that starts with `ap_` is Tracon's and must be a key the store accepts, whoever sent it; and
+when `AuthToken` is set, it is required.
+
 ## Roles
 
 Three policy names — `Reader`, `Operator`, `Admin` — that you bind to your own claims:
@@ -129,7 +146,8 @@ key. The identity is read from the request, so a policy that lets everyone throu
 not make an anonymous caller known, and a request from this machine is judged as before,
 `Host` and `Origin` included. With one or two policies registered nothing changes: the
 other roles' routes carry no policy. A bearer token in the `Authorization` header is
-still read by Tracon's own token layer, as an API key. `RequireProductionProfile()` still
+read by Tracon's own token layer, as an API key, unless your authentication has already identified the
+caller and the value is not shaped like one (see [your own bearer token](#your-own-bearer-token)). `RequireProductionProfile()` still
 asks for `AuthToken` or `RequireAuthorization`. The console shell and the OAuth callback
 sit outside the role policies; the shell carries no data.
 

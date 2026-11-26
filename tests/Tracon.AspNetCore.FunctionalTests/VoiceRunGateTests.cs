@@ -46,6 +46,7 @@ public sealed class VoiceRunGateTests
         foreach (var request in requests)
         {
             request.Access.ShouldBe(RunAccess.Start);
+            request.Channel.ShouldBe(RunChannel.Voice, "the start and every turn say they came over the socket");
             request.AgentName.ShouldBe(Agent);
             request.SessionId.ShouldBe("lesson-7");
             request.TenantId.ShouldBe("default");

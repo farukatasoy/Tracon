@@ -4,7 +4,8 @@ namespace Tracon;
 
 /// <summary>
 /// What the host's parameter resolver (<see cref="TraconAGUIOptions.ResolveParameters"/>) is given to decide the parameter values
-/// of one AG-UI run.
+/// of one AG-UI run, and what its greeting resolver (<see cref="TraconAGUIOptions.ResolveGreeting"/>) is given to decide the
+/// first sentence of a conversation.
 /// </summary>
 /// <remarks>
 /// <para>

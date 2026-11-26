@@ -95,8 +95,9 @@ internal sealed class RunCompletionNotifier
         var usage = own.Usage;
 
         // Nothing reads the tree when no webhook is registered, and a run without a
-        // child reservation has no tree to read.
-        if (_services.WebhookPublisher is null || scope.Budget is not { StartedRuns: > 0 })
+        // child reservation has no tree to read. A step run reserves no child (the agent runs its code starts are not
+        // sub-agent calls), so its tree is always read.
+        if (_services.WebhookPublisher is null || (scope.Budget is not { StartedRuns: > 0 } && scope.Kind != RunKind.Step))
         {
             return own;
         }

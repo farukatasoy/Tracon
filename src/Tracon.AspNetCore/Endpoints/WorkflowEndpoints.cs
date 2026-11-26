@@ -789,7 +789,7 @@ internal static class WorkflowEndpoints
         // consume the tenant's quota, same ordering as
         // the agent run endpoint (AgentEndpoints.cs).
         if (await RunAuthorizationGate
-                .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request?.SessionId, attributionContext, httpContext, cancellationToken)
+                .CheckRunAsync(runAuthorizationHandler, tenantContext, RunChannel.HttpApi, name, request?.SessionId, attributionContext, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;

@@ -50,6 +50,7 @@ internal static class RunAuthorizationGate
     /// <summary>Checks whether a run may start; produces the response to return if it may not.</summary>
     /// <param name="handler">The authorization handler. If <see langword="null"/>, no check is performed.</param>
     /// <param name="tenants">The tenant context.</param>
+    /// <param name="channel">The surface that starts the run; the handler reads it as <see cref="RunAuthorizationRequest.Channel"/>.</param>
     /// <param name="agentName">The name of the agent (or workflow) to run.</param>
     /// <param name="sessionId">The session the run would continue, or <see langword="null"/> for a sessionless run.</param>
     /// <param name="attributionContext">The attribution context, used to resolve the calling user.</param>
@@ -61,6 +62,7 @@ internal static class RunAuthorizationGate
     public static async ValueTask<ProblemHttpResult?> CheckRunAsync(
         IRunAuthorizationHandler? handler,
         ITenantContext tenants,
+        RunChannel channel,
         string agentName,
         string? sessionId,
         IRunAttributionContext? attributionContext,
@@ -83,6 +85,7 @@ internal static class RunAuthorizationGate
             SessionId = sessionId,
             UserId = userId,
             Access = RunAccess.Start,
+            Channel = channel,
         };
 
         var outcome = await RunAdmissionRules.AuthorizeStartAsync(handler, request, cancellationToken).ConfigureAwait(false);
@@ -174,6 +177,9 @@ internal static class RunAuthorizationGate
             UserId = userId,
             RunId = runId,
             Access = access,
+
+            // A run that exists is reached through the management API, whatever surface started it.
+            Channel = RunChannel.HttpApi,
         };
 
         try

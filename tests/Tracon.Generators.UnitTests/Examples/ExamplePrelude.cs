@@ -64,6 +64,8 @@ internal static class ExamplePrelude
     internal const string Usings = """
         using System;
         using System.Collections.Generic;
+        using System.Drawing;
+        using System.IO;
         using System.Text.Json;
         using System.Threading;
         using System.Threading.Tasks;
@@ -74,6 +76,7 @@ internal static class ExamplePrelude
         using Microsoft.Extensions.DependencyInjection;
         using Microsoft.Extensions.Hosting;
         using Microsoft.AspNetCore.Builder;
+        using Microsoft.AspNetCore.Http;
         using Microsoft.AspNetCore.Routing;
         using Microsoft.Agents.AI;
         using Microsoft.Agents.AI.Workflows;

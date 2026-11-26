@@ -223,7 +223,7 @@ internal static class AgentEndpoints
                 // the context-window pre-flight, in that order - live in AgentTurnService, so the AG-UI endpoint passes
                 // exactly the same ones.
                 if (await AgentTurnService
-                        .CheckRunGatesAsync(name, request!, httpContext, cancellationToken)
+                        .CheckRunGatesAsync(name, request!, RunChannel.HttpApi, httpContext, cancellationToken)
                         .ConfigureAwait(false) is { } gateProblem)
                 {
                     return gateProblem;

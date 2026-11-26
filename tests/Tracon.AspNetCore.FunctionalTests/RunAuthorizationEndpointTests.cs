@@ -475,7 +475,11 @@ public sealed class RunAuthorizationEndpointTests
         using var response = await host.Client.SendAsync(request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        handler.RunRequests.ShouldHaveSingleItem().AgentName.ShouldBe("kod-agent");
+
+        var asked = handler.RunRequests.ShouldHaveSingleItem();
+
+        asked.AgentName.ShouldBe("kod-agent");
+        asked.Channel.ShouldBe(RunChannel.Trigger);
     }
 
     [Fact]

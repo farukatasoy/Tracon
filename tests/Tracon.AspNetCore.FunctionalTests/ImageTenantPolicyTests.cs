@@ -275,7 +275,7 @@ public sealed class ImageTenantPolicyTests
                 {
                     options.Enabled = true;
                     options.Provider = ImageProvider;
-                    options.Model = "image-1";
+                    options.Providers[ImageProvider] = new TraconImageProviderOptions { Model = "image-1" };
                 });
                 services.AddKeyedSingleton<IImageGenerator>(ImageProvider, generator);
                 configureServices?.Invoke(services);

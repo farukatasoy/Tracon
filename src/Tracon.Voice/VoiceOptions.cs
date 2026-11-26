@@ -138,6 +138,14 @@ public sealed class VoiceOptions
     /// <summary>Request timeout. 100 seconds when empty.</summary>
     /// <remarks>Must be from one millisecond to about 24.8 days (<see cref="int.MaxValue"/> milliseconds) when set; any other value fails at startup.</remarks>
     public TimeSpan? Timeout { get; set; }
+
+    /// <summary>Makes an independent copy of these options.</summary>
+    /// <returns>A copy that a caller can change without touching the original.</returns>
+    /// <remarks>
+    /// Every member is a value, a string or an immutable object, so a member-wise copy is a whole one. It is for the second
+    /// synthesizer of <c>AddElevenLabsSynthesizer</c>, which starts from the options of <c>UseVoice</c> and changes some.
+    /// </remarks>
+    internal VoiceOptions Copy() => (VoiceOptions)MemberwiseClone();
 }
 
 /// <summary>Names of known voice providers.</summary>

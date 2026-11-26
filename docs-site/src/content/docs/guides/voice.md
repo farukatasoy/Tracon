@@ -145,7 +145,8 @@ budget, the tenant's cost quota and the `run.completed` webhook count beside the
 cost. See [Report what a tool spent beyond tokens](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)
 for the rule, and
 [Report what a node spent beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
-for a workflow function node that voices text itself.
+for a workflow function node that voices text itself, and
+[step runs](/guides/step-runs/#generate-images-and-speech-from-code) for code of your own.
 If pricing is not configured, cost stays `null`: the measurement is listed as unpriced
 and left out of the total, because zero would claim the call was free.
 If the provider omits billed characters, the text length is used and marked as an
@@ -232,6 +233,9 @@ builder.AddTracon()
     .AddSpeechSynthesizer("gpu", _ => new LocalGpuSynthesizer(new Uri("http://gpu-01:9000/")))
     .AddSpeechTranscriber("gpu", _ => new LocalGpuTranscriber(new Uri("http://gpu-01:9000/")));
 ```
+
+A second **built-in** client is a name too, with a concurrency pool of its own, so a batch does not queue a live turn:
+[Keep a batch from queueing a live turn](/guides/voice-conversation-lifecycle/#keep-a-batch-from-queueing-a-live-turn).
 
 A name is 1 to 64 characters of `a-z`, `0-9`, `.`, `_` and `-`, compared in lower
 case; synthesizer and transcriber names are separate. Registering the same name twice
@@ -463,8 +467,8 @@ builder.AddTracon()
 | Usage | `Audio.CharactersBilled` comes from the provider when it reports a count (`UsageSource.Provider`), otherwise from the turns' text (`Estimated`). `Audio.ProviderRequestId` is the provider's id for the request |
 | Tenant rules | The same as every other speech call (next section), applied to the dialogue capability's `ProviderName`. A synthesizer without the capability fails the call with a message that names it; the built-in client is not used in its place |
 
-There is no dialogue tool and no dialogue HTTP endpoint: a dialogue is a workflow
-step, written in code.
+There is no dialogue tool and no dialogue HTTP endpoint: a dialogue is a step written
+in code, in a workflow node or a [step run](/guides/step-runs/) that records its spend.
 
 ### Provider request settings
 

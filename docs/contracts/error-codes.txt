@@ -15,6 +15,7 @@ content_blocked
 content_filtered
 eval_run_diff_unavailable
 external_call_rejected
+greeting_resolution_failed
 handoff_limit_exceeded
 interrupted
 invalid_parameters

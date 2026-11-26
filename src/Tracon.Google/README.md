@@ -8,16 +8,16 @@ After `UseGoogle(...)`, call `UseGoogleImages(...)` to register Tracon's narrow
 `IImageGenerator` adapter. Set an image-capable Google model explicitly.
 
 ```csharp
-tracon.UseGoogleImages(options =>
-{
-    options.Enabled = true;
-    options.Model = "gemini-2.5-flash-image";
-});
+tracon.UseGoogleImages(provider => provider.Model = "gemini-2.5-flash-image")
+      .ConfigureImages(images => images.Enabled = true);
 ```
 
 The model must generate images through `generateContent`. The older Imagen
 `predict` surface is not served by the Gemini API, and a model that only
-supports it fails every request.
+supports it fails every request. **A preview image model needs
+`GoogleProviderOptions.ApiVersion = "v1beta"`:** the default `v1` does not list the preview
+image models. The version is the provider's and is shared with chat, so raising it moves
+the chat models to `v1beta` too.
 
 The generator key is `google`. This adapter generates from a prompt only; it does not
 map a `WIDTHxHEIGHT` request because Google's image API uses separate aspect-ratio and

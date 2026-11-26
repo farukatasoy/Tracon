@@ -443,6 +443,19 @@ public sealed class ProviderInvocationException : TraconException
     /// <summary>Gets the name of the model provider the failed call went to.</summary>
     public string Provider { get; }
 
+    /// <summary>Gets the machine-readable code the provider put in its answer, or <see langword="null"/> when it put none.</summary>
+    /// <remarks>
+    /// <para>
+    /// A short token such as <c>insufficient_quota</c> or <c>invalid_api_key</c> (letters, digits, <c>_</c>, <c>.</c> and <c>-</c>,
+    /// at most 64 characters), never the provider's sentence. It is what tells a spent quota from a rate limit when both are a
+    /// <c>429</c>, and a refused prompt from a malformed one when both are a <c>400</c>. It is read from the provider's error body
+    /// where Tracon reads the body (the speech client, the OpenAI image generator) and from the provider SDK's own message where
+    /// the SDK writes the code into it; a provider that reports none leaves this <see langword="null"/>. The vocabulary is the
+    /// provider's, so a code from one provider says nothing about another.
+    /// </para>
+    /// </remarks>
+    public string? ProviderErrorCode { get; private init; }
+
     /// <summary>Gets the HTTP status the provider answered with, or <see langword="null"/> when the failure carried none.</summary>
     /// <remarks>
     /// A failure with no status got no answer from the provider (a refused connection, a name that did not resolve, a
@@ -474,7 +487,7 @@ public sealed class ProviderInvocationException : TraconException
     /// <summary>Builds the same failure with the provider client's own exception as its inner exception.</summary>
     /// <returns>An exception with the masked text, for the code that decides from the graph.</returns>
     internal ProviderInvocationException ForDecision()
-        => new(ErrorType, Message, Provider, Original, Original, _mask) { StatusCode = StatusCode };
+        => new(ErrorType, Message, Provider, Original, Original, _mask) { StatusCode = StatusCode, ProviderErrorCode = ProviderErrorCode };
 
     /// <inheritdoc />
     public override string ToString()
@@ -509,6 +522,57 @@ public sealed class ProviderInvocationException : TraconException
             mask)
         {
             StatusCode = status,
+            ProviderErrorCode = ProviderErrorCodes.Read(exception),
+        };
+    }
+
+    /// <summary>Builds the failure of a call that got no answer (a refused connection, a broken stream, a timeout).</summary>
+    /// <param name="provider">The provider the call went to.</param>
+    /// <param name="message">What the adapter says: Tracon's own words, never an address.</param>
+    /// <param name="original">The transport failure, or a <see cref="TimeoutException"/> for a call that ran out of time.</param>
+    /// <returns>The failure, with no status.</returns>
+    internal static ProviderInvocationException FromTransport(string provider, string message, Exception original)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        ArgumentNullException.ThrowIfNull(original);
+
+        return new(
+            ProviderFailureNormalizer.UpstreamErrorType,
+            message,
+            provider,
+            original,
+            original,
+            ProviderSecretMask.Empty);
+    }
+
+    /// <summary>Builds the failure of an answer an adapter read itself, with the sentence the adapter chose.</summary>
+    /// <param name="provider">The provider the call went to.</param>
+    /// <param name="status">The HTTP status of the answer.</param>
+    /// <param name="message">What the adapter says: Tracon's own words, never the provider's.</param>
+    /// <param name="providerErrorCode">The code the answer carried, or <see langword="null"/>.</param>
+    /// <returns>The failure.</returns>
+    /// <remarks>
+    /// For an adapter that owns its HTTP client and so never meets an SDK exception to normalize (the speech client). The graph
+    /// below it is one <see cref="HttpRequestException"/> that carries the status, which is what the retry decision reads.
+    /// </remarks>
+    internal static ProviderInvocationException FromResponse(string provider, int status, string message, string? providerErrorCode)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+
+        var original = new HttpRequestException(message, inner: null, (System.Net.HttpStatusCode)status);
+
+        return new(
+            ProviderFailureNormalizer.UpstreamErrorType,
+            message,
+            provider,
+            original,
+            original,
+            ProviderSecretMask.Empty)
+        {
+            StatusCode = status,
+            ProviderErrorCode = ProviderErrorCodes.IsCode(providerErrorCode) ? providerErrorCode : null,
         };
     }
 }

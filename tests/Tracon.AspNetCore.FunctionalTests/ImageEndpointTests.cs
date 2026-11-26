@@ -209,7 +209,7 @@ public sealed class ImageEndpointTests
         {
             options.Enabled = true;
             options.Provider = "test-images";
-            options.Model = "image-1";
+            options.Providers["test-images"] = new TraconImageProviderOptions { Model = "image-1" };
             options.MaxImagesPerRequest = 2;
         });
         services.Configure<TraconOptions>(options =>

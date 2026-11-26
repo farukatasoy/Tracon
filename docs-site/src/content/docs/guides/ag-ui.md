@@ -103,6 +103,19 @@ authorization policy and the `Operator` role. What a browser front end adds is t
 | A claims principal (cookie, JWT, OpenID Connect) | The `Operator` role. A scope belongs to an API key, so a claims principal is gated by role alone |
 | The static `AuthToken` | The token. It carries no scope |
 
+### A front end that signs in with your own JWT
+
+A browser that carries your own bearer token sends it as `Authorization: Bearer <jwt>`, the way it calls the rest of
+your API. Your authentication reads that header and identifies the caller before Tracon sees the request, and Tracon
+accepts it: a header that is not Tracon's own credential is yours when your authentication has identified the caller.
+The request is then judged as one that carried no header, so your policies, the `Operator` role, the run gate and the
+tenant checks decide it, exactly as they do for a caller signed in with a cookie. You configure nothing for this.
+
+Two values stay Tracon's even then. A value shaped like a Tracon API key (it starts with `ap_`) is looked up in the key
+store and is refused when the store does not accept it, so a mistyped or revoked key never runs with the wider rights of
+the person who sent it. And when you set an `AuthToken`, the token is required, whoever signed in. A caller your
+authentication did not identify is refused with `401` as before, whatever the header says.
+
 `ChatRun` opens this endpoint and no other. A key that holds only `ChatRun` is refused with `403` by every
 management endpoint that asks for a scope — runs, sessions, agents, approvals, API keys — exactly as a key
 that lacks the scope of that endpoint is. It is the key to put in a front end's hands. Create one in the
@@ -263,6 +276,45 @@ app.MapTraconAGUI("/tracon/agui", options =>
 - **It fails closed.** A resolver that throws, or returns a null name or value, ends the request with `500` and the error
   type `parameter_resolution_failed`; no run starts. The answer carries neither the exception's text nor anything the
   front end sent. The exception and the thread are in the server log, and the values never are.
+
+### Open the conversation with a sentence of your own
+
+A conversation often starts with the assistant: "Hello Ada! Are you ready to start?". A front end can draw that sentence
+itself, but then the model never read it, the history does not hold it and the transcript an evaluation reads starts one line
+late. `TraconAGUIOptions.ResolveGreeting` is host code that decides the sentence on the server, and Tracon writes it to the
+thread's history:
+
+```csharp
+app.MapTraconAGUI("/tracon/agui", options =>
+    options.ResolveGreeting = (request, cancellationToken) =>
+        ValueTask.FromResult<string?>($"Hello {request.User.Identity?.Name}! Are you ready to start?"));
+```
+
+With a resolver set, a request that carries **no new input** (no user message, no tool result and no answer to an approval or a
+request for input) is an *opening request*. The front end sends it when it opens a thread, with the thread id and no messages:
+
+```json
+{ "threadId": "lesson-7", "runId": "open-1", "messages": [], "tools": [], "context": [] }
+```
+
+- **Nothing runs.** No model is called and no run is recorded. The answer is `RUN_STARTED`, one text message
+  (`TEXT_MESSAGE_START`, `TEXT_MESSAGE_CONTENT`, `TEXT_MESSAGE_END`) and `RUN_FINISHED`. There is no `tracon.run` event: no run
+  exists to name.
+- **It is in the history.** The sentence is an assistant message of the thread, so the agent's next turn reads it and knows it
+  has already greeted, and the transcript starts with it.
+- **It is said once.** A thread that has any history, or that another opening request wrote to first, is answered with
+  `RUN_STARTED` and `RUN_FINISHED` alone, and your code is not called. A `null` or blank text says nothing the same way.
+- **It runs after the gates.** The request passes the endpoint's access protection, run authorization, session ownership and
+  quota first, and the agent must exist, so your code is never called for a caller that was turned away. A tenant whose quota
+  is spent is not greeted, as it is not answered. An agent with required parameters needs them as for any run: decide them with
+  `ResolveParameters`.
+- **The text is yours.** It is not screened by a content guard and it is never taken from the front end. The resolver gets the
+  same request as the parameter resolver: the agent, the thread, the caller and what the front end sent in
+  `forwardedProps.parameters` (untrusted).
+- **It fails closed.** A resolver that throws ends the request with `500` and the error type `greeting_resolution_failed`;
+  nothing is written. The answer carries neither the exception's text nor anything the front end sent.
+
+Without a resolver an opening request is the `400 Empty request` it always was.
 
 ## Front-end tools
 

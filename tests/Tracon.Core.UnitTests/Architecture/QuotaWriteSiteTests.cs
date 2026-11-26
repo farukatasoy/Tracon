@@ -49,6 +49,7 @@ public sealed class QuotaWriteSiteTests
     private static readonly string[] RootScopeSites =
     [
         "src/Tracon.Core/Recording/RunRecordingAgent.Lifecycle.cs",
+        "src/Tracon.Core/Steps/TraconStepRunner.cs",
         "src/Tracon.Workflows/Internal/WorkflowRunner.cs",
     ];
 

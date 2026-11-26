@@ -90,24 +90,28 @@ not safely inferred from an agent's chat model.
 
 ```csharp title="Program.cs"
 tracon
-    .UseOpenAIImages(options =>
-    {
-        options.Enabled = true;
-        options.Model = "gpt-image-1";
-    });
+    .UseOpenAIImages(provider => provider.Model = "gpt-image-1")
+    .ConfigureImages(images => images.Enabled = true);
 
 // Azure uses an image deployment name.
-// tracon.UseAzureOpenAIImages(options => options.Model = "image-deployment");
+// tracon.UseAzureOpenAIImages(provider => provider.Model = "image-deployment");
 
 // Google uses a provider image model. It does not support WIDTHxHEIGHT or a media type in this surface.
-// tracon.UseGoogleImages(options => options.Model = "gemini-2.5-flash-image");
+// tracon.UseGoogleImages(provider => provider.Model = "gemini-2.5-flash-image");
 ```
+
+Each call changes the settings of **its own provider** and nothing else, so two providers registered in one host never
+share a model. The model lives in `Tracon:Images:Providers:{name}:Model` when it comes from configuration.
 
 Each extension shares the authenticated client factory already created by `UseOpenAI`,
 `UseAzureOpenAI`, or `UseGoogle`; it adds no second credential path or package. The
-extensions register generators by provider name. When more than one is registered,
-set `Tracon:Images:Provider` to `openai`, `azure-openai`, or `google` to select
-the generator and matching price table. An unkeyed `IImageGenerator` that your
+extensions register generators by provider name. With one registered, it is the default. When more than one is
+registered, set `Tracon:Images:Provider` to `openai`, `azure-openai`, or `google` to select
+the generator and matching price table; the host does not start until you do.
+
+**A preview Google image model needs `GoogleProviderOptions.ApiVersion = "v1beta"`.** Google's default `v1` does not list the
+preview image models, and a call to one fails with a "not found for API version v1" answer. The version belongs to the Google
+provider and is shared by chat and images: raising it moves the chat models to `v1beta` as well. An unkeyed `IImageGenerator` that your
 application registers remains the fallback for a custom provider.
 
 `UseOpenAICompatible()` does not imply image support. Register a supported image

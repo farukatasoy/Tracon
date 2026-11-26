@@ -129,6 +129,13 @@ public sealed class JsonFileRunStore : IRunStore
 
             if (!isNew)
             {
+                // A row never changes hands: an id another tenant's run holds is left as it is, and the call says so
+                // (IRunStore.StartRunAsync). The upsert is for the tenant's own row.
+                if (!string.Equals(previous!.TenantId, record.TenantId, StringComparison.Ordinal))
+                {
+                    throw new TraconException($"A run with id '{record.Id}' already exists.");
+                }
+
                 record = record with
                 {
                     UserId = record.UserId ?? previous!.UserId,

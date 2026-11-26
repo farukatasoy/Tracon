@@ -8,12 +8,13 @@ public sealed record RunRecord
 
     /// <summary>
     /// Gets the name of the agent that ran. For workflow runs this is the workflow
-    /// name: the existing lists, statistics and user interface read this column, and
-    /// leaving it empty would show workflow rows without a name.
+    /// name, and for step runs the name the host gave the step: the existing lists,
+    /// statistics and user interface read this column, and leaving it empty would show
+    /// those rows without a name.
     /// </summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Gets whether this row records an agent or a workflow.</summary>
+    /// <summary>Gets whether this row records an agent, a workflow, an eval case or a step.</summary>
     public RunKind Kind { get; init; }
 
     /// <summary>
@@ -150,7 +151,7 @@ public sealed record RunRecord
 
     /// <summary>
     /// Gets what this run itself reported as spent that is not tokens — the amounts its
-    /// workflow function nodes and tools reported. <see langword="null"/> when it
+    /// workflow function nodes, tools and media service calls reported. <see langword="null"/> when it
     /// reported nothing.
     /// </summary>
     /// <remarks>

@@ -282,6 +282,12 @@ public sealed record AgentRunScope
     public RunEventWriter? Writer { get; init; }
 
     /// <summary>
+    /// Gets whether the scope is a step run (<see cref="ITraconStepRunner"/>): an agent run that names it as its parent joins its
+    /// tree, with its budget.
+    /// </summary>
+    internal bool IsStep { get; init; }
+
+    /// <summary>
     /// Gets the accumulator that collects the extra token usage produced by
     /// side-channel model calls during the run — context compaction
     /// (summarization), the <c>aiJudge</c> loop judge, bounded

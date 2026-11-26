@@ -34,4 +34,11 @@ public enum RunKind
     /// summary — it is a synthetic test call, not real traffic.
     /// </summary>
     Eval = 2,
+
+    /// <summary>
+    /// A deterministic step of the host's own code, opened through <see cref="ITraconStepRunner"/>: no agent and no
+    /// workflow runs it. Its cost is what the step reported beyond tokens (the media services record there), and it counts
+    /// in the statistics like any other run. A step run is not replayed, continued or sampled for online evaluation.
+    /// </summary>
+    Step = 3,
 }

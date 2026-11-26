@@ -123,10 +123,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
     {
         // A row that exists and was left alone is not inserted again, which would be a duplicate key. The count is read into a
         // variable first, because the EXISTS is a statement of its own and T-SQL does not say which half of an AND comes first.
-        var where = onlyIfQueued ? " AND status = @status_queued" : string.Empty;
-        var insertWhenNone = onlyIfQueued
-            ? $"DECLARE @updated int = @@ROWCOUNT;\n\nIF @updated = 0 AND NOT EXISTS (SELECT 1 FROM {Schema}.runs WHERE id = @id)"
-            : "IF @@ROWCOUNT = 0";
+        // A row never changes hands: an id another tenant's run holds is left as it is, so the update finds nothing and the insert
+        // is not tried against a key that is taken. The statement returns no row then.
+        var where = onlyIfQueued ? " AND tenant_id = @tenant_id AND status = @status_queued" : " AND tenant_id = @tenant_id";
+        var insertWhenNone = $"DECLARE @updated int = @@ROWCOUNT;\n\nIF @updated = 0 AND NOT EXISTS (SELECT 1 FROM {Schema}.runs WHERE id = @id)";
 
         return $"""
             UPDATE {Schema}.runs WITH (XLOCK, SERIALIZABLE)

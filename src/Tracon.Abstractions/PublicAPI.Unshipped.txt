@@ -1056,6 +1056,8 @@ Tracon.IIdempotencyStore
 Tracon.IIdempotencyStore.CompleteAsync(string! tenantId, string! key, Tracon.IdempotencyResponse! response, System.DateTimeOffset? reservedAt = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IIdempotencyStore.ReleaseAsync(string! tenantId, string! key, System.DateTimeOffset? reservedAt = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IIdempotencyStore.ReserveAsync(Tracon.IdempotencyRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.IdempotencyReservation!>
+Tracon.IImageGenerationService
+Tracon.IImageGenerationService.GenerateAsync(Tracon.TraconImageRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.TraconImageResult!>
 Tracon.IInboundTriggerStore
 Tracon.IInboundTriggerStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IInboundTriggerStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.InboundTrigger?>
@@ -1208,6 +1210,12 @@ Tracon.ISamplingSupport.SamplingLimits.get -> Tracon.SamplingLimits!
 Tracon.ISamplingSupport.SupportedSamplingFields.get -> Tracon.SamplingFields
 Tracon.IResponseSchemaSupport
 Tracon.IResponseSchemaSupport.DescribeResponseSchema(Tracon.ModelBinding! binding, System.Text.Json.JsonElement schema) -> Tracon.ResponseSchemaShape!
+Tracon.ISpeechSynthesisService
+Tracon.ISpeechSynthesisService.SynthesizeAsync(Tracon.SpeechRequest! request, string? provider = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SpeechSynthesisResult!>
+Tracon.ISpeechSynthesisService.SynthesizeDialogueAsync(Tracon.SpeechDialogueRequest! request, string? provider = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SpeechDialogueSynthesisResult!>
+Tracon.ITraconStepRunner
+Tracon.ITraconStepRunner.RunAsync(Tracon.TraconStepOptions! options, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! work, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Tracon.ITraconStepRunner.RunAsync<T>(Tracon.TraconStepOptions! options, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! work, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<T>
 Tracon.JobLease
 Tracon.JobLease.<Clone>$() -> Tracon.JobLease!
 Tracon.JobLease.Attempt.get -> int
@@ -1247,6 +1255,61 @@ Tracon.ResponseSchemaShape.Strict.get -> bool
 Tracon.ResponseSchemaShape.StrictUnsupported.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.ResponseSchemaShape.StrictUnsupported.init -> void
 Tracon.ResponseSchemaShape.Strict.init -> void
+Tracon.RunKind.Step = 3 -> Tracon.RunKind
+Tracon.SpeechDialogueSynthesisResult
+Tracon.SpeechDialogueSynthesisResult.<Clone>$() -> Tracon.SpeechDialogueSynthesisResult!
+Tracon.SpeechDialogueSynthesisResult.Dialogue.get -> Tracon.SpeechDialogueAudio!
+Tracon.SpeechDialogueSynthesisResult.Dialogue.init -> void
+Tracon.SpeechDialogueSynthesisResult.Equals(Tracon.SpeechDialogueSynthesisResult? other) -> bool
+Tracon.SpeechDialogueSynthesisResult.SpeechDialogueSynthesisResult() -> void
+Tracon.SpeechDialogueSynthesisResult.Usage.get -> Tracon.ToolCallUsage!
+Tracon.SpeechDialogueSynthesisResult.Usage.init -> void
+Tracon.SpeechDialogueSynthesisResult.UsageRecorded.get -> bool
+Tracon.SpeechDialogueSynthesisResult.UsageRecorded.init -> void
+Tracon.SpeechSynthesisResult
+Tracon.SpeechSynthesisResult.<Clone>$() -> Tracon.SpeechSynthesisResult!
+Tracon.SpeechSynthesisResult.Audio.get -> Tracon.SpeechAudio!
+Tracon.SpeechSynthesisResult.Audio.init -> void
+Tracon.SpeechSynthesisResult.Equals(Tracon.SpeechSynthesisResult? other) -> bool
+Tracon.SpeechSynthesisResult.SpeechSynthesisResult() -> void
+Tracon.SpeechSynthesisResult.Usage.get -> Tracon.ToolCallUsage!
+Tracon.SpeechSynthesisResult.Usage.init -> void
+Tracon.SpeechSynthesisResult.UsageRecorded.get -> bool
+Tracon.SpeechSynthesisResult.UsageRecorded.init -> void
+Tracon.TraconImageRequest
+Tracon.TraconImageRequest.<Clone>$() -> Tracon.TraconImageRequest!
+Tracon.TraconImageRequest.Count.get -> int
+Tracon.TraconImageRequest.Count.init -> void
+Tracon.TraconImageRequest.Equals(Tracon.TraconImageRequest? other) -> bool
+Tracon.TraconImageRequest.Model.get -> string?
+Tracon.TraconImageRequest.Model.init -> void
+Tracon.TraconImageRequest.Prompt.get -> string!
+Tracon.TraconImageRequest.Prompt.init -> void
+Tracon.TraconImageRequest.Provider.get -> string?
+Tracon.TraconImageRequest.Provider.init -> void
+Tracon.TraconImageRequest.Size.get -> System.Drawing.Size?
+Tracon.TraconImageRequest.Size.init -> void
+Tracon.TraconImageRequest.TraconImageRequest() -> void
+Tracon.TraconImageResult
+Tracon.TraconImageResult.<Clone>$() -> Tracon.TraconImageResult!
+Tracon.TraconImageResult.Equals(Tracon.TraconImageResult? other) -> bool
+Tracon.TraconImageResult.Images.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.DataContent!>!
+Tracon.TraconImageResult.Images.init -> void
+Tracon.TraconImageResult.TraconImageResult() -> void
+Tracon.TraconImageResult.Usage.get -> Tracon.ToolCallUsage!
+Tracon.TraconImageResult.Usage.init -> void
+Tracon.TraconImageResult.UsageRecorded.get -> bool
+Tracon.TraconImageResult.UsageRecorded.init -> void
+Tracon.TraconStepOptions
+Tracon.TraconStepOptions.<Clone>$() -> Tracon.TraconStepOptions!
+Tracon.TraconStepOptions.Equals(Tracon.TraconStepOptions? other) -> bool
+Tracon.TraconStepOptions.Name.get -> string!
+Tracon.TraconStepOptions.Name.init -> void
+Tracon.TraconStepOptions.ParentRunId.get -> System.Guid?
+Tracon.TraconStepOptions.ParentRunId.init -> void
+Tracon.TraconStepOptions.RunId.get -> System.Guid?
+Tracon.TraconStepOptions.RunId.init -> void
+Tracon.TraconStepOptions.TraconStepOptions() -> void
 override Tracon.CallableAgentReference.Equals(object? obj) -> bool
 override Tracon.CallableAgentReference.GetHashCode() -> int
 override Tracon.CallableAgentReference.ToString() -> string!
@@ -1259,6 +1322,21 @@ override Tracon.RateLimitWindowCount.ToString() -> string!
 override Tracon.ResponseSchemaShape.Equals(object? obj) -> bool
 override Tracon.ResponseSchemaShape.GetHashCode() -> int
 override Tracon.ResponseSchemaShape.ToString() -> string!
+override Tracon.SpeechDialogueSynthesisResult.Equals(object? obj) -> bool
+override Tracon.SpeechDialogueSynthesisResult.GetHashCode() -> int
+override Tracon.SpeechDialogueSynthesisResult.ToString() -> string!
+override Tracon.SpeechSynthesisResult.Equals(object? obj) -> bool
+override Tracon.SpeechSynthesisResult.GetHashCode() -> int
+override Tracon.SpeechSynthesisResult.ToString() -> string!
+override Tracon.TraconImageRequest.Equals(object? obj) -> bool
+override Tracon.TraconImageRequest.GetHashCode() -> int
+override Tracon.TraconImageRequest.ToString() -> string!
+override Tracon.TraconImageResult.Equals(object? obj) -> bool
+override Tracon.TraconImageResult.GetHashCode() -> int
+override Tracon.TraconImageResult.ToString() -> string!
+override Tracon.TraconStepOptions.Equals(object? obj) -> bool
+override Tracon.TraconStepOptions.GetHashCode() -> int
+override Tracon.TraconStepOptions.ToString() -> string!
 static Tracon.CallableAgentReference.FromName(string! name) -> Tracon.CallableAgentReference!
 static Tracon.CallableAgentReference.implicit operator Tracon.CallableAgentReference!(string! name) -> Tracon.CallableAgentReference!
 static Tracon.CallableAgentReference.operator !=(Tracon.CallableAgentReference? left, Tracon.CallableAgentReference? right) -> bool
@@ -2271,6 +2349,8 @@ Tracon.RunAuthorizationRequest.Access.get -> Tracon.RunAccess
 Tracon.RunAuthorizationRequest.Access.init -> void
 Tracon.RunAuthorizationRequest.AgentName.get -> string?
 Tracon.RunAuthorizationRequest.AgentName.init -> void
+Tracon.RunAuthorizationRequest.Channel.get -> Tracon.RunChannel
+Tracon.RunAuthorizationRequest.Channel.init -> void
 Tracon.RunAuthorizationRequest.Equals(Tracon.RunAuthorizationRequest? other) -> bool
 Tracon.RunAuthorizationRequest.RunAuthorizationRequest() -> void
 Tracon.RunAuthorizationRequest.RunId.get -> System.Guid?
@@ -2299,6 +2379,16 @@ Tracon.RunCancellationRequest.RunId.get -> System.Guid
 Tracon.RunCancellationRequest.RunId.init -> void
 Tracon.RunCancellationRequest.TenantId.get -> string!
 Tracon.RunCancellationRequest.TenantId.init -> void
+Tracon.RunChannel
+Tracon.RunChannel.A2A = 6 -> Tracon.RunChannel
+Tracon.RunChannel.AGUI = 2 -> Tracon.RunChannel
+Tracon.RunChannel.Embedded = 0 -> Tracon.RunChannel
+Tracon.RunChannel.HttpApi = 1 -> Tracon.RunChannel
+Tracon.RunChannel.Mcp = 7 -> Tracon.RunChannel
+Tracon.RunChannel.OpenAIChatCompletions = 4 -> Tracon.RunChannel
+Tracon.RunChannel.OpenAIResponses = 5 -> Tracon.RunChannel
+Tracon.RunChannel.Trigger = 8 -> Tracon.RunChannel
+Tracon.RunChannel.Voice = 3 -> Tracon.RunChannel
 Tracon.RunCompletion
 Tracon.RunCompletion.<Clone>$() -> Tracon.RunCompletion!
 Tracon.RunCompletion.CompletedAt.get -> System.DateTimeOffset
@@ -5518,12 +5608,16 @@ static Tracon.SpeechDialogueRequest.operator !=(Tracon.SpeechDialogueRequest? le
 static Tracon.SpeechDialogueRequest.operator ==(Tracon.SpeechDialogueRequest? left, Tracon.SpeechDialogueRequest? right) -> bool
 static Tracon.SpeechDialogueSegment.operator !=(Tracon.SpeechDialogueSegment? left, Tracon.SpeechDialogueSegment? right) -> bool
 static Tracon.SpeechDialogueSegment.operator ==(Tracon.SpeechDialogueSegment? left, Tracon.SpeechDialogueSegment? right) -> bool
+static Tracon.SpeechDialogueSynthesisResult.operator !=(Tracon.SpeechDialogueSynthesisResult? left, Tracon.SpeechDialogueSynthesisResult? right) -> bool
+static Tracon.SpeechDialogueSynthesisResult.operator ==(Tracon.SpeechDialogueSynthesisResult? left, Tracon.SpeechDialogueSynthesisResult? right) -> bool
 static Tracon.SpeechDialogueTurn.operator !=(Tracon.SpeechDialogueTurn? left, Tracon.SpeechDialogueTurn? right) -> bool
 static Tracon.SpeechDialogueTurn.operator ==(Tracon.SpeechDialogueTurn? left, Tracon.SpeechDialogueTurn? right) -> bool
 static Tracon.SpeechProviderDescriptor.operator !=(Tracon.SpeechProviderDescriptor? left, Tracon.SpeechProviderDescriptor? right) -> bool
 static Tracon.SpeechProviderDescriptor.operator ==(Tracon.SpeechProviderDescriptor? left, Tracon.SpeechProviderDescriptor? right) -> bool
 static Tracon.SpeechRequest.operator !=(Tracon.SpeechRequest? left, Tracon.SpeechRequest? right) -> bool
 static Tracon.SpeechRequest.operator ==(Tracon.SpeechRequest? left, Tracon.SpeechRequest? right) -> bool
+static Tracon.SpeechSynthesisResult.operator !=(Tracon.SpeechSynthesisResult? left, Tracon.SpeechSynthesisResult? right) -> bool
+static Tracon.SpeechSynthesisResult.operator ==(Tracon.SpeechSynthesisResult? left, Tracon.SpeechSynthesisResult? right) -> bool
 static Tracon.SpeechTranscript.operator !=(Tracon.SpeechTranscript? left, Tracon.SpeechTranscript? right) -> bool
 static Tracon.SpeechTranscript.operator ==(Tracon.SpeechTranscript? left, Tracon.SpeechTranscript? right) -> bool
 static Tracon.SpeechTranscriptionOptions.operator !=(Tracon.SpeechTranscriptionOptions? left, Tracon.SpeechTranscriptionOptions? right) -> bool
@@ -5591,6 +5685,12 @@ static Tracon.TraconId.DeriveId(System.DateTimeOffset timestamp, string! seed) -
 static Tracon.TraconId.GetTimestamp(System.Guid id) -> System.DateTimeOffset
 static Tracon.TraconId.NewId() -> System.Guid
 static Tracon.TraconId.NewId(System.DateTimeOffset timestamp) -> System.Guid
+static Tracon.TraconImageRequest.operator !=(Tracon.TraconImageRequest? left, Tracon.TraconImageRequest? right) -> bool
+static Tracon.TraconImageRequest.operator ==(Tracon.TraconImageRequest? left, Tracon.TraconImageRequest? right) -> bool
+static Tracon.TraconImageResult.operator !=(Tracon.TraconImageResult? left, Tracon.TraconImageResult? right) -> bool
+static Tracon.TraconImageResult.operator ==(Tracon.TraconImageResult? left, Tracon.TraconImageResult? right) -> bool
+static Tracon.TraconStepOptions.operator !=(Tracon.TraconStepOptions? left, Tracon.TraconStepOptions? right) -> bool
+static Tracon.TraconStepOptions.operator ==(Tracon.TraconStepOptions? left, Tracon.TraconStepOptions? right) -> bool
 static Tracon.VectorChunk.operator !=(Tracon.VectorChunk? left, Tracon.VectorChunk? right) -> bool
 static Tracon.VectorChunk.operator ==(Tracon.VectorChunk? left, Tracon.VectorChunk? right) -> bool
 static Tracon.VectorSearchHit.operator !=(Tracon.VectorSearchHit? left, Tracon.VectorSearchHit? right) -> bool
@@ -5961,6 +6061,7 @@ const Tracon.ToolUsageUnits.Calls = "calls" -> string!
 const Tracon.RunEventCustomTypes.ToolInputDeclined = "tracon.tool.input.declined" -> string!
 const Tracon.RunEventCustomTypes.AGUIToolsIgnored = "tracon.agui.tools.ignored" -> string!
 const Tracon.RunEventCustomTypes.ClientCallWithheld = "tracon.client_call_withheld" -> string!
+const Tracon.TraconErrorTypes.GreetingResolutionFailed = "greeting_resolution_failed" -> string!
 const Tracon.TraconErrorTypes.ParameterResolutionFailed = "parameter_resolution_failed" -> string!
 const Tracon.TraconTenantQuotaExceededException.TenantQuotaExceededErrorType = "tenant_quota_exceeded" -> string!
 override Tracon.TraconTenantQuotaExceededException.ErrorType.get -> string!

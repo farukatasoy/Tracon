@@ -24,8 +24,11 @@ public sealed class AzureOpenAIProviderExtensionsTests
         using var provider = services.BuildServiceProvider();
 
         provider.GetRequiredKeyedService<IImageGenerator>(AzureOpenAIProviderNames.AzureOpenAI).ShouldNotBeNull();
-        provider.GetRequiredService<IOptions<TraconImageOptions>>().Value.Provider
-            .ShouldBe(AzureOpenAIProviderNames.AzureOpenAI);
+
+        var options = provider.GetRequiredService<IOptions<TraconImageOptions>>().Value;
+
+        options.Providers[AzureOpenAIProviderNames.AzureOpenAI].Model.ShouldBe("image-deployment");
+        options.Provider.ShouldBeNull();
     }
 #pragma warning restore MEAI001
 

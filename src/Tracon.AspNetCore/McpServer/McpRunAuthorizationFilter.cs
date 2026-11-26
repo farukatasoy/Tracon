@@ -86,6 +86,7 @@ internal static class McpRunAuthorizationFilter
             .CheckRunAsync(
                 handler,
                 services.GetRequiredService<ITenantContext>(),
+                RunChannel.Mcp,
                 agentName,
                 sessionId: null,
                 services.GetService<IRunAttributionContext>(),

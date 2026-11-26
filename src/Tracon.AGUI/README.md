@@ -85,6 +85,20 @@ It is called once per request, after the gates, with the agent, the thread, the 
 `TraconRunContext.Current.Parameters` with the source `ParameterValueSource.Host`. A resolver that throws ends the request
 with `500` and the error type `parameter_resolution_failed`, and no run starts.
 
+A host that opens a conversation with a sentence of its own sets `ResolveGreeting`:
+
+```csharp
+app.MapTraconAGUI("/tracon/agui", options =>
+    options.ResolveGreeting = (request, cancellationToken) =>
+        ValueTask.FromResult<string?>($"Hello {request.User.Identity?.Name}! Are you ready to start?"));
+```
+
+A request with no new input (no message, no tool result and no answer) is then an opening request: after the gates, when the
+thread has no history, the text is written to the history as an assistant message and streamed back as `RUN_STARTED`, one text
+message and `RUN_FINISHED`, with no model call and no run. The greeting is said once; a thread that has a history is answered with
+`RUN_STARTED` and `RUN_FINISHED` alone. A resolver that throws ends the request with `500` and the error type
+`greeting_resolution_failed`. Without a resolver such a request is still a `400`.
+
 ## Mapping more than one pattern
 
 The endpoint can be mapped under more than one pattern (`app.MapTraconAGUI("/partner/agui")`). The patterns share one

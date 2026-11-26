@@ -275,7 +275,7 @@ internal static class OpenAIResponsesEndpoints
         // as every other run-starting endpoint: an
         // unauthorized call must not learn whether 'loadId' exists.
         if (await RunAuthorizationGate
-                .CheckRunAsync(runAuthorizationHandler, tenantContext, agentName, loadId, attributionContext, httpContext, cancellationToken)
+                .CheckRunAsync(runAuthorizationHandler, tenantContext, RunChannel.OpenAIResponses, agentName, loadId, attributionContext, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return OpenAICompatSupport.Error(

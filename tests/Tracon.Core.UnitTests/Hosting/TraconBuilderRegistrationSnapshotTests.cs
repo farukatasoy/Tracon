@@ -21,6 +21,7 @@ public sealed class TraconBuilderRegistrationSnapshotTests
     public static TheoryData<string, string> Cases() => new()
     {
         { "Configure", "IConfigureOptions`1|Singleton|instance:ConfigureNamedOptions`1 ; IConfigureOptions`1|Singleton|instance:ConfigureNamedOptions`1" },
+        { "ConfigureImages", "IConfigureOptions`1|Singleton|instance:ConfigureNamedOptions`1 ; IConfigureOptions`1|Singleton|instance:ConfigureNamedOptions`1" },
         { "AddTool(AIFunction, configure)", "TraconToolRegistration|Singleton|instance:TraconToolRegistration ; TraconToolRegistration|Singleton|instance:TraconToolRegistration" },
         { "AddTool(AIFunction)", "TraconToolRegistration|Singleton|instance:TraconToolRegistration ; TraconToolRegistration|Singleton|instance:TraconToolRegistration" },
         { "AddHostedTool", "HostedToolRegistration|Singleton|instance:HostedToolRegistration ; HostedToolRegistration|Singleton|instance:HostedToolRegistration" },
@@ -149,6 +150,7 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         _ = method switch
         {
             "Configure" => builder.Configure(static _ => { }),
+            "ConfigureImages" => builder.ConfigureImages(static _ => { }),
             "AddTool(AIFunction, configure)" => builder.AddTool(tool, static o => o.RequiresApproval = true),
             "AddTool(AIFunction)" => builder.AddTool(tool),
             "AddHostedTool" => builder.AddHostedTool("snapshot_hosted", HostedToolKind.WebSearch, static _ => new HostedWebSearchTool(), "Snapshot hosted tool."),

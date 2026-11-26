@@ -127,16 +127,26 @@ public static partial class TraconServiceCollectionExtensions
         // The writer is registered unconditionally, but it is reached only when
         // the conditional generate_image tool or its optional HTTP endpoint exists.
         services.TryAddSingleton<ImagePricing>();
+        services.TryAddSingleton<ImageProviderSelection>();
         services.TryAddSingleton<ImageAttachmentWriter>();
         // Explicit factory, so the tenant's provider checks reach the
         // resolver by construction rather than by optional-parameter activation.
         services.TryAddSingleton(static provider => new ImageGeneratorResolver(
             provider,
-            provider.GetRequiredService<IOptions<TraconImageOptions>>(),
+            provider.GetRequiredService<ImageProviderSelection>(),
             provider.GetService<ITenantEgressPolicyStore>(),
             provider.GetService<ITenantProviderBindingStore>(),
             provider.GetService<TenantProviderCredentialResolver>(),
             provider.GetService<IOptions<TraconTenantProviderOptions>>()));
+
+        // The host's own image calls: the same selection, tenant checks, masking and measurement the tool and endpoint apply.
+        services.TryAddSingleton<IImageGenerationService>(static provider => new ImageGenerationService(
+            provider.GetRequiredService<ImageProviderSelection>(),
+            provider.GetRequiredService<ImageGeneratorResolver>(),
+            provider.GetRequiredService<ImageAttachmentWriter>(),
+            provider.GetRequiredService<ImagePricing>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetService<TimeProvider>()));
 
         // Workflow definitions and checkpoints. The stores are ALWAYS
         // registered; the execution engine, however, is DISABLED until

@@ -49,8 +49,8 @@ Tracon:Idempotency:MaxKeyLength
 Tracon:Idempotency:ReservationTimeout
 Tracon:Images:Enabled
 Tracon:Images:MaxImagesPerRequest
-Tracon:Images:Model
 Tracon:Images:Provider
+Tracon:Images:Providers:*:Model
 Tracon:Images:Timeout
 Tracon:InboundTriggers:AllowedConfigurationPrefix
 Tracon:InboundTriggers:MaxBodyBytes

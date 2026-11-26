@@ -66,4 +66,40 @@ public sealed class TraconAGUIOptions
     /// </para>
     /// </remarks>
     public Func<AGUIParameterRequest, CancellationToken, ValueTask<IReadOnlyDictionary<string, string>?>>? ResolveParameters { get; set; }
+
+    /// <summary>
+    /// The host's own code that decides the sentence an assistant says first in a new conversation, on the server. Default
+    /// <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set, a request that carries no new input (no user message, no tool result and no answer to an approval or a request
+    /// for input) is an <strong>opening request</strong> and not a mistake. It passes the same gates as a run and resolves the
+    /// agent the same way, with the parameters <see cref="ResolveParameters"/> or <see cref="AcceptForwardedParameters"/> decide.
+    /// Then, when the thread has no history yet, the resolver is called once with the agent, the thread, the caller and what the
+    /// front end sent. A non-blank text it returns is written to the thread's history as an assistant message, with no model
+    /// call and no run, and is streamed back as <c>RUN_STARTED</c>, <c>TEXT_MESSAGE_START</c>, <c>TEXT_MESSAGE_CONTENT</c>,
+    /// <c>TEXT_MESSAGE_END</c> and <c>RUN_FINISHED</c>. The agent's next turn reads it from the history, so it knows it has already
+    /// greeted, and an evaluation of the conversation reads it as the first message.
+    /// </para>
+    /// <para>
+    /// The greeting is said <strong>once</strong>: a thread that has any history, and a thread another request opened first, is
+    /// answered with <c>RUN_STARTED</c> and <c>RUN_FINISHED</c> and nothing else, and the resolver is not called. A <see langword="null"/>
+    /// or blank text says nothing in the same way. The text is the host's own: it is not screened by a content guard and it
+    /// is never taken from the front end.
+    /// </para>
+    /// <para>
+    /// <strong>It fails closed.</strong> A resolver that throws ends the request with <c>500</c> and the error type
+    /// <c>greeting_resolution_failed</c>, and nothing is written. Without a resolver an opening request is the <c>400</c> it
+    /// always was.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// app.MapTraconAGUI("/tracon/agui", options =>
+    ///     options.ResolveGreeting = (request, _) =&gt; ValueTask.FromResult&lt;string?&gt;(
+    ///         $"Hello {request.User.Identity?.Name}! Are you ready to start?"));
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public Func<AGUIParameterRequest, CancellationToken, ValueTask<string?>>? ResolveGreeting { get; set; }
 }

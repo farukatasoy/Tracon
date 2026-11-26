@@ -120,6 +120,14 @@ internal sealed class RunReplayService
                 "(POST /api/workflows/runs/{runId}/resume), not replayed.");
         }
 
+        // A step run is the host's own code: there is no input to run again.
+        if (source.Kind == RunKind.Step)
+        {
+            return RunReplayPreparation.Failed(
+                RunReplayOutcome.NotSupported,
+                $"Run '{runId}' is a step run of the host's own code. It records no input and cannot be replayed.");
+        }
+
         var input = await _inputs
             .GetAsync(_tenantContext.TenantId, runId, cancellationToken)
             .ConfigureAwait(false);

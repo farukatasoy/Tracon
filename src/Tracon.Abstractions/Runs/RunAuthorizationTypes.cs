@@ -123,6 +123,57 @@ public sealed record RunAuthorizationRequest
 
     /// <summary>Gets the kind of access being requested.</summary>
     public required RunAccess Access { get; init; }
+
+    /// <summary>Gets the surface the request arrived on.</summary>
+    /// <remarks>
+    /// <para>
+    /// An agent that one product opens on several surfaces (a chat front end, a voice conversation, a call from the host's
+    /// own code) is one agent to <see cref="AgentName"/> and one caller to <see cref="UserId"/>, so without this value a
+    /// handler cannot say "this agent runs by voice and nowhere else". It is set by Tracon's own code at the place the surface
+    /// asks, never read from the request, so a caller cannot choose it.
+    /// </para>
+    /// <para>
+    /// Every access to a run that already exists (reading it, canceling it, scoring it, its attachments and its approvals)
+    /// comes through the management API and says <see cref="RunChannel.HttpApi"/>.
+    /// </para>
+    /// </remarks>
+    public required RunChannel Channel { get; init; }
+}
+
+/// <summary>The surface a <see cref="RunAuthorizationRequest"/> arrived on.</summary>
+/// <remarks>
+/// The numeric values are <strong>not</strong> a persistence contract, for the same reason as <see cref="RunAccess"/>: the
+/// decision is synchronous and nothing stores the number. A new surface adds a member; a handler that does not know a member
+/// treats it like any other it did not list.
+/// </remarks>
+public enum RunChannel
+{
+    /// <summary>The host's own code asked, through <c>RunAdmission</c> or around an agent it runs in process.</summary>
+    Embedded = 0,
+
+    /// <summary>The management API: <c>POST /api/agents/{name}/run</c>, workflows, replays, evaluations, and every resource of a run.</summary>
+    HttpApi = 1,
+
+    /// <summary>The AG-UI endpoint <c>MapTraconAGUI</c> maps.</summary>
+    AGUI = 2,
+
+    /// <summary>The real-time voice conversation socket, at <c>start</c> and before every turn.</summary>
+    Voice = 3,
+
+    /// <summary>The OpenAI-compatible <c>/v1/chat/completions</c> endpoint.</summary>
+    OpenAIChatCompletions = 4,
+
+    /// <summary>The OpenAI-compatible <c>/v1/responses</c> endpoint.</summary>
+    OpenAIResponses = 5,
+
+    /// <summary>An agent called through the A2A protocol.</summary>
+    A2A = 6,
+
+    /// <summary>A tool call to Tracon's MCP server.</summary>
+    Mcp = 7,
+
+    /// <summary>An inbound trigger: a signed call from an outside system, with no user.</summary>
+    Trigger = 8,
 }
 
 /// <summary>Describes one session access awaiting an authorization decision.</summary>

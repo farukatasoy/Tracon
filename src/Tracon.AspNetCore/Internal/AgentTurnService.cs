@@ -32,6 +32,7 @@ internal static class AgentTurnService
     /// </summary>
     /// <param name="name">The agent name.</param>
     /// <param name="request">The run request.</param>
+    /// <param name="channel">The surface that starts the run; the authorization handler reads it.</param>
     /// <param name="httpContext">The request; the gates read their services from it.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The refusal to answer with, or <see langword="null"/> when the run may start.</returns>
@@ -50,6 +51,7 @@ internal static class AgentTurnService
     public static async ValueTask<IResult?> CheckRunGatesAsync(
         string name,
         AgentRunRequest request,
+        RunChannel channel,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
@@ -85,6 +87,7 @@ internal static class AgentTurnService
                 .CheckRunAsync(
                     services.GetService<IRunAuthorizationHandler>(),
                     tenantContext,
+                    channel,
                     name,
                     request.SessionId,
                     attributionContext,
@@ -156,6 +159,10 @@ internal static class AgentTurnService
     /// Who supplied <see cref="AgentRunRequest.Parameters"/>: the front end (the default), or the host's own code that stood
     /// in for it. A tool of the run reads it with the values.
     /// </param>
+    /// <param name="allowEmptyRequest">
+    /// Whether a request that carries no message, answer or tool result is accepted. It is for the AG-UI opening request,
+    /// which resolves the agent and the session and runs nothing; every other caller keeps the <c>400</c>.
+    /// </param>
     /// <returns>The turn that is ready to run, or the refusal to answer with.</returns>
     public static async ValueTask<TurnPreparation> PrepareAsync(
         string name,
@@ -165,7 +172,8 @@ internal static class AgentTurnService
         CancellationToken cancellationToken,
         string? surface = null,
         Func<int?, ValueTask<IResult?>>? checkAssignedVersion = null,
-        ParameterValueSource parameterSource = ParameterValueSource.Client)
+        ParameterValueSource parameterSource = ParameterValueSource.Client,
+        bool allowEmptyRequest = false)
     {
         var services = httpContext.RequestServices;
         var catalog = services.GetRequiredService<IAgentCatalog>();
@@ -178,7 +186,8 @@ internal static class AgentTurnService
         // Approval decisions and tool results are valid requests on their own:
         // a user approving a pending call or answering a client-side tool call
         // does not write a new message.
-        if (string.IsNullOrWhiteSpace(request.Message) &&
+        if (!allowEmptyRequest &&
+            string.IsNullOrWhiteSpace(request.Message) &&
             request.Approvals.Count == 0 &&
             request.ToolResults.Count == 0 &&
             request.InputResponses.Count == 0 &&
@@ -465,6 +474,25 @@ internal static class AgentTurnService
 
         return TurnPreparation.Ready(new PreparedTurn(agent, name, request, attachments, prefix, runId, assignment, recordedValues, surface, parameterSource));
     }
+
+    /// <summary>Writes an assistant message that no run produced into a session's history and saves the session.</summary>
+    /// <param name="sessions">The session manager.</param>
+    /// <param name="agent">The agent the session belongs to.</param>
+    /// <param name="session">The open session.</param>
+    /// <param name="text">What the assistant said.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// The AG-UI package reaches the session manager's internal writer through here: the writer stays out of the public surface
+    /// (a host that wants a message in a conversation has the opening request), and this package may not see Core's internals.
+    /// </remarks>
+    public static ValueTask RecordAssistantMessageAsync(
+        AgentSessionManager sessions,
+        Microsoft.Agents.AI.AIAgent agent,
+        Microsoft.Agents.AI.AgentSession session,
+        string text,
+        CancellationToken cancellationToken)
+        => sessions.RecordAssistantMessageAsync(agent, session, text, cancellationToken);
 
     /// <summary>
     /// Saves the session and, when that write loses a race, records the

@@ -34,6 +34,10 @@ internal static class AGUIRunEndpoint
     /// The host's own code that decides the run parameters (<see cref="TraconAGUIOptions.ResolveParameters"/>); it replaces
     /// <paramref name="acceptForwardedParameters"/> when set.
     /// </param>
+    /// <param name="resolveGreeting">
+    /// The host's own code that decides the sentence an assistant says first (<see cref="TraconAGUIOptions.ResolveGreeting"/>);
+    /// when set, a request with no new input is an opening request.
+    /// </param>
     /// <param name="cancellationToken">The request's cancellation token.</param>
     /// <returns>The refusal, or the event stream.</returns>
     public static async Task<IResult> HandleAsync(
@@ -41,6 +45,7 @@ internal static class AGUIRunEndpoint
         HttpContext httpContext,
         bool acceptForwardedParameters,
         Func<AGUIParameterRequest, CancellationToken, ValueTask<IReadOnlyDictionary<string, string>?>>? resolveParameters,
+        Func<AGUIParameterRequest, CancellationToken, ValueTask<string?>>? resolveGreeting,
         CancellationToken cancellationToken)
     {
         if (AgentTurnService.CheckDrain(httpContext) is { } drainProblem)
@@ -100,20 +105,28 @@ internal static class AGUIRunEndpoint
         //
         // With a resolver the front end's values are the resolver's input and nothing more: they are read for their shape
         // here, and enter the run only if the resolver returns them.
+        //
+        // A greeting resolver reads them for its own input as well, and nothing more: they do not enter a run it does not start.
         var useResolver = resolveParameters is not null;
-        var parameters = acceptForwardedParameters || useResolver ? AGUIInputMapper.ReadParameters(input) : ParameterMapping.None;
+        var readForGreeting = resolveGreeting is not null;
+        var parameters = acceptForwardedParameters || useResolver || readForGreeting
+            ? AGUIInputMapper.ReadParameters(input)
+            : ParameterMapping.None;
 
         if (parameters.Problem is { } parametersProblem)
         {
             return parametersProblem;
         }
 
-        LogIgnoredInput(httpContext, input, acceptForwardedParameters || useResolver);
+        LogIgnoredInput(httpContext, input, acceptForwardedParameters || useResolver || readForGreeting);
 
-        var request = AGUIInputMapper.MapQueue(input) with { Parameters = useResolver ? null : parameters.Values };
+        var request = AGUIInputMapper.MapQueue(input) with
+        {
+            Parameters = useResolver || !acceptForwardedParameters ? null : parameters.Values,
+        };
 
         if (await AgentTurnService
-                .CheckRunGatesAsync(agentName, request, httpContext, cancellationToken)
+                .CheckRunGatesAsync(agentName, request, RunChannel.AGUI, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } gateProblem)
         {
             return gateProblem;
@@ -154,6 +167,15 @@ internal static class AGUIRunEndpoint
             parameterSource = ParameterValueSource.Host;
         }
 
+        // An opening request carries nothing the run endpoint would answer: no message, no tool result and no resume. With a
+        // greeting resolver that is a request for the first sentence, and without one it stays the 400 it always was.
+        var opening = resolveGreeting is not null
+            && !AGUIInputMapper.HasNewMessages(input)
+            && string.IsNullOrWhiteSpace(request.Message)
+            && request.ToolResults.Count == 0
+            && request.AttachmentIds.Count == 0
+            && input.Resume is not { Count: > 0 };
+
         var resume = await AGUIInputMapper.MapResumeAsync(input, httpContext, cancellationToken).ConfigureAwait(false);
 
         if (resume.Problem is { } resumeProblem)
@@ -183,12 +205,20 @@ internal static class AGUIRunEndpoint
 
                     return tools.Problem;
                 },
-                parameterSource)
+                parameterSource,
+                allowEmptyRequest: opening)
             .ConfigureAwait(false);
 
         if (preparation.Turn is not { } turn)
         {
             return preparation.Problem!;
+        }
+
+        if (opening)
+        {
+            return await AGUIGreeting
+                .OpenAsync(turn, input, parameters.Values, resolveGreeting!, httpContext, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         OpenedTurn opened;

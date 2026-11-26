@@ -9,15 +9,18 @@ image client. The `generate_image` tool remains off until image options enable i
 set an image model.
 
 ```csharp
-tracon.UseOpenAIImages(options =>
-{
-    options.Enabled = true;
-    options.Model = "gpt-image-1";
-});
+tracon.UseOpenAIImages(provider =>
+      {
+          provider.Model = "gpt-image-1";
+          provider.ProviderSettings["openai.quality"] = JsonSerializer.SerializeToElement("medium");
+      })
+      .ConfigureImages(images => images.Enabled = true);
 ```
 
-The generator key is `openai`. Configure `Tracon:Pricing:Images:openai` when
-cost reporting is required; Tracon never supplies an image price.
+The generator key is `openai`. The settings are this provider's own: another image
+provider registered beside it keeps its own model. `openai.quality` (`low`, `medium`,
+`high` or `auto`) is the one provider setting. Configure `Tracon:Pricing:Images:openai`
+when cost reporting is required; Tracon never supplies an image price.
 
 ## Speech (text-to-speech and speech-to-text)
 

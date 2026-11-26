@@ -37,8 +37,9 @@ internal static class ImageEndpoints
             .ProducesProblem(StatusCodes.Status502BadGateway)
             .WithDescription(
                 "This is an operator action outside a run. Generated images are saved as attachments and " +
-                "the response returns their descriptors and configured cost. To record usage in tool_invocations, " +
-                "use the agent's generate_image tool instead. Returns 403 when the tenant's egress policy " +
+                "the response returns their descriptors and configured cost. 'provider' and 'model' choose what draws; " +
+                "without them the configured default draws. An unregistered provider, or one with no model, returns 400. " +
+                "To record usage in tool_invocations, use the agent's generate_image tool instead. Returns 403 when the tenant's egress policy " +
                 "does not allow the image provider, or when the tenant has its own credential for it: the " +
                 "generator uses the setup credential, and the image is not generated on it.");
     }
@@ -46,7 +47,7 @@ internal static class ImageEndpoints
     private static async Task<Results<Ok<ImageGenerationOperatorResponse>, ProblemHttpResult>> GenerateAsync(
         HttpContext httpContext,
         ImageGeneratorResolver imageGeneratorResolver,
-        IOptions<TraconImageOptions> imageOptions,
+        ImageProviderSelection imageSelection,
         ImagePricing pricing,
         ImageAttachmentWriter attachmentWriter,
         ITenantContext tenantContext,
@@ -78,7 +79,7 @@ internal static class ImageEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var options = imageOptions.Value;
+        var options = imageSelection.Options;
         var count = request.Count ?? 1;
 
         if (count < 1)
@@ -105,24 +106,33 @@ internal static class ImageEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        ImageSelection chosen;
+
+        try
+        {
+            // One read: the provider, its model and its settings belong together.
+            chosen = imageSelection.Select(request.Provider, request.Model);
+        }
+        catch (TraconException exception)
+        {
+            // Nothing was sent: the request names a provider that is not registered, or one with no model. The message names
+            // the provider and the setting only.
+            return TypedResults.Problem(
+                title: "Image provider or model not available",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         try
         {
             // The tenant's egress policy and its own credential are
             // checked before the prompt leaves the process.
             var generator = await imageGeneratorResolver
-                .ResolveForTenantAsync(tenantContext.TenantId, cancellationToken)
+                .ResolveForTenantAsync(tenantContext.TenantId, chosen.Provider, cancellationToken)
                 .ConfigureAwait(false);
 
             var generated = await generator
-                .GenerateAsync(
-                    new ImageGenerationRequest(request.Prompt),
-                    new ImageGenerationOptions
-                    {
-                        Count = count,
-                        ImageSize = size,
-                        ModelId = options.Model,
-                    },
-                    cancellationToken)
+                .GenerateAsync(new ImageGenerationRequest(request.Prompt), chosen.ToOptions(count, size), cancellationToken)
                 .ConfigureAwait(false);
 
             if (generated.Contents.Count == 0)
@@ -131,8 +141,8 @@ internal static class ImageEndpoints
             }
 
             var usage = pricing.Measure(
-                options.Provider!,
-                options.Model!,
+                chosen.Provider,
+                chosen.Model,
                 sizeKey,
                 generated.Contents.Count,
                 generated.Usage?.OutputTokenCount);
@@ -156,6 +166,8 @@ internal static class ImageEndpoints
                     Quantity = usage.Quantity,
                     Cost = usage.Cost,
                     Currency = usage.Currency,
+                    Provider = chosen.Provider,
+                    Model = chosen.Model,
                 },
             });
         }

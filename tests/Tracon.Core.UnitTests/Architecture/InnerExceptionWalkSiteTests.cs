@@ -30,6 +30,7 @@ public sealed partial class InnerExceptionWalkSiteTests
         ["src/Tracon.AspNetCore/Internal/JsonBindingProblemMiddleware.cs"] = "tells a JSON body binding failure from other bad requests",
         ["src/Tracon.AspNetCore/Internal/RequestBodyLimitMiddleware.cs"] = "finds the request body limit error in the chain of a request read",
         ["src/Tracon.AspNetCore/Voice/LiveVoiceEndpoints.cs"] = "reads the verdict of a live voice session, which is not a model pipeline call",
+        ["src/Tracon.Voice/Internal/ElevenLabsSpeechClient.cs"] = "names the category of a transport failure this client wrapped itself, in the detail of its own health check",
         ["src/Tracon.Workflows/Internal/WorkflowFunctionRegistry.cs"] = "wraps the exception of a function the host registered",
         ["src/Tracon.Workflows/Internal/WorkflowFunctionSettings.cs"] = "judges a settings binding exception of a workflow function",
         ["src/Tracon.Workflows/Internal/WorkflowRunErrors.cs"] = "unwraps the reflection exception around a function the host registered",

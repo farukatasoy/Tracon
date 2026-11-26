@@ -256,6 +256,20 @@ and carries `request.RunId` so you can look that run up in your own records:
 | `Attachment` | Upload, download, list, or delete an attachment |
 | `Approval` | List, read, or decide an approval request |
 
+`request.Channel` says which surface asked. An agent that one product opens on several surfaces is one agent and one
+user to the handler, so a rule such as "this agent runs by voice and nowhere else" needs the surface. Tracon sets the
+value in its own code at the place each surface asks; a caller cannot choose it.
+
+| `RunChannel` | The surface |
+|---|---|
+| `HttpApi` | The management API: the agent and workflow run endpoints, replays, evaluations, and every access to a run's resources, whatever surface started the run |
+| `AGUI` | The `MapTraconAGUI` endpoint |
+| `Voice` | The real-time voice conversation, at `start` and before every turn |
+| `OpenAIChatCompletions`, `OpenAIResponses` | The OpenAI-compatible endpoints |
+| `A2A`, `Mcp` | A message an A2A agent receives; an MCP `tools/call` |
+| `Trigger` | An inbound trigger, which has no user |
+| `Embedded` | Your own code, through `RunAdmission.CheckAsync` |
+
 ```csharp
 public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership) : IRunAuthorizationHandler
 {

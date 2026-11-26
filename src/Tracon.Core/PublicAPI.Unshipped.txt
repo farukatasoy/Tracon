@@ -380,13 +380,17 @@ Tracon.TraconImageOptions.Enabled.get -> bool
 Tracon.TraconImageOptions.Enabled.set -> void
 Tracon.TraconImageOptions.MaxImagesPerRequest.get -> int
 Tracon.TraconImageOptions.MaxImagesPerRequest.set -> void
-Tracon.TraconImageOptions.Model.get -> string?
-Tracon.TraconImageOptions.Model.set -> void
 Tracon.TraconImageOptions.Provider.get -> string?
 Tracon.TraconImageOptions.Provider.set -> void
+Tracon.TraconImageOptions.Providers.get -> System.Collections.Generic.IDictionary<string!, Tracon.TraconImageProviderOptions!>!
 Tracon.TraconImageOptions.Timeout.get -> System.TimeSpan
 Tracon.TraconImageOptions.Timeout.set -> void
 Tracon.TraconImageOptions.TraconImageOptions() -> void
+Tracon.TraconImageProviderOptions
+Tracon.TraconImageProviderOptions.Model.get -> string?
+Tracon.TraconImageProviderOptions.Model.set -> void
+Tracon.TraconImageProviderOptions.ProviderSettings.get -> System.Collections.Generic.IDictionary<string!, System.Text.Json.JsonElement>!
+Tracon.TraconImageProviderOptions.TraconImageProviderOptions() -> void
 Tracon.TraconKnowledgeOptions
 Tracon.TraconKnowledgeOptions.ChunkOverlap.get -> int
 Tracon.TraconKnowledgeOptions.ChunkOverlap.set -> void
@@ -675,6 +679,8 @@ Tracon.VoiceConnectionSettings.<Clone>$() -> Tracon.VoiceConnectionSettings!
 Tracon.VoiceConnectionSettings.Equals(Tracon.VoiceConnectionSettings? other) -> bool
 Tracon.VoiceConnectionSettings.Greeting.get -> string?
 Tracon.VoiceConnectionSettings.Greeting.init -> void
+Tracon.VoiceConnectionSettings.IdleTimeout.get -> System.TimeSpan?
+Tracon.VoiceConnectionSettings.IdleTimeout.init -> void
 Tracon.VoiceConnectionSettings.MaxDuration.get -> System.TimeSpan?
 Tracon.VoiceConnectionSettings.MaxDuration.init -> void
 Tracon.VoiceConnectionSettings.OpeningPrompt.get -> string?
@@ -939,6 +945,7 @@ static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builde
 static Tracon.TraconBuilderExtensions.AddToolsFrom(this Tracon.ITraconBuilder! builder, System.Type! type) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddToolsFrom<T>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.Configure(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.ConfigureImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.RequireCustomBinding<T>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.RequireProductionProfile(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconProductionProfileOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.UseScheduling(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconSchedulingOptions!>? configure = null) -> Tracon.ITraconBuilder!
@@ -980,6 +987,7 @@ static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconB
 Tracon.ProviderInvocationException
 Tracon.ProviderInvocationException.IsTransient.get -> bool
 Tracon.ProviderInvocationException.Provider.get -> string!
+Tracon.ProviderInvocationException.ProviderErrorCode.get -> string?
 Tracon.ProviderInvocationException.StatusCode.get -> int?
 override Tracon.ProviderInvocationException.ErrorType.get -> string!
 override Tracon.ProviderInvocationException.ToString() -> string!

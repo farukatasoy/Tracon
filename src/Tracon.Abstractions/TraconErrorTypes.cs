@@ -186,4 +186,7 @@ public static class TraconErrorTypes
 
     /// <summary>The host's own code that decides the run parameters of an AG-UI request failed, so no run started.</summary>
     public const string ParameterResolutionFailed = "parameter_resolution_failed";
+
+    /// <summary>The host's own code that decides the opening sentence of an AG-UI conversation failed, so nothing was written.</summary>
+    public const string GreetingResolutionFailed = "greeting_resolution_failed";
 }

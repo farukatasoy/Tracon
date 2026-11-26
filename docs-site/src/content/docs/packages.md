@@ -50,7 +50,7 @@ Add these when you need them.
 | `Tracon.Google` | You call Gemini models, or speak and voice a two-voice dialogue with a Gemini text-to-speech model |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
-| `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents, under one pattern or several, and your code can decide an agent's run parameters on the server. It takes the AG-UI SDK, which the other packages never see |
+| `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents, under one pattern or several, and your code can decide an agent's run parameters and its first sentence on the server. It takes the AG-UI SDK, which the other packages never see |
 | `Tracon.Testing` | You write tests against agents — fakes, not mocks |
 | `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IAgentDefinitionSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
 | `Tracon.Templates` | `dotnet new tracon-api` |

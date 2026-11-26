@@ -18,10 +18,11 @@ public sealed class ImageGeneratorResolverTests
         {
             options.Enabled = true;
             options.Provider = "second";
-            options.Model = "image-1";
+            options.Providers["second"] = new TraconImageProviderOptions { Model = "image-1" };
         });
         services.AddKeyedSingleton<IImageGenerator>("first", new StubImageGenerator());
         services.AddKeyedSingleton<IImageGenerator>("second", expected);
+        services.AddSingleton<ImageProviderSelection>();
         services.AddSingleton<ImageGeneratorResolver>();
 
         using var provider = services.BuildServiceProvider();
@@ -38,9 +39,10 @@ public sealed class ImageGeneratorResolverTests
         {
             options.Enabled = true;
             options.Provider = "custom";
-            options.Model = "image-1";
+            options.Providers["custom"] = new TraconImageProviderOptions { Model = "image-1" };
         });
         services.AddSingleton<IImageGenerator>(expected);
+        services.AddSingleton<ImageProviderSelection>();
         services.AddSingleton<ImageGeneratorResolver>();
 
         using var provider = services.BuildServiceProvider();
@@ -57,9 +59,10 @@ public sealed class ImageGeneratorResolverTests
         {
             options.Enabled = true;
             options.Provider = "custom";
-            options.Model = "image-1";
+            options.Providers["custom"] = new TraconImageProviderOptions { Model = "image-1" };
         });
         services.AddSingleton<IImageGenerator>(generator);
+        services.AddSingleton<ImageProviderSelection>();
         services.AddSingleton<ImageGeneratorResolver>();
 
         using var provider = services.BuildServiceProvider();

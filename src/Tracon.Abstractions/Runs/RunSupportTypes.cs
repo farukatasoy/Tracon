@@ -338,11 +338,12 @@ public sealed record RunStartInfo
 
     /// <summary>
     /// Gets the name of the agent that runs. For workflow runs the workflow name
-    /// is written instead; the rationale is on <see cref="RunRecord.AgentName"/>.
+    /// is written instead, and for step runs the step's name; the rationale is on
+    /// <see cref="RunRecord.AgentName"/>.
     /// </summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Gets whether this row records an agent or a workflow.</summary>
+    /// <summary>Gets whether this row records an agent, a workflow, an eval case or a step.</summary>
     public RunKind Kind { get; init; }
 
     /// <summary>Gets the name of the workflow, or <see langword="null"/> for agent runs.</summary>

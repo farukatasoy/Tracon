@@ -15,7 +15,7 @@ namespace Tracon;
 /// and its tools are authorized, but nothing in that path asks these questions: the checks sit in front of
 /// the HTTP endpoints, because the work that starts without a caller (queued runs, approval resumes,
 /// scheduled triggers) has no identity to check. A host that runs agents on behalf of a user calls
-/// <see cref="CheckAsync"/> itself, first, and starts the run only when the answer allows it.
+/// <see cref="CheckAsync(string, string?, CancellationToken)"/> itself, first, and starts the run only when the answer allows it.
 /// </para>
 /// <para>
 /// The answer is the same one the HTTP endpoints give: the registered <see cref="IRunAuthorizationHandler"/>
@@ -75,10 +75,27 @@ public sealed class RunAdmission
     /// </returns>
     /// <exception cref="ArgumentException"><paramref name="agentName"/> is blank.</exception>
     /// <exception cref="OperationCanceledException">The caller's own token was canceled.</exception>
-    public async ValueTask<RunAdmissionDecision> CheckAsync(
+    public ValueTask<RunAdmissionDecision> CheckAsync(
         string agentName,
         string? sessionId = null,
         CancellationToken cancellationToken = default)
+        => CheckAsync(RunChannel.Embedded, agentName, sessionId, cancellationToken);
+
+    /// <summary>Checks a run start the way <see cref="CheckAsync(string, string?, CancellationToken)"/> does, for a surface of Tracon's own.</summary>
+    /// <param name="channel">The surface that asks; the handler reads it as <see cref="RunAuthorizationRequest.Channel"/>.</param>
+    /// <param name="agentName">The name of the agent the run would start.</param>
+    /// <param name="sessionId">The session the run would continue or open, or <see langword="null"/>.</param>
+    /// <param name="cancellationToken">The cancellation token of the caller.</param>
+    /// <returns>The decision.</returns>
+    /// <remarks>
+    /// The public overload says <see cref="RunChannel.Embedded"/>: the host's own code is the caller. A surface Tracon
+    /// serves itself (the voice socket) names its own channel, so a handler can tell the two apart.
+    /// </remarks>
+    internal async ValueTask<RunAdmissionDecision> CheckAsync(
+        RunChannel channel,
+        string agentName,
+        string? sessionId,
+        CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
 
@@ -92,6 +109,7 @@ public sealed class RunAdmission
             SessionId = sessionId,
             UserId = userId,
             Access = RunAccess.Start,
+            Channel = channel,
         };
 
         var outcome = await RunAdmissionRules.AuthorizeStartAsync(_handler, request, cancellationToken).ConfigureAwait(false);

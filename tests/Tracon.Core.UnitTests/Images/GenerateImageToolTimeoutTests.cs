@@ -28,7 +28,7 @@ public sealed class GenerateImageToolTimeoutTests
         {
             options.Enabled = true;
             options.Provider = "custom";
-            options.Model = "image-1";
+            options.Providers["custom"] = new TraconImageProviderOptions { Model = "image-1" };
             configure?.Invoke(options);
         });
         services.AddSingleton<IImageGenerator>(new StubImageGenerator());

@@ -6904,7 +6904,7 @@
           "Images"
         ],
         "summary": "Generates images and saves them as attachments.",
-        "description": "This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. To record usage in tool_invocations, use the agent\u0027s generate_image tool instead. Returns 403 when the tenant\u0027s egress policy does not allow the image provider, or when the tenant has its own credential for it: the generator uses the setup credential, and the image is not generated on it.",
+        "description": "This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. \u0027provider\u0027 and \u0027model\u0027 choose what draws; without them the configured default draws. An unregistered provider, or one with no model, returns 400. To record usage in tool_invocations, use the agent\u0027s generate_image tool instead. Returns 403 when the tenant\u0027s egress policy does not allow the image provider, or when the tenant has its own credential for it: the generator uses the setup credential, and the image is not generated on it.",
         "operationId": "TraconGenerateImage",
         "requestBody": {
           "content": {
@@ -7057,8 +7057,8 @@
           "Tracon",
           "Runs"
         ],
-        "summary": "Lists the non-token usage items a run\u0027s workflow function nodes reported.",
-        "description": "Each item is one call of IWorkflowContext.ReportUsageAsync, in the order reported: the node\u0027s name, the unit and quantity, and the amount when the node reported one. The items of the run itself only, not of the runs below it; a tool\u0027s measurement stays on GET /api/runs/{runId}/tools. The run\u0027s total is on the run record (nonTokenCost, treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.",
+        "summary": "Lists the non-token usage items a run reported.",
+        "description": "Each item is one report, in the order reported: a workflow function node\u0027s IWorkflowContext.ReportUsageAsync, or a call of the host\u0027s image or speech service made inside the run (IImageGenerationService, ISpeechSynthesisService). It carries the node\u0027s name (null for a media service call), the unit and quantity, and the amount when one was reported. The items of the run itself only, not of the runs below it; a tool\u0027s measurement stays on GET /api/runs/{runId}/tools. The run\u0027s total is on the run record (nonTokenCost, treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.",
         "operationId": "TraconListRunNonTokenUsage",
         "parameters": [
           {
@@ -13585,6 +13585,20 @@
               "string"
             ],
             "description": "Gets the session to which generated attachments belong."
+          },
+          "provider": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the image provider to draw with (openai, azure-openai or google). Defaults to Tracon:Images:Provider, or the only registered one."
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the model or Azure deployment to draw with. Defaults to the provider\u0027s configured model."
           }
         },
         "description": "The request body for an operator image-generation action."
@@ -15534,7 +15548,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the name of the function node that reported the item, or \u0060null\u0060\nwhen the reporting code did not run inside a function node Tracon registered\n(a custom executor in a graph built in code, for example)."
+            "description": "Gets the name of the function node that reported the item, or \u0060null\u0060\nwhen the reporting code did not run inside a function node Tracon registered\n(a custom executor in a graph built in code, or a media service call)."
           },
           "usage": {
             "description": "Gets the measurement and its amount.",
@@ -15546,7 +15560,7 @@
             "format": "date-time"
           }
         },
-        "description": "One non-token item a workflow function node reported: the persistent record behind\n\u0060GET /api/runs/{runId}/usage\u0060."
+        "description": "One non-token item reported inside a run: the persistent record behind\n\u0060GET /api/runs/{runId}/usage\u0060."
       },
       "OnlineEvaluationSummary": {
         "required": [
@@ -16936,7 +16950,8 @@
         "enum": [
           "Agent",
           "Workflow",
-          "Eval"
+          "Eval",
+          "Step"
         ],
         "description": "Reports what a \u0060runs\u0060 row records."
       },
@@ -17118,10 +17133,10 @@
           },
           "agentName": {
             "type": "string",
-            "description": "Gets the name of the agent that ran. For workflow runs this is the workflow\nname: the existing lists, statistics and user interface read this column, and\nleaving it empty would show workflow rows without a name."
+            "description": "Gets the name of the agent that ran. For workflow runs this is the workflow\nname, and for step runs the name the host gave the step: the existing lists,\nstatistics and user interface read this column, and leaving it empty would show\nthose rows without a name."
           },
           "kind": {
-            "description": "Gets whether this row records an agent or a workflow.",
+            "description": "Gets whether this row records an agent, a workflow, an eval case or a step.",
             "$ref": "#/components/schemas/RunKind"
           },
           "workflowName": {
@@ -17326,7 +17341,7 @@
                 "type": "null"
               },
               {
-                "description": "Gets what this run itself reported as spent that is not tokens \u2014 the amounts its\nworkflow function nodes and tools reported. \u0060null\u0060 when it\nreported nothing.",
+                "description": "Gets what this run itself reported as spent that is not tokens \u2014 the amounts its\nworkflow function nodes, tools and media service calls reported. \u0060null\u0060 when it\nreported nothing.",
                 "$ref": "#/components/schemas/RunNonTokenCost"
               }
             ]

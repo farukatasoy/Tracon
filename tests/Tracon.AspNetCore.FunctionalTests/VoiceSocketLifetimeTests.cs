@@ -125,6 +125,66 @@ public sealed class VoiceSocketLifetimeTests
     }
 
     [Fact]
+    public async Task A_silence_limit_the_host_set_closes_the_connection_before_the_global_one_would()
+    {
+        var global = TimeSpan.FromHours(1);
+        var hosts = TimeSpan.FromSeconds(173);
+
+        await using var host = await KestrelVoiceHost.StartAsync(
+            options =>
+            {
+                options.IdleTimeout = global;
+                options.MaxConnectionDuration = TimeSpan.FromHours(2);
+            },
+            resolve: (_, _) => ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings { IdleTimeout = hosts }));
+
+        var (socket, client) = await host.ConnectAsync();
+
+        await using var _ = client;
+
+        // The wait that is armed is the host's, not the global value: the connection is told apart from any other.
+        await host.WaitForTimerAsync(hosts);
+        host.Clock.Pending.ShouldNotContain(global);
+        host.Clock.Advance(hosts);
+
+        (await client.ReceiveAsync()).ShouldBeNull("the server closes a connection that stayed silent past its own limit");
+        client.CloseStatus.ShouldBe(WebSocketCloseStatus.NormalClosure);
+        client.CloseDescription.ShouldBe("The connection stayed idle.");
+
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", TestContext.Current.CancellationToken);
+
+        (await host.WaitForRecordAsync()).EndReason.ShouldBe(VoiceSessionEndReason.IdleTimeout);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(7200)]
+    public async Task A_silence_limit_outside_the_range_is_the_resolvers_mistake_and_ends_the_start(int seconds)
+    {
+        // Zero, a negative value and a value above the global limit are refused, as a MaxDuration out of range is: a value
+        // that was changed silently would hide the mistake.
+        await using var host = await KestrelVoiceHost.StartAsync(
+            options => options.IdleTimeout = TimeSpan.FromHours(1),
+            resolve: (_, _) => ValueTask.FromResult<VoiceConnectionSettings?>(
+                new VoiceConnectionSettings { IdleTimeout = TimeSpan.FromSeconds(seconds) }));
+
+        var (socket, client) = await host.OpenAsync();
+
+        await using var _ = client;
+
+        await client.SendControlAsync(new { type = "start", agent = KestrelVoiceHost.Agent, inputFormat = "pcm16" });
+
+        (await client.WaitForAsync("error")).Text("message").ShouldBe("The conversation could not be started.");
+
+        (await client.ReceiveAsync()).ShouldBeNull();
+
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", TestContext.Current.CancellationToken);
+
+        (await host.WaitForRecordAsync()).EndReason.ShouldBe(VoiceSessionEndReason.Error);
+    }
+
+    [Fact]
     public async Task The_global_duration_limit_closes_cleanly_without_an_ended_frame()
     {
         var limit = TimeSpan.FromSeconds(613);

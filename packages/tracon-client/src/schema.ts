@@ -2339,7 +2339,7 @@ export interface paths {
         put?: never;
         /**
          * Generates images and saves them as attachments.
-         * @description This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. To record usage in tool_invocations, use the agent's generate_image tool instead. Returns 403 when the tenant's egress policy does not allow the image provider, or when the tenant has its own credential for it: the generator uses the setup credential, and the image is not generated on it.
+         * @description This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. 'provider' and 'model' choose what draws; without them the configured default draws. An unregistered provider, or one with no model, returns 400. To record usage in tool_invocations, use the agent's generate_image tool instead. Returns 403 when the tenant's egress policy does not allow the image provider, or when the tenant has its own credential for it: the generator uses the setup credential, and the image is not generated on it.
          */
         post: operations["TraconGenerateImage"];
         delete?: never;
@@ -2396,8 +2396,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lists the non-token usage items a run's workflow function nodes reported.
-         * @description Each item is one call of IWorkflowContext.ReportUsageAsync, in the order reported: the node's name, the unit and quantity, and the amount when the node reported one. The items of the run itself only, not of the runs below it; a tool's measurement stays on GET /api/runs/{runId}/tools. The run's total is on the run record (nonTokenCost, treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.
+         * Lists the non-token usage items a run reported.
+         * @description Each item is one report, in the order reported: a workflow function node's IWorkflowContext.ReportUsageAsync, or a call of the host's image or speech service made inside the run (IImageGenerationService, ISpeechSynthesisService). It carries the node's name (null for a media service call), the unit and quantity, and the amount when one was reported. The items of the run itself only, not of the runs below it; a tool's measurement stays on GET /api/runs/{runId}/tools. The run's total is on the run record (nonTokenCost, treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.
          */
         get: operations["TraconListRunNonTokenUsage"];
         put?: never;
@@ -4999,6 +4999,10 @@ export interface components {
             size?: null | string;
             /** @description Gets the session to which generated attachments belong. */
             sessionId?: null | string;
+            /** @description Gets the image provider to draw with (openai, azure-openai or google). Defaults to Tracon:Images:Provider, or the only registered one. */
+            provider?: null | string;
+            /** @description Gets the model or Azure deployment to draw with. Defaults to the provider's configured model. */
+            model?: null | string;
         };
         /** @description The result of an operator image-generation action. */
         ImageGenerationOperatorResponse: {
@@ -6018,7 +6022,7 @@ export interface components {
          */
         ModelProviderHealthStatus: "Unknown" | "Healthy" | "Degraded" | "Unhealthy";
         /**
-         * @description One non-token item a workflow function node reported: the persistent record behind
+         * @description One non-token item reported inside a run: the persistent record behind
          *     `GET /api/runs/{runId}/usage`.
          */
         NonTokenUsageRecord: {
@@ -6035,7 +6039,7 @@ export interface components {
             /**
              * @description Gets the name of the function node that reported the item, or `null`
              *     when the reporting code did not run inside a function node Tracon registered
-             *     (a custom executor in a graph built in code, for example).
+             *     (a custom executor in a graph built in code, or a media service call).
              */
             nodeName?: null | string;
             /** @description Gets the measurement and its amount. */
@@ -6765,7 +6769,7 @@ export interface components {
          * @description Reports what a `runs` row records.
          * @enum {unknown}
          */
-        RunKind: "Agent" | "Workflow" | "Eval";
+        RunKind: "Agent" | "Workflow" | "Eval" | "Step";
         /** @description A label's run summary; one entry per distinct key/value pair. */
         RunLabelStatistics: {
             /** @description The label key. */
@@ -6866,11 +6870,12 @@ export interface components {
             id: string;
             /**
              * @description Gets the name of the agent that ran. For workflow runs this is the workflow
-             *     name: the existing lists, statistics and user interface read this column, and
-             *     leaving it empty would show workflow rows without a name.
+             *     name, and for step runs the name the host gave the step: the existing lists,
+             *     statistics and user interface read this column, and leaving it empty would show
+             *     those rows without a name.
              */
             agentName: string;
-            /** @description Gets whether this row records an agent or a workflow. */
+            /** @description Gets whether this row records an agent, a workflow, an eval case or a step. */
             kind?: components["schemas"]["RunKind"];
             /**
              * @description Gets the name of the workflow. Populated only on

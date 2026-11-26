@@ -474,7 +474,7 @@ public sealed class NonTokenCostAccumulatorTests
         await RecordCallAsync(store, runId, "call-3", usage: null);
         await RecordCallAsync(store, runId, "call-4", Item(100m, "EUR"));
 
-        var snapshot = (await NonTokenCostAccumulator.SnapshotFromToolInvocationsAsync(store, runId, "USD", TestContext.Current.CancellationToken))
+        var snapshot = (await NonTokenCostAccumulator.SnapshotFromRecordsAsync(store, runId, "USD", TestContext.Current.CancellationToken))
             .ShouldNotBeNull();
 
         snapshot.Amount.ShouldBe(0.75m);
@@ -492,9 +492,28 @@ public sealed class NonTokenCostAccumulatorTests
         await RecordCallAsync(store, quiet, "call-1", usage: null);
         await RecordCallAsync(store, anonymous, callId: null, Item(0.4m));
 
-        (await NonTokenCostAccumulator.SnapshotFromToolInvocationsAsync(store, quiet, "USD", TestContext.Current.CancellationToken)).ShouldBeNull();
-        (await NonTokenCostAccumulator.SnapshotFromToolInvocationsAsync(store, anonymous, "USD", TestContext.Current.CancellationToken))
+        (await NonTokenCostAccumulator.SnapshotFromRecordsAsync(store, quiet, "USD", TestContext.Current.CancellationToken)).ShouldBeNull();
+        (await NonTokenCostAccumulator.SnapshotFromRecordsAsync(store, anonymous, "USD", TestContext.Current.CancellationToken))
             .ShouldNotBeNull().Amount.ShouldBe(0.4m);
+    }
+
+    [Fact]
+    public async Task The_snapshot_of_a_run_adds_its_items_and_what_its_tools_measured_each_once()
+    {
+        // A tool of an agent run that calls a media service writes an item beside the call's own measurement.
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var runId = TraconId.NewId();
+
+        await RecordCallAsync(store, runId, "call-1", Item(0.25m));
+        await store.RecordNonTokenUsageAsync(
+            new NonTokenUsageRecord { Id = TraconId.NewId(), RunId = runId, Usage = Item(0.5m), CreatedAt = DateTimeOffset.UnixEpoch },
+            TestContext.Current.CancellationToken);
+
+        var snapshot = (await NonTokenCostAccumulator.SnapshotFromRecordsAsync(store, runId, "USD", TestContext.Current.CancellationToken))
+            .ShouldNotBeNull();
+
+        snapshot.Amount.ShouldBe(0.75m);
+        snapshot.UnsummedItemCount.ShouldBe(0);
     }
 
     private static async ValueTask RecordCallAsync(InMemoryRunStore store, Guid runId, string? callId, ToolCallUsage? usage)

@@ -83,6 +83,27 @@ internal static class BearerTokenValidator
         return candidate.Length == 0 ? null : candidate;
     }
 
+    /// <summary>Extracts the value of a <c>Bearer</c> header whatever the case of the scheme name.</summary>
+    /// <param name="authorizationHeader">The raw header.</param>
+    /// <returns>The value; <see langword="null"/> when the header carries no <c>Bearer</c> scheme or is empty.</returns>
+    /// <remarks>
+    /// The name of an HTTP authentication scheme is not case sensitive, and a client may send <c>bearer</c>. Tracon's own
+    /// credentials are read with <see cref="TryExtractToken"/>, as they always were; this reading only lets the filter tell a
+    /// value shaped like a Tracon key from the host's own, so that the shape cannot be hidden behind the case of the scheme.
+    /// </remarks>
+    public static string? TryExtractTokenAnyCase(string? authorizationHeader)
+    {
+        if (string.IsNullOrEmpty(authorizationHeader) ||
+            !authorizationHeader.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var candidate = authorizationHeader[BearerPrefix.Length..].Trim();
+
+        return candidate.Length == 0 ? null : candidate;
+    }
+
     private static void HashUtf8(ReadOnlySpan<char> value, Span<byte> destination)
     {
         var byteCount = Encoding.UTF8.GetByteCount(value);

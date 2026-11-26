@@ -377,6 +377,10 @@ all become usable, since they depend on state outliving a request. A resolved
 [approval presentation](/concepts/governance/#approvals) is persisted next to the
 raw call arguments, so it survives a restart the same way the arguments do.
 
+A run's row belongs to the tenant that opened it and never changes hands: starting a run with an id
+that a run of another tenant holds writes nothing and throws, in all four stores, and the stores of
+your own (`IRunStore`) are held to it by the contract suite.
+
 The job queue is one of those tables, and every process that connects to the same database
 shares it. The job worker is on by default, so a process with no `Tracon:Scheduling` section
 **joins that queue** and leases its jobs. Set `Tracon:Scheduling:RunWorker` to `false` in a process

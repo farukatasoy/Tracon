@@ -319,9 +319,14 @@ export function RunsScreen(): ReactNode {
                       </span>
                     </Td>
                     <Td>
-                      <Link to={`agents/${encodeURIComponent(run.agentName)}`} className="text-muted hover:text-fg">
-                        {run.agentName}
-                      </Link>
+                      {run.kind === 'Step' ? (
+                        // A step run carries the name its host gave the step: there is no agent page to open.
+                        <span className="text-muted">{run.agentName}</span>
+                      ) : (
+                        <Link to={`agents/${encodeURIComponent(run.agentName)}`} className="text-muted hover:text-fg">
+                          {run.agentName}
+                        </Link>
+                      )}
                     </Td>
                     <Td>
                       <StatusBadge status={run.status} />

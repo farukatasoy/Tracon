@@ -52,6 +52,7 @@ public sealed class ExternalSurfaceRunAuthorizationTests
 
         var request = handler.RunRequests.ShouldHaveSingleItem();
         request.Access.ShouldBe(RunAccess.Start);
+        request.Channel.ShouldBe(RunChannel.A2A);
         request.AgentName.ShouldBe(Agent);
         request.TenantId.ShouldBe("default");
         request.UserId.ShouldBe("ada");
@@ -184,6 +185,7 @@ public sealed class ExternalSurfaceRunAuthorizationTests
 
         var request = handler.RunRequests.ShouldHaveSingleItem();
         request.Access.ShouldBe(RunAccess.Start);
+        request.Channel.ShouldBe(RunChannel.Mcp);
         request.AgentName.ShouldBe(Agent);
         request.TenantId.ShouldBe("default");
         request.UserId.ShouldBe("ada");

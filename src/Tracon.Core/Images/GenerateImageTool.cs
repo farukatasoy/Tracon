@@ -74,7 +74,8 @@ internal sealed class GenerateImageTool : AIFunction
         var prompt = RequireText(arguments, "prompt");
         var count = OptionalCount(arguments, "count") ?? 1;
         var (size, sizeKey) = OptionalSize(arguments, "size");
-        var options = Resolve<IOptions<TraconImageOptions>>().Value;
+        var selection = Resolve<ImageProviderSelection>();
+        var options = selection.Options;
 
         if (count > options.MaxImagesPerRequest)
         {
@@ -90,20 +91,16 @@ internal sealed class GenerateImageTool : AIFunction
         var tenantId = scope.TenantId
             ?? throw new TraconException("Image generation requires a tenant-bound Tracon run scope.");
 
+        // One read: the provider, its model and its settings belong together, so the model of one provider is never given
+        // to the request of another.
+        var chosen = selection.Select();
+
         var generator = await Resolve<ImageGeneratorResolver>()
-            .ResolveForTenantAsync(tenantId, cancellationToken)
+            .ResolveForTenantAsync(tenantId, chosen.Provider, cancellationToken)
             .ConfigureAwait(false);
 
         var response = await generator
-            .GenerateAsync(
-                new ImageGenerationRequest(prompt),
-                new ImageGenerationOptions
-                {
-                    Count = count,
-                    ImageSize = size,
-                    ModelId = options.Model,
-                },
-                cancellationToken)
+            .GenerateAsync(new ImageGenerationRequest(prompt), chosen.ToOptions(count, size), cancellationToken)
             .ConfigureAwait(false);
 
         if (response.Contents.Count == 0)
@@ -112,8 +109,8 @@ internal sealed class GenerateImageTool : AIFunction
         }
 
         var usage = Resolve<ImagePricing>().Measure(
-            options.Provider!,
-            options.Model!,
+            chosen.Provider,
+            chosen.Model,
             sizeKey,
             response.Contents.Count,
             response.Usage?.OutputTokenCount);
@@ -127,8 +124,8 @@ internal sealed class GenerateImageTool : AIFunction
             Quantity = usage.Quantity,
             Cost = usage.Cost,
             Currency = usage.Currency,
-            Provider = options.Provider,
-            Model = options.Model,
+            Provider = chosen.Provider,
+            Model = chosen.Model,
         });
 
         var attachments = await Resolve<ImageAttachmentWriter>()

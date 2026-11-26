@@ -126,6 +126,24 @@ with `?provider=gpu`, and a workflow function node with
 `ISpeechProviderResolver.GetSynthesizerAsync("gpu")`. The tools always use the
 default. `GET /api/voice/providers` lists the registrations.
 
+The built-in client holds one concurrency limit (`MaxConcurrentRequests`) for synthesis,
+dialogue and transcription. When a batch and live conversations share a host, give the batch
+a second client with a pool of its own; it is the same provider (`elevenlabs`) to the
+tenant's policy, its key and the price:
+
+```csharp
+builder.AddTracon()
+       .UseVoice(configuration.GetSection(VoiceOptions.SectionName))
+       .AddElevenLabsSynthesizer("batch", options => options.MaxConcurrentRequests = 4);
+```
+
+## When a call fails
+
+A failed call to ElevenLabs throws `ProviderInvocationException`, the type a failed model
+call throws: `Provider`, `StatusCode` (`null` when no answer came), `IsTransient` and
+`ProviderErrorCode`, the provider's machine-readable code (`voice_not_found`,
+`quota_exceeded`) and never its sentence.
+
 ## Dialogue with several speakers
 
 The built-in client also voices a dialogue: an ordered list of turns, each with its

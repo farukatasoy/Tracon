@@ -143,7 +143,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         CancellationToken cancellationToken)
     {
         using var message = BuildSynthesisRequest(request, voiceId, format, settings, streaming: false, withTimestamps: false);
-        using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        using var response = await SendToProviderAsync(message, HttpCompletionOption.ResponseContentRead, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
 
         await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
 
@@ -180,7 +180,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         CancellationToken cancellationToken)
     {
         using var message = BuildSynthesisRequest(request, voiceId, format, settings, streaming: false, withTimestamps: true);
-        using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        using var response = await SendToProviderAsync(message, HttpCompletionOption.ResponseContentRead, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
 
         await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
 
@@ -230,8 +230,11 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         {
             using var message = BuildSynthesisRequest(request, voiceId, format, settings, streaming: true, withTimestamps: false);
 
-            using var response = await _http
-                .SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            using var response = await SendToProviderAsync(
+                    message,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    "Speech stream could not be started",
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             await EnsureSuccessAsync(response, "Speech stream could not be started", cancellationToken).ConfigureAwait(false);
@@ -244,7 +247,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
 
                 while (true)
                 {
-                    var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                    var read = await ReadStreamAsync(stream, buffer, cancellationToken).ConfigureAwait(false);
 
                     if (read == 0)
                     {
@@ -295,7 +298,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         try
         {
             using var message = BuildDialogueRequest(request, settings, model, format);
-            using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            using var response = await SendToProviderAsync(message, HttpCompletionOption.ResponseContentRead, "Dialogue could not be generated", cancellationToken).ConfigureAwait(false);
 
             await EnsureSuccessAsync(response, "Dialogue could not be generated", cancellationToken).ConfigureAwait(false);
 
@@ -366,7 +369,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             using var message = new HttpRequestMessage(HttpMethod.Get, Combine(target.Endpoint, path));
             AddApiKey(message, target);
 
-            using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            using var response = await SendToProviderAsync(message, HttpCompletionOption.ResponseContentRead, "Voice list could not be retrieved", cancellationToken).ConfigureAwait(false);
 
             await EnsureSuccessAsync(response, "Voice list could not be retrieved", cancellationToken).ConfigureAwait(false);
 
@@ -428,7 +431,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
 
             AddApiKey(message, target);
 
-            using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            using var response = await SendToProviderAsync(message, HttpCompletionOption.ResponseContentRead, "Speech could not be transcribed", cancellationToken).ConfigureAwait(false);
 
             await EnsureSuccessAsync(response, "Speech could not be transcribed", cancellationToken).ConfigureAwait(false);
 
@@ -463,19 +466,19 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
                 VoiceCount = voices.Count,
             };
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
-        }
-        catch (HttpRequestException exception)
+        catch (ProviderInvocationException exception) when (exception.StatusCode is null)
         {
             stopwatch.Stop();
 
-            // 🚨 exception.Message embeds the target address (host:port) in a
+            // 🚨 The transport failure's own message embeds the target address (host:port) in a
             // connection refusal. HttpRequestError is a category name that
             // carries no address.
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
+            return Unhealthy(
+                checkedAt,
+                stopwatch.Elapsed,
+                exception.InnerException is HttpRequestException transport
+                    ? $"Connection error ({transport.HttpRequestError})."
+                    : "Timed out.");
         }
         catch (JsonException)
         {
@@ -953,14 +956,70 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         }
     }
 
+    /// <summary>Sends one request, and reports a call that got no answer as a provider failure.</summary>
+    /// <remarks>
+    /// A refused connection and a timeout are the failures worth sending again, and a caller reads that from the same type an HTTP
+    /// failure has. The message is Tracon's: the transport's own text can carry the address. A cancellation the caller asked for
+    /// is a cancellation and is thrown as it is.
+    /// </remarks>
+    private async Task<HttpResponseMessage> SendToProviderAsync(
+        HttpRequestMessage message,
+        HttpCompletionOption completion,
+        string what,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _http.SendAsync(message, completion, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException exception)
+        {
+            throw ProviderInvocationException.FromTransport(
+                VoiceProviderNames.ElevenLabs,
+                $"{what}: Connection error ({exception.HttpRequestError}).",
+                exception);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw ProviderInvocationException.FromTransport(
+                VoiceProviderNames.ElevenLabs,
+                $"{what}: The request timed out.",
+                new TimeoutException("The speech request timed out.", exception));
+        }
+    }
+
+    /// <summary>Reads the next part of a streamed answer, and reports a broken stream as a provider failure.</summary>
+    private static async ValueTask<int> ReadStreamAsync(Stream stream, byte[] buffer, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or HttpRequestException && !cancellationToken.IsCancellationRequested)
+        {
+            throw ProviderInvocationException.FromTransport(
+                VoiceProviderNames.ElevenLabs,
+                "Speech stream was interrupted.",
+                exception as HttpRequestException ?? new HttpRequestException("The speech stream was interrupted.", exception));
+        }
+    }
+
     /// <summary>
     /// Turns a failed response into an understandable error.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The error text carries only the status code. The provider's response
     /// body echoes the request (i.e. the spoken text) and sometimes a key
     /// fragment; putting the body in the error would carry them into logs and
     /// the UI.
+    /// </para>
+    /// <para>
+    /// The failure is a <see cref="ProviderInvocationException"/>, the type a chat failure has: the status, whether sending the
+    /// call again can change the answer, and the one thing of the body worth keeping, the machine-readable code
+    /// (<c>detail.status</c>: <c>voice_not_found</c>, <c>quota_exceeded</c>). Only a token of that shape is carried; the
+    /// provider's sentence is not.
+    /// </para>
     /// </remarks>
     private static async ValueTask EnsureSuccessAsync(
         HttpResponseMessage response,
@@ -972,8 +1031,18 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             return;
         }
 
-        // The body is read and DISCARDED: consumed so the connection closes cleanly.
-        _ = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        // The body is read to be consumed, so the connection closes cleanly. Only the code in it is kept, and a body that cannot
+        // be read (the connection dropped while the error was coming) is a failure with no code, not a different failure.
+        byte[] body;
+
+        try
+        {
+            body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or IOException && !cancellationToken.IsCancellationRequested)
+        {
+            body = [];
+        }
 
         var hint = (int)response.StatusCode switch
         {
@@ -984,6 +1053,53 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             _ => string.Empty,
         };
 
-        throw new TraconException($"{what}: HTTP {(int)response.StatusCode}.{hint}");
+        throw ProviderInvocationException.FromResponse(
+            VoiceProviderNames.ElevenLabs,
+            (int)response.StatusCode,
+            $"{what}: HTTP {(int)response.StatusCode}.{hint}",
+            ReadErrorCode(body));
+    }
+
+    /// <summary>Reads the machine-readable code of a failed answer; never anything else of its body.</summary>
+    /// <param name="body">The answer's body.</param>
+    /// <returns>
+    /// <c>detail.status</c>, else <c>detail.code</c>, else <c>detail.type</c>, when it has the shape of a code; otherwise
+    /// <see langword="null"/>.
+    /// </returns>
+    private static string? ReadErrorCode(byte[] body)
+    {
+        // An error answer is small. A body past this size is not one, and is not parsed.
+        if (body.Length is 0 or > 16 * 1024)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+
+            // A body that is JSON and not an object (an array, a string, a number) has no property to read.
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("detail", out var detail)
+                || detail.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var name in new[] { "status", "code", "type" })
+            {
+                if (detail.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                    && ProviderErrorCodes.IsCode(value.GetString()))
+                {
+                    return value.GetString();
+                }
+            }
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
+        {
+            // Not JSON, or not text a code can be read from: a gateway's page. There is no code to read.
+        }
+
+        return null;
     }
 }

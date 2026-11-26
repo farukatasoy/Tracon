@@ -2009,6 +2009,43 @@ if (builder.Configuration["Tracon:Demo:AGUIExtraPattern"] is { Length: > 0 } ext
     app.MapTraconAGUI(extraAgUiPattern);
 }
 
+// A STEP RUN: work this application does without a model, recorded as a run of its own. The step voices a sentence with the
+// local "tone" engine through the measured speech service, so the run keeps the billed characters as its non-token item:
+//
+//   POST /demo/steps/narration?text=Welcome%20to%20the%20show
+//   GET  /tracon/api/runs/{runId}          "kind": "Step", "nonTokenCost"
+//   GET  /tracon/api/runs/{runId}/usage    the characters the engine billed
+//
+// This endpoint is the application's own and Tracon does not protect it; a real host puts its own authorization on it.
+app.MapPost("/demo/steps/narration", static async (
+    ITraconStepRunner steps,
+    ISpeechSynthesisService speech,
+    string? text,
+    CancellationToken cancellationToken) =>
+{
+    var sentence = string.IsNullOrWhiteSpace(text) ? "Welcome to the show." : text;
+
+    if (sentence.Length > 500)
+    {
+        return Results.BadRequest("'text' takes at most 500 characters.");
+    }
+
+    var runId = Guid.CreateVersion7();
+
+    var audioBytes = await steps.RunAsync(
+        new TraconStepOptions { Name = "narration-step", RunId = runId },
+        async stepToken =>
+        {
+            var spoken = await speech.SynthesizeAsync(
+                new SpeechRequest { Text = sentence }, ToneSpeechSynthesizer.Name, stepToken);
+
+            return spoken.Audio.Data.Length;
+        },
+        cancellationToken);
+
+    return Results.Ok(new { runId, audioBytes });
+});
+
 app.Run();
 
 // The graph of the two approval workflows registered earlier. The workflow name is passed in:

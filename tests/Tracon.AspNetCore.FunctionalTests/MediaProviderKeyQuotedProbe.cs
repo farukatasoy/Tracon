@@ -28,11 +28,8 @@ public sealed class MediaProviderKeyQuotedProbe
             "google-image",
             static (builder, key, endpoint) => builder
                 .UseGoogle(key, options => options.Endpoint = endpoint)
-                .UseGoogleImages(static options =>
-                {
-                    options.Enabled = true;
-                    options.Model = "canary-image-model";
-                }),
+                .UseGoogleImages(static provider => provider.Model = "canary-image-model")
+                .ConfigureImages(static images => images.Enabled = true),
             HttpMethod.Post,
             "/tracon/api/images/generate",
             new { prompt = "a cat" },

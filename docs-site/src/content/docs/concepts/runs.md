@@ -13,6 +13,15 @@ and after the first store failure, recording stops for the rest of that run. Whi
 records carry a stronger guarantee than this one is set out in
 [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written).
 
+Four kinds of work record a run, named by its `kind`:
+
+| `kind` | What the run records |
+|---|---|
+| `Agent` | One execution of an agent |
+| `Workflow` | One execution of a [workflow](/concepts/workflows/) |
+| `Eval` | A call an [evaluation](/concepts/evaluation/) makes |
+| `Step` | A [step your own code runs](/guides/step-runs/) without a model of its own |
+
 ## How recording happens
 
 `IAgentCatalog.ResolveAsync` applies the registered decorators. The four built-in

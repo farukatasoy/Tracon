@@ -69,6 +69,7 @@ internal sealed partial class InMemoryRunStore
         var isNew = false;
         var requested = record;
         var applied = true;
+        var otherTenant = false;
 
         record = _runs.AddOrUpdate(
             requested.Id,
@@ -82,6 +83,17 @@ internal sealed partial class InMemoryRunStore
             (_, previous) =>
             {
                 isNew = false;
+
+                // A row never changes hands: an id another tenant's run holds is not this tenant's to write. The row is left as
+                // it is, and the call says so below.
+                otherTenant = !string.Equals(previous.TenantId, requested.TenantId, StringComparison.Ordinal);
+
+                if (otherTenant)
+                {
+                    applied = false;
+
+                    return previous;
+                }
 
                 // The delegate runs again when another writer got in first, so it sets the flag on every pass. A row that
                 // left the queue is returned as it is: the one step that reads the status is the one that writes.
@@ -107,6 +119,15 @@ internal sealed partial class InMemoryRunStore
                     CancelRequestedAt = previous.CancelRequestedAt,
                 };
             });
+
+        if (otherTenant)
+        {
+            // The write that leaves the queue writes nothing, as it does for a row that is not queued; an ordinary start has no
+            // row to answer with, and says so.
+            written = false;
+
+            return onlyIfQueued ? record : throw new TraconException($"A run with id '{requested.Id}' already exists.");
+        }
 
         if (isNew)
         {

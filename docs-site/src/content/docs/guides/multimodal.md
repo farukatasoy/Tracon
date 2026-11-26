@@ -189,13 +189,22 @@ and run-recording behavior as every other server-side tool.
 ```csharp title="Program.cs"
 var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
-    .UseOpenAIImages(options =>
+    .UseOpenAIImages(provider =>
     {
-        options.Enabled = true;
-        options.Model = "gpt-image-1";
-        options.MaxImagesPerRequest = 1;
+        provider.Model = "gpt-image-1";
+
+        // The one provider setting: the image quality (low, medium, high or auto).
+        provider.ProviderSettings["openai.quality"] = JsonSerializer.SerializeToElement("medium");
+    })
+    .ConfigureImages(images =>
+    {
+        images.Enabled = true;
+        images.MaxImagesPerRequest = 1;
     });
 ```
+
+With two image providers registered, each keeps its own model and settings, and `images.Provider` names the one the tool
+and the operator endpoint draw with.
 
 Add `generate_image` to the agent's `ToolNames`. It accepts `prompt`, optional
 `count`, and optional `size` such as `1024x1024`. Its result contains attachment ids
@@ -212,6 +221,9 @@ to delete the earlier attachments. That cleanup is best effort: a storage delete
 failure is logged, the original generation failure is returned, and an operator can
 remove any remaining attachment through the normal attachment API.
 
+Code of your own that draws without an agent uses `IImageGenerationService`, which applies the same checks and records
+what the call spent on a [step run](/guides/step-runs/).
+
 The optional operator endpoint uses the same path outside a run:
 
 ```bash
@@ -221,8 +233,9 @@ curl -sS -X POST http://localhost:5081/tracon/api/images/generate \
   -d '{"prompt":"A teal lighthouse at dawn","sessionId":"case-4182"}'
 ```
 
-It is mapped only when images are enabled. The response has attachment descriptors
-and the observed image usage. It does not create a `tool_invocations` row because it
+It is mapped only when images are enabled. `provider` and `model` in the body choose what draws for one request;
+without them the default provider and its model draw, and an unregistered provider returns `400`. The response has
+attachment descriptors and the observed image usage. It does not create a `tool_invocations` row because it
 is not part of a run.
 
 Both paths apply the tenant's provider checks before the prompt leaves the process.

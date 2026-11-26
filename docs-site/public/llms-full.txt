@@ -147,10 +147,10 @@ claim to provide an operating-system sandbox.
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
 | Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
 | Multimodal messages | MAF content types plus stored attachments | Providers receive supported image, audio, document, and text content without a new Tracon message abstraction |
-| Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `Tracon:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
+| Image generation | `Use{OpenAI,AzureOpenAI,Google}Images()` and the Tracon:Images options | `UseOpenAIImages()`, `UseAzureOpenAIImages()` and `UseGoogleImages()` each keep their own model and settings, `ConfigureImages()` sets what they share, and a request can choose the provider. Optional `generate_image` tool stores a verified attachment and records image or token usage |
 | Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy; per-request provider settings (`elevenlabs.*`) are refused, never ignored, when unknown |
-| Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host; a Microsoft.Extensions.AI speech client binds to a name with `TextToSpeechClientBinding` or `SpeechToTextClientBinding`, `UseOpenAISpeech()` registers OpenAI speech as the provider `openai`, `UseGoogleSpeech()` Gemini speech as `gemini` |
-| Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and ISpeechDialogueSynthesizer | Several voices in one request and one audio result, with each turn's time range where the provider reports it, from a workflow function node; the built-in ElevenLabs client and `UseGoogleSpeech()` (two voices) implement it, and a request over the provider's voice or character limit is refused rather than split |
+| Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, `AddElevenLabsSynthesizer()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process (a second built-in ElevenLabs client has a concurrency pool of its own), selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host; a Microsoft.Extensions.AI speech client binds to a name with `TextToSpeechClientBinding` or `SpeechToTextClientBinding`, `UseOpenAISpeech()` registers OpenAI speech as the provider `openai`, `UseGoogleSpeech()` Gemini speech as `gemini` |
+| Multi-speaker dialogue | `GetDialogueSynthesizerAsync()` and ISpeechDialogueSynthesizer | Several voices in one request and one audio result, with each turn's time range where the provider reports it, from a workflow function node, through `ISpeechProviderResolver`; the built-in ElevenLabs client and `UseGoogleSpeech()` (two voices) implement it, and a request over the provider's voice or character limit is refused rather than split |
 | Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; the host can decide the voice and open or end the conversation; it is absent until registered |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
@@ -174,6 +174,7 @@ is the list.
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
 | Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin (fixed in the graph, or read from a run parameter), and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
 | Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; a spent cost or time ceiling stops the next function node from starting, and a spent cost quota of the tenant does too (`tenant_quota_exceeded`), and `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` exempts one from both; the ceiling is the logical run's, so a run that continues an earlier one (an answer, a resume, a recovery) starts from what the earlier runs spent; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
+| Step runs | `ITraconStepRunner` | Work your code does without a model call (an image, a voiced dialogue through `IImageGenerationService` and `ISpeechSynthesisService`) is a run of kind `Step` with its measured spend. See [Step runs](/guides/step-runs/) |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `UseScheduling()` | A process can run workers or act only as an API node |
 | Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution; an agent run and a workflow run, resume or respond queue the same way |
@@ -246,7 +247,7 @@ caller's role and key scopes. See the complete scope table in
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
 | OpenTelemetry traces | `ActivitySource` spans for runs, agents, chat calls, tools, embeddings, images, speech and workflow steps | Your exporter remains in control; Tracon can also persist a sample, and the stored spans carry no content unless you turn `RecordSensitiveData` on |
 | Metrics | Run counts, duration, tokens, cost, tools, errors, judges, background-job executions and attempt duration, plus optional quota and job-queue-depth gauges | Standard .NET metrics; high-cardinality tags are bounded and store-backed gauges are opt-in and cached |
-| Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free. `cost` is the token cost; what nodes and tools reported beyond tokens is `nonTokenCost` on the run |
+| Cost attribution | Per model, agent, run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free. `cost` is the token cost; what nodes, tools and media service calls reported beyond tokens is `nonTokenCost` on the run |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddTraconHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
@@ -273,7 +274,7 @@ graph instead of reporting it.
 | Embeddable chat widget | `Tracon.UI`'s `embed.js` asset (served once `UseUI()` is registered) | A page you embed the widget in, running under its own origin |
 | MCP client | `Tracon.Mcp` and `UseMcp()` | Agents that consume tools from remote MCP servers |
 | MCP server | `UseMcpServer()` and `MapTraconMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
-| AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. `TraconAGUIOptions.AcceptForwardedParameters` (off by default) lets the front end send run parameters in `forwardedProps.parameters`, and `TraconAGUIOptions.ResolveParameters` lets your own code decide them on the server instead, read by the run as `Host` values; the endpoint can be mapped under more than one pattern; an API key with the `ChatRun` scope reaches this endpoint and no other that asks for a scope; no frame carries `rawEvent`. See [AG-UI front ends](/guides/ag-ui/) |
+| AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. `TraconAGUIOptions.AcceptForwardedParameters` (off by default) lets the front end send run parameters in `forwardedProps.parameters`, and `TraconAGUIOptions.ResolveParameters` lets your own code decide them on the server instead, read by the run as `Host` values; `TraconAGUIOptions.ResolveGreeting` writes a conversation's first sentence to the history without a run; the endpoint can be mapped under more than one pattern; an API key with the `ChatRun` scope reaches this endpoint and no other that asks for a scope; no frame carries `rawEvent`. See [AG-UI front ends](/guides/ag-ui/) |
 | A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents; a `contextId` continues a conversation scoped to the caller |
 | Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients; the protocol is published |
 | Live voice sessions | `UseLiveVoice()`, a live provider, and `MapTracon()` | Browsers that speak to a provider-hosted model over WebRTC while Tracon supervises the session |
@@ -3025,11 +3026,19 @@ replace or compose with your own rules — see
 ### Decide a retry from the failure, not from its text
 
 A model call that fails throws `ProviderInvocationException`, a `TraconException` with
-error type `upstream_error`. Three properties answer what a job or a pipeline step asks:
-`Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when the
-failure carried none) and `IsTransient`. A failure with no status is one of three things:
-the provider answered nothing, it answered with a body the client could not read, or the
-request was never sent. `IsTransient` tells the last from the other two.
+error type `upstream_error`. The built-in speech client and the image generators throw the same
+type, so one `catch` covers every provider call. Four properties answer what a job or a pipeline
+step asks: `Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when the
+failure carried none), `IsTransient` and `ProviderErrorCode`. A failure with no status is one of
+three things: the provider answered nothing, it answered with a body the client could not read, or
+the request was never sent. `IsTransient` tells the last from the other two.
+
+`ProviderErrorCode` is the machine-readable code the provider put in its answer, and `null` when it
+put none: a short token such as `insufficient_quota` or `content_policy_violation` (letters, digits,
+`_`, `.` and `-`, at most 64 characters), never the provider's sentence. It tells a spent quota from a
+rate limit when both are a `429`. It is read from the OpenAI and Azure OpenAI client library's
+message, from the body the OpenAI image generator and the speech client read, and from nowhere else:
+a provider that reports its code another way leaves it `null`. The vocabulary is each provider's own.
 
 ```csharp
 async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken cancellationToken)
@@ -3212,6 +3221,15 @@ the agent running, so recording is best-effort rather than an availability depen
 and after the first store failure, recording stops for the rest of that run. Which
 records carry a stronger guarantee than this one is set out in
 [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written).
+
+Four kinds of work record a run, named by its `kind`:
+
+| `kind` | What the run records |
+|---|---|
+| `Agent` | One execution of an agent |
+| `Workflow` | One execution of a [workflow](/concepts/workflows/) |
+| `Eval` | A call an [evaluation](/concepts/evaluation/) makes |
+| `Step` | A [step your own code runs](/guides/step-runs/) without a model of its own |
 
 ## How recording happens
 
@@ -7607,6 +7625,10 @@ all become usable, since they depend on state outliving a request. A resolved
 [approval presentation](/concepts/governance/#approvals) is persisted next to the
 raw call arguments, so it survives a restart the same way the arguments do.
 
+A run's row belongs to the tenant that opened it and never changes hands: starting a run with an id
+that a run of another tenant holds writes nothing and throws, in all four stores, and the stores of
+your own (`IRunStore`) are held to it by the contract suite.
+
 The job queue is one of those tables, and every process that connects to the same database
 shares it. The job worker is on by default, so a process with no `Tracon:Scheduling` section
 **joins that queue** and leases its jobs. Set `Tracon:Scheduling:RunWorker` to `false` in a process
@@ -7881,6 +7903,23 @@ authentication pipeline:
 options.RequireAuthorization("TraconAdmin");
 ```
 
+### Your own bearer token
+
+A host that signs its users in with a JWT (or any bearer token of its own) can send that token to Tracon in the
+`Authorization` header. Tracon reads the same header for its static token and its API keys, so it decides whose a value
+is. A value is **yours** when your authentication has identified the caller and the value does not start with `ap_`, the
+mark of a Tracon API key. Tracon then treats the request as one that presented no header: your policies, the role
+policies, the run gate and the tenant checks decide it, and no key lookup is made. This holds on every endpoint
+Tracon maps that reads the bearer token: the management API, the AG-UI endpoint, the OpenAI-compatible routes, A2A and MCP.
+
+One surface keeps asking for a key: the MCP server and the A2A routes, once `AllowRemoteAccess` publishes them beyond
+loopback, answer `401 API key required` to a request without an API key of the `external:invoke` scope, whoever your
+authentication says the caller is.
+
+What does not change: a caller your authentication did not identify and who sends a value Tracon does not know is
+refused with `401`; a value that starts with `ap_` is Tracon's and must be a key the store accepts, whoever sent it; and
+when `AuthToken` is set, it is required.
+
 ## Roles
 
 Three policy names — `Reader`, `Operator`, `Admin` — that you bind to your own claims:
@@ -7907,7 +7946,8 @@ key. The identity is read from the request, so a policy that lets everyone throu
 not make an anonymous caller known, and a request from this machine is judged as before,
 `Host` and `Origin` included. With one or two policies registered nothing changes: the
 other roles' routes carry no policy. A bearer token in the `Authorization` header is
-still read by Tracon's own token layer, as an API key. `RequireProductionProfile()` still
+read by Tracon's own token layer, as an API key, unless your authentication has already identified the
+caller and the value is not shaped like one (see [your own bearer token](#your-own-bearer-token)). `RequireProductionProfile()` still
 asks for `AuthToken` or `RequireAuthorization`. The console shell and the OAuth callback
 sit outside the role policies; the shell carries no data.
 
@@ -8611,6 +8651,19 @@ authorization policy and the `Operator` role. What a browser front end adds is t
 | A claims principal (cookie, JWT, OpenID Connect) | The `Operator` role. A scope belongs to an API key, so a claims principal is gated by role alone |
 | The static `AuthToken` | The token. It carries no scope |
 
+### A front end that signs in with your own JWT
+
+A browser that carries your own bearer token sends it as `Authorization: Bearer <jwt>`, the way it calls the rest of
+your API. Your authentication reads that header and identifies the caller before Tracon sees the request, and Tracon
+accepts it: a header that is not Tracon's own credential is yours when your authentication has identified the caller.
+The request is then judged as one that carried no header, so your policies, the `Operator` role, the run gate and the
+tenant checks decide it, exactly as they do for a caller signed in with a cookie. You configure nothing for this.
+
+Two values stay Tracon's even then. A value shaped like a Tracon API key (it starts with `ap_`) is looked up in the key
+store and is refused when the store does not accept it, so a mistyped or revoked key never runs with the wider rights of
+the person who sent it. And when you set an `AuthToken`, the token is required, whoever signed in. A caller your
+authentication did not identify is refused with `401` as before, whatever the header says.
+
 `ChatRun` opens this endpoint and no other. A key that holds only `ChatRun` is refused with `403` by every
 management endpoint that asks for a scope — runs, sessions, agents, approvals, API keys — exactly as a key
 that lacks the scope of that endpoint is. It is the key to put in a front end's hands. Create one in the
@@ -8771,6 +8824,45 @@ app.MapTraconAGUI("/tracon/agui", options =>
 - **It fails closed.** A resolver that throws, or returns a null name or value, ends the request with `500` and the error
   type `parameter_resolution_failed`; no run starts. The answer carries neither the exception's text nor anything the
   front end sent. The exception and the thread are in the server log, and the values never are.
+
+### Open the conversation with a sentence of your own
+
+A conversation often starts with the assistant: "Hello Ada! Are you ready to start?". A front end can draw that sentence
+itself, but then the model never read it, the history does not hold it and the transcript an evaluation reads starts one line
+late. `TraconAGUIOptions.ResolveGreeting` is host code that decides the sentence on the server, and Tracon writes it to the
+thread's history:
+
+```csharp
+app.MapTraconAGUI("/tracon/agui", options =>
+    options.ResolveGreeting = (request, cancellationToken) =>
+        ValueTask.FromResult<string?>($"Hello {request.User.Identity?.Name}! Are you ready to start?"));
+```
+
+With a resolver set, a request that carries **no new input** (no user message, no tool result and no answer to an approval or a
+request for input) is an *opening request*. The front end sends it when it opens a thread, with the thread id and no messages:
+
+```json
+{ "threadId": "lesson-7", "runId": "open-1", "messages": [], "tools": [], "context": [] }
+```
+
+- **Nothing runs.** No model is called and no run is recorded. The answer is `RUN_STARTED`, one text message
+  (`TEXT_MESSAGE_START`, `TEXT_MESSAGE_CONTENT`, `TEXT_MESSAGE_END`) and `RUN_FINISHED`. There is no `tracon.run` event: no run
+  exists to name.
+- **It is in the history.** The sentence is an assistant message of the thread, so the agent's next turn reads it and knows it
+  has already greeted, and the transcript starts with it.
+- **It is said once.** A thread that has any history, or that another opening request wrote to first, is answered with
+  `RUN_STARTED` and `RUN_FINISHED` alone, and your code is not called. A `null` or blank text says nothing the same way.
+- **It runs after the gates.** The request passes the endpoint's access protection, run authorization, session ownership and
+  quota first, and the agent must exist, so your code is never called for a caller that was turned away. A tenant whose quota
+  is spent is not greeted, as it is not answered. An agent with required parameters needs them as for any run: decide them with
+  `ResolveParameters`.
+- **The text is yours.** It is not screened by a content guard and it is never taken from the front end. The resolver gets the
+  same request as the parameter resolver: the agent, the thread, the caller and what the front end sent in
+  `forwardedProps.parameters` (untrusted).
+- **It fails closed.** A resolver that throws ends the request with `500` and the error type `greeting_resolution_failed`;
+  nothing is written. The answer carries neither the exception's text nor anything the front end sent.
+
+Without a resolver an opening request is the `400 Empty request` it always was.
 
 ## Front-end tools
 
@@ -11726,7 +11818,7 @@ every page — three sizes for three questions, published on the documentation s
   what**: one line per hand-written page, with its title, address, and subject. At
   most 29 KiB; the build refuses a larger file.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 2300 KB. The capability map states the same figure.
+  page concatenated, about 2400 KB. The capability map states the same figure.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
@@ -12929,6 +13021,20 @@ and carries `request.RunId` so you can look that run up in your own records:
 | `Feedback` | Write or delete a score for the run |
 | `Attachment` | Upload, download, list, or delete an attachment |
 | `Approval` | List, read, or decide an approval request |
+
+`request.Channel` says which surface asked. An agent that one product opens on several surfaces is one agent and one
+user to the handler, so a rule such as "this agent runs by voice and nowhere else" needs the surface. Tracon sets the
+value in its own code at the place each surface asks; a caller cannot choose it.
+
+| `RunChannel` | The surface |
+|---|---|
+| `HttpApi` | The management API: the agent and workflow run endpoints, replays, evaluations, and every access to a run's resources, whatever surface started the run |
+| `AGUI` | The `MapTraconAGUI` endpoint |
+| `Voice` | The real-time voice conversation, at `start` and before every turn |
+| `OpenAIChatCompletions`, `OpenAIResponses` | The OpenAI-compatible endpoints |
+| `A2A`, `Mcp` | A message an A2A agent receives; an MCP `tools/call` |
+| `Trigger` | An inbound trigger, which has no user |
+| `Embedded` | Your own code, through `RunAdmission.CheckAsync` |
 
 ```csharp
 public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership) : IRunAuthorizationHandler
@@ -15387,24 +15493,28 @@ not safely inferred from an agent's chat model.
 
 ```csharp title="Program.cs"
 tracon
-    .UseOpenAIImages(options =>
-    {
-        options.Enabled = true;
-        options.Model = "gpt-image-1";
-    });
+    .UseOpenAIImages(provider => provider.Model = "gpt-image-1")
+    .ConfigureImages(images => images.Enabled = true);
 
 // Azure uses an image deployment name.
-// tracon.UseAzureOpenAIImages(options => options.Model = "image-deployment");
+// tracon.UseAzureOpenAIImages(provider => provider.Model = "image-deployment");
 
 // Google uses a provider image model. It does not support WIDTHxHEIGHT or a media type in this surface.
-// tracon.UseGoogleImages(options => options.Model = "gemini-2.5-flash-image");
+// tracon.UseGoogleImages(provider => provider.Model = "gemini-2.5-flash-image");
 ```
+
+Each call changes the settings of **its own provider** and nothing else, so two providers registered in one host never
+share a model. The model lives in `Tracon:Images:Providers:{name}:Model` when it comes from configuration.
 
 Each extension shares the authenticated client factory already created by `UseOpenAI`,
 `UseAzureOpenAI`, or `UseGoogle`; it adds no second credential path or package. The
-extensions register generators by provider name. When more than one is registered,
-set `Tracon:Images:Provider` to `openai`, `azure-openai`, or `google` to select
-the generator and matching price table. An unkeyed `IImageGenerator` that your
+extensions register generators by provider name. With one registered, it is the default. When more than one is
+registered, set `Tracon:Images:Provider` to `openai`, `azure-openai`, or `google` to select
+the generator and matching price table; the host does not start until you do.
+
+**A preview Google image model needs `GoogleProviderOptions.ApiVersion = "v1beta"`.** Google's default `v1` does not list the
+preview image models, and a call to one fails with a "not found for API version v1" answer. The version belongs to the Google
+provider and is shared by chat and images: raising it moves the chat models to `v1beta` as well. An unkeyed `IImageGenerator` that your
 application registers remains the fallback for a custom provider.
 
 `UseOpenAICompatible()` does not imply image support. Register a supported image
@@ -16726,13 +16836,22 @@ and run-recording behavior as every other server-side tool.
 ```csharp title="Program.cs"
 var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
-    .UseOpenAIImages(options =>
+    .UseOpenAIImages(provider =>
     {
-        options.Enabled = true;
-        options.Model = "gpt-image-1";
-        options.MaxImagesPerRequest = 1;
+        provider.Model = "gpt-image-1";
+
+        // The one provider setting: the image quality (low, medium, high or auto).
+        provider.ProviderSettings["openai.quality"] = JsonSerializer.SerializeToElement("medium");
+    })
+    .ConfigureImages(images =>
+    {
+        images.Enabled = true;
+        images.MaxImagesPerRequest = 1;
     });
 ```
+
+With two image providers registered, each keeps its own model and settings, and `images.Provider` names the one the tool
+and the operator endpoint draw with.
 
 Add `generate_image` to the agent's `ToolNames`. It accepts `prompt`, optional
 `count`, and optional `size` such as `1024x1024`. Its result contains attachment ids
@@ -16749,6 +16868,9 @@ to delete the earlier attachments. That cleanup is best effort: a storage delete
 failure is logged, the original generation failure is returned, and an operator can
 remove any remaining attachment through the normal attachment API.
 
+Code of your own that draws without an agent uses `IImageGenerationService`, which applies the same checks and records
+what the call spent on a [step run](/guides/step-runs/).
+
 The optional operator endpoint uses the same path outside a run:
 
 ```bash
@@ -16758,8 +16880,9 @@ curl -sS -X POST http://localhost:5081/tracon/api/images/generate \
   -d '{"prompt":"A teal lighthouse at dawn","sessionId":"case-4182"}'
 ```
 
-It is mapped only when images are enabled. The response has attachment descriptors
-and the observed image usage. It does not create a `tool_invocations` row because it
+It is mapped only when images are enabled. `provider` and `model` in the body choose what draws for one request;
+without them the default provider and its model draw, and an unregistered provider returns `400`. The response has
+attachment descriptors and the observed image usage. It does not create a `tool_invocations` row because it
 is not part of a run.
 
 Both paths apply the tenant's provider checks before the prompt leaves the process.
@@ -20364,6 +20487,218 @@ does not. Let waiting runs finish or expire before a structural change.
 
 ---
 
+# Step runs and measured media
+
+Source: https://tracon.dev/guides/step-runs/
+
+An agent run and a workflow run record themselves. A job that your own code does
+without a model — draw a cover, voice a script, render an episode — has no run, so its
+cost is in no run, no quota counter and no run tree. A **step run** closes that gap:
+your code opens it, does the work inside it, and Tracon records it like any other run.
+
+```mermaid
+flowchart LR
+    accTitle: A step run
+    accDescr: Host code opens a step run. Inside it, the image and speech services call the provider under the tenant's rules and record what each call spent on the run. An agent run started inside the step joins its tree.
+    H["Your code"] --> S["Step run<br/>ITraconStepRunner"]
+    S --> I["IImageGenerationService"]
+    S --> V["ISpeechSynthesisService"]
+    S --> A["Agent run<br/>ParentRunId = step"]
+    I --> U["Run record<br/>non-token items and cost"]
+    V --> U
+    A --> T["Run tree<br/>tokens and cost"]
+```
+
+## Open a step
+
+`ITraconStepRunner` runs a delegate as a run. The delegate gets a token that both your
+caller and `POST /api/runs/{id}/cancel` can cancel.
+
+```csharp
+app.MapPost("/episodes/{episode}", async (
+    string episode,
+    ITraconStepRunner steps,
+    IImageGenerationService images,
+    ISpeechSynthesisService speech,
+    CancellationToken cancellationToken) =>
+{
+    var stepRunId = Guid.CreateVersion7();
+
+    await steps.RunAsync(
+        new TraconStepOptions { Name = "podcast-render", RunId = stepRunId },
+        async stepToken =>
+        {
+            var cover = await images.GenerateAsync(
+                new TraconImageRequest { Prompt = $"Cover art for the episode {episode}" },
+                stepToken);
+            var intro = await speech.SynthesizeAsync(
+                new SpeechRequest { Text = "Welcome to the show." },
+                cancellationToken: stepToken);
+
+            // Store cover.Images and intro.Audio where your application keeps them.
+        },
+        cancellationToken);
+
+    return Results.Ok(new { runId = stepRunId });
+});
+```
+
+`RunAsync` also takes a delegate that returns a value. The run scope exists only inside
+the delegate: when `RunAsync` returns, your code is outside the run again.
+
+| Option | Meaning |
+|---|---|
+| `Name` | Required. It is the run's agent name in run lists, statistics and quota. At most 200 characters, with no surrounding whitespace |
+| `RunId` | The id of the run, when you want to know it before the step ends. Make it in your own code (`Guid.CreateVersion7()`), never from a client's request. An id a run of your tenant already has is refused. An id a run of another tenant holds is refused by the run store, which never gives a row to another tenant: that run is left as it was, the refusal is logged and the step runs without a record. Without it, Tracon makes one |
+| `ParentRunId` | A run of the **same tenant** to attach the step to. The step then belongs to that run's tree. A run of another tenant is refused the same way as a run that does not exist |
+
+## What the run holds
+
+The run has the kind `Step`, the current tenant, and the user and labels of your
+[run attribution](/concepts/starting-runs/). It ends `Completed` when the delegate
+returns, `Canceled` when its token was canceled, and `Failed` when the delegate throws.
+The exception reaches your caller unchanged, and the run keeps a classified error whose
+message follows the [same safety rule](/concepts/run-errors/) as every run error.
+
+A step has no model, no token usage and no input of its own. It holds:
+
+- the non-token items its code reported, in `GET /api/runs/{runId}/usage`, and their sum
+  in the run's `nonTokenCost`;
+- the runs below it, with their tokens and cost in the run's tree totals.
+
+A root step publishes the `run.completed` or `run.failed` [webhook](/concepts/webhooks/),
+writes one run to the tenant's [quota counter](/concepts/governance/) with its amount,
+and opens a run span for tracing.
+
+## Generate images and speech from code
+
+The two services are the code equivalent of the `generate_image` and `speak` tools. A
+keyed `IImageGenerator`, or a synthesizer from `ISpeechProviderResolver`, called
+directly records nothing — and the image generator then also skips the tenant checks and
+the failure mask.
+
+| Service | Call | Result |
+|---|---|---|
+| `IImageGenerationService` | `GenerateAsync(TraconImageRequest)` — prompt, count, size, and optionally provider and model | The images as bytes with their media type, the measurement, and whether it was recorded |
+| `ISpeechSynthesisService` | `SynthesizeAsync(SpeechRequest, provider)` | The audio, the measurement, and whether it was recorded |
+| `ISpeechSynthesisService` | `SynthesizeDialogueAsync(SpeechDialogueRequest, provider)` | The dialogue audio and its segments, the measurement, and whether it was recorded |
+
+Both services:
+
+- apply the tenant's egress policy and refuse a call when the tenant has its own key
+  that the setup-built client cannot use;
+- throw `ProviderInvocationException` with the provider, the status and whether a retry
+  can help when an image provider or the built-in ElevenLabs client fails (see
+  [decide a retry from the failure](/concepts/run-errors/#decide-a-retry-from-the-failure-not-from-its-text)).
+  The OpenAI and Gemini speech clients and a synthesizer of your own throw what they throw, usually a `TraconException`;
+- refuse a blank text, a dialogue without turns, and a text longer than the synthesizer takes before the provider is called;
+- record the measurement on the current run — a step, a workflow function node or a
+  tool call. Outside a run, the result still carries the measurement and
+  `UsageRecorded` is `false`.
+
+The image service does not need `Tracon:Images:Enabled`: that switch offers images to
+agents and over HTTP. It uses the [image provider settings](/guides/multimodal/#generate-an-image-as-an-attachment)
+and returns bytes; it saves no attachment.
+
+A cost appears when a price is configured; without one the amount is `null`, never zero:
+
+```json
+{
+  "Tracon": {
+    "Pricing": {
+      "Currency": "USD",
+      "Images": {
+        "openai": {
+          "gpt-image-1": { "PerImage": 0.04 }
+        }
+      },
+      "Voice": {
+        "elevenlabs": {
+          "eleven_multilingual_v2": { "PerMillionCharacters": 100 }
+        }
+      }
+    }
+  }
+}
+```
+
+## Agents inside a step
+
+An agent run started inside the delegate is a separate root run unless you say that the
+step is its parent:
+
+```csharp
+app.MapPost("/summaries", async (ITraconStepRunner steps, IAgentCatalog agents, CancellationToken cancellationToken) =>
+{
+    var stepRunId = Guid.CreateVersion7();
+
+    var summary = await steps.RunAsync(
+        new TraconStepOptions { Name = "nightly-summary", RunId = stepRunId },
+        async stepToken =>
+        {
+            var writer = await agents.ResolveAsync("writer", cancellationToken: stepToken)
+                ?? throw new InvalidOperationException("The writer agent is not registered.");
+
+            var response = await writer.RunAsync(
+                "Summarize today's tickets.",
+                options: new TraconRunOptions { ParentRunId = stepRunId },
+                cancellationToken: stepToken);
+
+            return response.Text;
+        },
+        cancellationToken);
+
+    return Results.Ok(new { runId = stepRunId, summary });
+});
+```
+
+The agent run then joins the step's tree: it shares the tree's budget, and its tokens
+and cost count toward the step's tree totals and the same quota counter. Naming the step as
+the parent makes the agent run a **child run**, with a child run's rules:
+
+- A tool that asks for approval fails the run instead of waiting. A child cannot wait for a
+  person in the middle of a tree: give the tool an automatic approval rule, or run the agent
+  outside the step.
+- Parameter values you bind for a child do not reach its tools.
+- It writes no webhook of its own and adds no run to the quota counter (the step's does),
+  and online evaluation does not sample it.
+
+The step's tenant is the agent's: an agent run that names a step of another tenant as its
+parent does not join that tree.
+
+## What a step does not do
+
+- **A step in a tool shares that run's ceiling.** A step that a tool of an agent run opens
+  with that run as its parent spends against the run's budget. A step opened with any other
+  parent, or none, has a budget of its own.
+- **It asks no admission question.** The run authorization handler and the quota check
+  sit in front of Tracon's HTTP endpoints. A step's spend is still counted. To refuse a
+  step before it starts, ask `RunAdmission.CheckAsync` with the step's name, as in
+  [embedding](/guides/embedding/).
+- **It is not replayed, continued or judged.** A step has no recorded input to run
+  again, and online evaluation does not sample it.
+- **Statistics count it, but their money is token money.** `/api/stats` counts the step
+  as a run under its name; `totalCost` there is the token cost, as for every run. Read a
+  step's non-token amount from the run, its tree or the quota counter.
+- **A store that fails does not stop it.** When the run cannot be written, or cannot be read
+  to check the `RunId` and the `ParentRunId` you named, the step still runs and the failure is
+  logged.
+- **With run recording off**, the delegate runs and nothing is recorded.
+
+## In the reference
+
+- [Runs HTTP API](/http-api/runs/)
+- [`ITraconStepRunner` API](/api/tracon.itraconsteprunner/)
+- [`IImageGenerationService` API](/api/tracon.iimagegenerationservice/)
+- [`ISpeechSynthesisService` API](/api/tracon.ispeechsynthesisservice/)
+
+## Read next
+
+- [Runs and recording](/concepts/runs/) — what every run keeps and how to read it.
+- [Observability and cost](/guides/observability/) — prices, usage and traces.
+
+---
+
 # Structured output
 
 Source: https://tracon.dev/guides/structured-output/
@@ -21511,6 +21846,13 @@ the second argument of your own `new WebSocket(url, [protocol, 'host.bearer.' + 
 createVoiceConversation({ baseUrl, sessionId, agent, subProtocols: () => ['host.bearer.' + currentJwt()] });
 ```
 
+OpenIddict validation has no `OnMessageReceived`. Add an event handler for its
+`ProcessAuthenticationContext` event with `AddValidation(...)`, ordered just after
+`ExtractAccessTokenFromQueryString`, and set `context.AccessToken` to the value
+`ReadHostToken` returns. Reject the request there (`context.Reject`) when it also carries a
+token in the query string or an `Authorization` header, or two values with your prefix, so one
+request carries one credential.
+
 These limits apply:
 
 - A subprotocol value holds only the characters of an HTTP token. A base64url JWT does
@@ -21566,6 +21908,31 @@ Nothing remembers how long an earlier connection of the same session lasted. A h
 allows a conversation a fixed total sums the time already used and returns what is left each
 time it is asked, or refuses the new connection in the resolver.
 
+### How long a person may stay silent
+
+`IdleTimeout` (2 minutes by default) closes a connection that sends no frame for that long. A
+host whose conversations differ in how long a person may think between turns (a long interview
+and a quick question) sets a different value for each connection with `IdleTimeout` in the
+resolver, next to `MaxDuration`:
+
+```csharp
+builder.AddTracon()
+    .UseVoiceConversation(options =>
+    {
+        options.ResolveConnection = (request, cancellationToken) =>
+            ValueTask.FromResult<VoiceConnectionSettings?>(new VoiceConnectionSettings
+            {
+                IdleTimeout = request.AgentName == "interview" ? TimeSpan.FromSeconds(90) : null,
+            });
+    });
+```
+
+The rule is `MaxDuration`'s: the value must be greater than zero and no greater than the
+`IdleTimeout` of the conversation options, which stays the ceiling, and anything else fails
+like any other mistake of the resolver. The close is the same as for the global limit
+(`The connection stayed idle.`, record end reason `IdleTimeout`). A client that must keep a
+quiet line open sends any frame, a silent audio frame for instance, inside the limit.
+
 ## Let the agent end the conversation
 
 An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation
@@ -21589,6 +21956,29 @@ If the user interrupts the goodbye (`cancel`), or the turn fails, the request is
 the conversation goes on. An agent that does not list the tool can never end a conversation,
 and the tool ends nothing when an agent runs outside a voice conversation. Every close has
 its own frame, description and end reason, [below](#how-a-conversation-closes).
+
+## What the agent says before a tool call
+
+An agent can say "one moment" before a lookup if its instructions tell it to. The words reach the
+caller **while the tool runs**: when the model's answer contains a tool call, the text it has
+produced so far is spoken before the tool starts, and the text after the tool is a sentence of its
+own. A sentence that ends the answer before the call needs no full stop to be heard.
+
+## Keep a batch from queueing a live turn
+
+The built-in speech client holds one concurrency pool (`MaxConcurrentRequests`, 2 by default) for synthesis, dialogue and
+transcription together. A batch that voices a podcast takes the slots a live conversation's turn waits for. Give the batch a
+**second built-in client** with a pool of its own and call it by name; the conversation keeps the default. The second client
+starts from the options of `UseVoice`; to the tenant's egress policy, its own key and the price it is still `elevenlabs`:
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .AddElevenLabsSynthesizer("batch", options => options.MaxConcurrentRequests = 4);
+```
+
+A failed call of the built-in client throws a `ProviderInvocationException`
+([run errors](/concepts/run-errors/#decide-a-retry-from-the-failure-not-from-its-text)).
 
 ## How a conversation closes
 
@@ -21771,7 +22161,8 @@ budget, the tenant's cost quota and the `run.completed` webhook count beside the
 cost. See [Report what a tool spent beyond tokens](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)
 for the rule, and
 [Report what a node spent beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
-for a workflow function node that voices text itself.
+for a workflow function node that voices text itself, and
+[step runs](/guides/step-runs/#generate-images-and-speech-from-code) for code of your own.
 If pricing is not configured, cost stays `null`: the measurement is listed as unpriced
 and left out of the total, because zero would claim the call was free.
 If the provider omits billed characters, the text length is used and marked as an
@@ -21858,6 +22249,9 @@ builder.AddTracon()
     .AddSpeechSynthesizer("gpu", _ => new LocalGpuSynthesizer(new Uri("http://gpu-01:9000/")))
     .AddSpeechTranscriber("gpu", _ => new LocalGpuTranscriber(new Uri("http://gpu-01:9000/")));
 ```
+
+A second **built-in** client is a name too, with a concurrency pool of its own, so a batch does not queue a live turn:
+[Keep a batch from queueing a live turn](/guides/voice-conversation-lifecycle/#keep-a-batch-from-queueing-a-live-turn).
 
 A name is 1 to 64 characters of `a-z`, `0-9`, `.`, `_` and `-`, compared in lower
 case; synthesizer and transcriber names are separate. Registering the same name twice
@@ -22089,8 +22483,8 @@ builder.AddTracon()
 | Usage | `Audio.CharactersBilled` comes from the provider when it reports a count (`UsageSource.Provider`), otherwise from the turns' text (`Estimated`). `Audio.ProviderRequestId` is the provider's id for the request |
 | Tenant rules | The same as every other speech call (next section), applied to the dialogue capability's `ProviderName`. A synthesizer without the capability fails the call with a message that names it; the built-in client is not used in its place |
 
-There is no dialogue tool and no dialogue HTTP endpoint: a dialogue is a workflow
-step, written in code.
+There is no dialogue tool and no dialogue HTTP endpoint: a dialogue is a step written
+in code, in a workflow node or a [step run](/guides/step-runs/) that records its spend.
 
 ### Provider request settings
 
@@ -25063,7 +25457,7 @@ Add these when you need them.
 | `Tracon.Google` | You call Gemini models, or speak and voice a two-voice dialogue with a Gemini text-to-speech model |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
-| `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents, under one pattern or several, and your code can decide an agent's run parameters on the server. It takes the AG-UI SDK, which the other packages never see |
+| `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents, under one pattern or several, and your code can decide an agent's run parameters and its first sentence on the server. It takes the AG-UI SDK, which the other packages never see |
 | `Tracon.Testing` | You write tests against agents — fakes, not mocks |
 | `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IAgentDefinitionSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
 | `Tracon.Templates` | `dotnet new tracon-api` |
@@ -26652,9 +27046,11 @@ image prices.
 
 ### Images
 
-`Tracon:Images` is off by default (`false`).<!-- claim:option TraconImageOptions.Enabled=false --> When `Enabled` is `true`, `Provider` and
-`Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
-the `generate_image` tool and maps `POST /api/images/generate`.
+`Tracon:Images` is off by default (`false`).<!-- claim:option TraconImageOptions.Enabled=false --> When `Enabled` is `true`, the default
+provider must be known (`Provider`, or the only registered provider) and `Providers:{name}:Model` must be set for it;
+`MaxImagesPerRequest` must be at least one. Enabling it adds the `generate_image` tool and maps `POST /api/images/generate`.
+Every image provider keeps its own model under `Providers:{name}`, so a host with two providers sends each request to the
+provider it names with that provider's model.
 
 `Timeout` bounds one `generate_image` call and defaults to `00:02:00`,<!-- claim:option TraconImageOptions.Timeout=00:02:00 -->
 **not** the 30 second `Tracon:Tools:DefaultTimeout` every other tool inherits. Image
@@ -26670,7 +27066,10 @@ recorded against the original call.
     "Images": {
       "Enabled": true,
       "Provider": "openai",
-      "Model": "gpt-image-1",
+      "Providers": {
+        "openai": { "Model": "gpt-image-1" },
+        "google": { "Model": "gemini-3-pro-image-preview" }
+      },
       "MaxImagesPerRequest": 1,
       "Timeout": "00:02:00"
     },
@@ -26689,8 +27088,10 @@ recorded against the original call.
 }
 ```
 
-Provider extensions set `Provider` when it is empty. Set it explicitly when the host
-registers more than one image provider or a custom keyed generator.
+With one provider registered (`UseOpenAIImages`, `UseAzureOpenAIImages` or `UseGoogleImages`), `Provider` may be left out and
+that provider is the default. Set it explicitly when the host registers more than one image provider (the host does not start
+without it) or a custom generator that no extension registered. `ProviderSettings` (`openai.quality`, `azure-openai.quality`)
+are code only and are not bound from configuration.
 
 ## Operational sections
 
@@ -27145,7 +27546,7 @@ each term means inside Tracon.
 
 ## Execution and state
 
-**Run.** One agent or workflow execution. A run has an id, status, timing, usage, optional
+**Run.** One agent, workflow or [step](/guides/step-runs/) execution. A run has an id, status, timing, usage, optional
   cost, error classification, and ordered events when recording succeeds.
 
 **Root run.** The execution a caller started. Child-agent and workflow work can create descendant
@@ -35091,7 +35492,9 @@ key to match any value of it). Only root runs are shown by default — otherwise
 single question that fanned out to four agents would fill the list with rows nobody
 started.
 
-A run's detail header names the user it belongs to and shows its labels as badges.
+A run's detail header names the user it belongs to and shows its labels as badges. A **step
+run** your own code opened ([Step runs](/guides/step-runs/)) is named by the host's step name, with
+no link to an agent page, and offers no "Promote to eval case": it keeps no input to build one from.
 
 Opening a run gives the summary and the full event stream in order: message deltas,
 tool calls with arguments and results, errors with their class. The summary names
@@ -35116,7 +35519,8 @@ measurement the tool reported: the quantity and its unit, the amount (or **unpri
 when none was reported, which means unknown, not free), an **estimated** badge when the
 quantity rests on an estimate, and the provider and model that did the work. A finished run
 that reported anything also gets a **Non-token usage** panel: one row per item a workflow
-function node reported, with the node's name and the same measurement line, ending in
+function node or a media service call reported, with the node's name (none for a media call)
+and the same measurement line, ending in
 **Reported in this run** and, on a root with runs below it, **Reported in the whole tree**.
 A badge such as **1 not added** counts the items left out of the total because they carry no
 amount or are in another currency than the configured one. A run that reported nothing

@@ -288,6 +288,7 @@ internal sealed class VoiceConversationDriver
 
         // The limit the host's resolver set for this connection (null: the global one), and whether it is what ended it.
         private TimeSpan? _hostLimit;
+        private TimeSpan? _hostIdleLimit;
         private bool _hostLimitReached;
 
         // Completed when something other than a frame ended the conversation (the agent, the host stopping), to wake the
@@ -371,7 +372,8 @@ internal sealed class VoiceConversationDriver
                     return LimitReached();
                 }
 
-                var wait = untilDeadline < _options.IdleTimeout ? untilDeadline : _options.IdleTimeout;
+                var idleLimit = _hostIdleLimit ?? _options.IdleTimeout;
+                var wait = untilDeadline < idleLimit ? untilDeadline : idleLimit;
                 var durationIsNext = wait == untilDeadline;
 
                 _pendingReceive ??= StartReceive(cancellationToken);
@@ -706,7 +708,16 @@ internal sealed class VoiceConversationDriver
                     "The voice connection resolver returned a MaxDuration that is not greater than zero and at most MaxConnectionDuration.");
             }
 
+            if (settings?.IdleTimeout is { } idleTimeout
+                && (idleTimeout <= TimeSpan.Zero || idleTimeout > _options.IdleTimeout))
+            {
+                // The same rule as MaxDuration: the global value is the ceiling, and a value outside the range is the resolver's mistake.
+                throw new InvalidOperationException(
+                    "The voice connection resolver returned an IdleTimeout that is not greater than zero and at most the IdleTimeout of the conversation options.");
+            }
+
             _hostLimit = settings?.MaxDuration;
+            _hostIdleLimit = settings?.IdleTimeout;
             _greeting = greeting;
             _openingPrompt = openingPrompt;
 
@@ -1210,22 +1221,32 @@ internal sealed class VoiceConversationDriver
 
             await foreach (var update in updates.ConfigureAwait(false))
             {
-                if (update.Text is not { Length: > 0 } delta)
+                if (update.Text is { Length: > 0 } delta)
                 {
-                    continue;
+                    spoken.Append(delta);
+
+                    await SendAsync(new VoiceServerMessage
+                    {
+                        Type = VoiceConversationProtocol.ServerText,
+                        Delta = delta,
+                    }).ConfigureAwait(false);
+
+                    foreach (var segment in segmenter.Append(delta))
+                    {
+                        spokenCharacters = await SpeakAsync(segment, spokenCharacters, audio, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
                 }
 
-                spoken.Append(delta);
-
-                await SendAsync(new VoiceServerMessage
+                // 🚨 A tool call ends what the model has said so far. The tool runs when this loop asks for the next update,
+                // and the segmenter holds back the last sentence until a character follows it (it cannot tell the end of a
+                // sentence from "3." until then); with a tool call in between, the character arrives only after the tool
+                // has finished, and a sentence such as "One moment, I will check" is heard after the wait it announces. The
+                // words before a tool call are spoken now.
+                if (update.Contents.Any(static content => content is FunctionCallContent)
+                    && segmenter.Flush() is { Length: > 0 } beforeTool)
                 {
-                    Type = VoiceConversationProtocol.ServerText,
-                    Delta = delta,
-                }).ConfigureAwait(false);
-
-                foreach (var segment in segmenter.Append(delta))
-                {
-                    spokenCharacters = await SpeakAsync(segment, spokenCharacters, audio, cancellationToken)
+                    spokenCharacters = await SpeakAsync(beforeTool, spokenCharacters, audio, cancellationToken)
                         .ConfigureAwait(false);
                 }
             }

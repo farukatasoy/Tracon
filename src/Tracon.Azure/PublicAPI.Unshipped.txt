@@ -25,7 +25,7 @@ const Tracon.AzureOpenAIProviderNames.AzureOpenAI = "azure-openai" -> string!
 const Tracon.AzureOpenAIProviderNames.SettingsPrefix = "azure-openai" -> string!
 const Tracon.AzureOpenAIProviderNames.StrictJsonSchemaSetting = "azure-openai.strictJsonSchema" -> string!
 const Tracon.AzureOpenAIProviderOptions.SectionName = "Tracon:Providers:AzureOpenAI" -> string!
-static Tracon.AzureOpenAIImageBuilderExtensions.UseAzureOpenAIImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.AzureOpenAIImageBuilderExtensions.UseAzureOpenAIImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.AzureOpenAIProviderExtensions.UseAzureOpenAI(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.AzureOpenAIProviderExtensions.UseAzureOpenAI(this Tracon.ITraconBuilder! builder, System.Action<Tracon.AzureOpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.AzureOpenAIProviderExtensions.UseAzureOpenAI(this Tracon.ITraconBuilder! builder, System.Uri! endpoint, string! apiKey, System.Action<Tracon.AzureOpenAIProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!

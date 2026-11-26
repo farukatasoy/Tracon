@@ -50,7 +50,7 @@ public sealed class TraconImageOptionsBindingTests
         {
             ["Tracon:Images:Enabled"] = "true",
             ["Tracon:Images:Provider"] = "openai",
-            ["Tracon:Images:Model"] = "gpt-image-1",
+            ["Tracon:Images:Providers:openai:Model"] = "gpt-image-1",
             ["Tracon:Images:MaxImagesPerRequest"] = "3",
             ["Tracon:Images:Timeout"] = "00:00:45",
         };
@@ -59,7 +59,7 @@ public sealed class TraconImageOptionsBindingTests
 
         options.Enabled.ShouldBeTrue();
         string.Equals(options.Provider, "openai", StringComparison.Ordinal).ShouldBeTrue();
-        string.Equals(options.Model, "gpt-image-1", StringComparison.Ordinal).ShouldBeTrue();
+        string.Equals(options.Providers["openai"].Model, "gpt-image-1", StringComparison.Ordinal).ShouldBeTrue();
         options.MaxImagesPerRequest.ShouldBe(3);
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(45));
         OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Images", options);

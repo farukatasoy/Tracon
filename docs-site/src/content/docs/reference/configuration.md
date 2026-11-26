@@ -465,9 +465,11 @@ image prices.
 
 ### Images
 
-`Tracon:Images` is off by default (`false`).<!-- claim:option TraconImageOptions.Enabled=false --> When `Enabled` is `true`, `Provider` and
-`Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
-the `generate_image` tool and maps `POST /api/images/generate`.
+`Tracon:Images` is off by default (`false`).<!-- claim:option TraconImageOptions.Enabled=false --> When `Enabled` is `true`, the default
+provider must be known (`Provider`, or the only registered provider) and `Providers:{name}:Model` must be set for it;
+`MaxImagesPerRequest` must be at least one. Enabling it adds the `generate_image` tool and maps `POST /api/images/generate`.
+Every image provider keeps its own model under `Providers:{name}`, so a host with two providers sends each request to the
+provider it names with that provider's model.
 
 `Timeout` bounds one `generate_image` call and defaults to `00:02:00`,<!-- claim:option TraconImageOptions.Timeout=00:02:00 -->
 **not** the 30 second `Tracon:Tools:DefaultTimeout` every other tool inherits. Image
@@ -483,7 +485,10 @@ recorded against the original call.
     "Images": {
       "Enabled": true,
       "Provider": "openai",
-      "Model": "gpt-image-1",
+      "Providers": {
+        "openai": { "Model": "gpt-image-1" },
+        "google": { "Model": "gemini-3-pro-image-preview" }
+      },
       "MaxImagesPerRequest": 1,
       "Timeout": "00:02:00"
     },
@@ -502,8 +507,10 @@ recorded against the original call.
 }
 ```
 
-Provider extensions set `Provider` when it is empty. Set it explicitly when the host
-registers more than one image provider or a custom keyed generator.
+With one provider registered (`UseOpenAIImages`, `UseAzureOpenAIImages` or `UseGoogleImages`), `Provider` may be left out and
+that provider is the default. Set it explicitly when the host registers more than one image provider (the host does not start
+without it) or a custom generator that no extension registered. `ProviderSettings` (`openai.quality`, `azure-openai.quality`)
+are code only and are not bound from configuration.
 
 ## Operational sections
 

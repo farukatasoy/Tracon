@@ -519,7 +519,7 @@ public sealed class SeamContractDocumentationTests
     }
 
     // --- Interfaces Tracon supplies: called, never implemented ---
-    // A guide, a sample or a contract suite teaches an implementer for a seam. For these ten
+    // A guide, a sample or a contract suite teaches an implementer for a seam. For these thirteen
     // none does: Tracon builds the implementation and wraps it in a boundary (egress, tenant
     // and credential checks, the tool wrappers), so a consumer's own implementation drops the
     // boundary. The interface says so in its own header. asked for the sentence on
@@ -537,6 +537,9 @@ public sealed class SeamContractDocumentationTests
         { Path.Combine("Tracon.Abstractions", "Diagnostics", "ISqlPersistenceDiagnostics.cs"), "public interface ISqlPersistenceDiagnostics", "do not implement" },
         { Path.Combine("Tracon.Core", "ITraconBuilder.cs"), "public interface ITraconBuilder", "for calling, not for implementing" },
         { Path.Combine("Tracon.Abstractions", "Workflows", "IWorkflowRunner.cs"), "public interface IWorkflowRunner", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Runs", "ITraconStepRunner.cs"), "public interface ITraconStepRunner", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Media", "IImageGenerationService.cs"), "public interface IImageGenerationService", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Media", "ISpeechSynthesisService.cs"), "public interface ISpeechSynthesisService", "do not implement" },
     };
 
     [Theory]

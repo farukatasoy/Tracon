@@ -118,6 +118,7 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
         // Read once, here: a flag changed after the endpoint is mapped must not loosen a running endpoint.
         var acceptForwardedParameters = options.AcceptForwardedParameters;
         var resolveParameters = options.ResolveParameters;
+        var resolveGreeting = options.ResolveGreeting;
 
         var services = endpoints.ServiceProvider;
         var endpointOptions = TraconEndpointRouteBuilderExtensions.RequireSharedEndpointOptions(endpoints, "AG-UI");
@@ -138,7 +139,7 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
         // The stream keeps itself alive at the cadence MapTracon's group sets.
         group.WithMetadata(new SseKeepAliveMetadata(endpointOptions.StreamKeepAliveInterval));
         group.WithMetadata(ProblemDetailsOnDenialMarker.Instance);
-        group.AddEndpointFilter(new TraconEndpointFilter(endpointOptions));
+        group.AddEndpointFilter(new TraconEndpointFilter(endpointOptions, rolePolicies: roles));
 
         // Off by default, like the management API's. The group counts its own window: an AG-UI
         // request does not spend the management API's, with Scope Instance or Deployment alike. One filter serves every
@@ -156,7 +157,7 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
         group.MapPost(
                 "/{agentName}",
                 (string agentName, HttpContext httpContext, CancellationToken cancellationToken) =>
-                    AGUIRunEndpoint.HandleAsync(agentName, httpContext, acceptForwardedParameters, resolveParameters, cancellationToken))
+                    AGUIRunEndpoint.HandleAsync(agentName, httpContext, acceptForwardedParameters, resolveParameters, resolveGreeting, cancellationToken))
             .RequireRole(roles.Operator)
             .RequireAnyApiKeyScope(ApiKeyScope.ChatRun, ApiKeyScope.RunsWrite)
             .WithName("TraconAGUIRun" + nameSuffix)

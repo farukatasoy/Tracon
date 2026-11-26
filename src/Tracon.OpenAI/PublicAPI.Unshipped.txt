@@ -67,7 +67,7 @@ const Tracon.OpenAIProviderNames.StrictJsonSchemaSetting = "openai.strictJsonSch
 const Tracon.OpenAIProviderOptions.SectionName = "Tracon:Providers:OpenAI" -> string!
 static Tracon.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this Tracon.ITraconBuilder! builder, string! name, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this Tracon.ITraconBuilder! builder, string! name, System.Action<Tracon.OpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!
-static Tracon.OpenAIImageBuilderExtensions.UseOpenAIImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.OpenAIImageBuilderExtensions.UseOpenAIImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.OpenAILiveProviderExtensions.UseOpenAILive(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.OpenAILiveProviderExtensions.UseOpenAILive(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.OpenAILiveProviderExtensions.UseOpenAILive(this Tracon.ITraconBuilder! builder, System.Action<Tracon.OpenAILiveOptions!>! configure) -> Tracon.ITraconBuilder!

@@ -157,6 +157,36 @@ internal static class AGUIInputMapper
         return values.Count == 0 ? ParameterMapping.None : ParameterMapping.Mapped(values);
     }
 
+    /// <summary>Tells whether the request carries a message of the person or a tool result after the last assistant message.</summary>
+    /// <param name="input">The request body.</param>
+    /// <returns>
+    /// <see langword="true"/> when there is one, whatever it holds: a message of images alone is new input the run endpoint would
+    /// answer, and an opening request is a request that has none.
+    /// </returns>
+    public static bool HasNewMessages(RunAgentInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+
+        var messages = input.Messages ?? [];
+
+        for (var index = messages.Count - 1; index >= 0; index--)
+        {
+            switch (messages[index])
+            {
+                case AGUIAssistantMessage:
+                    return false;
+
+                case AGUIUserMessage or AGUIToolMessage:
+                    return true;
+
+                default:
+                    break;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Reads the new input of the request: the message, the client-side tool results and the documents.</summary>
     /// <param name="input">The request body.</param>
     /// <returns>The run request without the answers to approvals and requests for input.</returns>

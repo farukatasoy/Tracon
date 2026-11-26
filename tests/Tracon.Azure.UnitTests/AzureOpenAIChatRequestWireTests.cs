@@ -186,6 +186,32 @@ public sealed class AzureOpenAIChatRequestWireTests
         head.ShouldContain($"Authorization: Bearer {TestData.ApiKey}");
         (await server.RequestBody).ShouldContain("\"model\":\"image-deployment\"");
     }
+
+    [Fact]
+    public async Task An_image_call_sends_the_azure_quality_and_the_deployment_of_the_call_and_not_the_openai_quality()
+    {
+        await using var server = StubHttpServer.Respond(200, "OK", """{"created":1,"data":[{"b64_json":"aGk="}]}""");
+        var generator = Factory(server).CreateImageGenerator("image-deployment");
+
+        await generator.GenerateAsync(
+            new ImageGenerationRequest("a red kite"),
+            new ImageGenerationOptions
+            {
+                ModelId = "other-deployment",
+                AdditionalProperties = new AdditionalPropertiesDictionary
+                {
+                    ["azure-openai.quality"] = System.Text.Json.JsonSerializer.SerializeToElement("high"),
+                    ["openai.quality"] = System.Text.Json.JsonSerializer.SerializeToElement("low"),
+                },
+            },
+            TestContext.Current.CancellationToken);
+
+        var body = await server.RequestBody;
+
+        body.ShouldContain("\"model\":\"other-deployment\"");
+        body.ShouldContain("\"quality\":\"high\"");
+        body.ShouldNotContain("low", Case.Sensitive);
+    }
 #pragma warning restore MEAI001
 
     private static AzureOpenAIChatClientFactory Factory(StubHttpServer server)

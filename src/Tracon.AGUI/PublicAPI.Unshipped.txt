@@ -21,6 +21,8 @@ Tracon.AGUIParameterRequest.ThreadId.get -> string!
 Tracon.AGUIParameterRequest.ThreadId.init -> void
 Tracon.AGUIParameterRequest.User.get -> System.Security.Claims.ClaimsPrincipal!
 Tracon.AGUIParameterRequest.User.init -> void
+Tracon.TraconAGUIOptions.ResolveGreeting.get -> System.Func<Tracon.AGUIParameterRequest!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<string?>>?
+Tracon.TraconAGUIOptions.ResolveGreeting.set -> void
 Tracon.TraconAGUIOptions.ResolveParameters.get -> System.Func<Tracon.AGUIParameterRequest!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyDictionary<string!, string!>?>>?
 Tracon.TraconAGUIOptions.ResolveParameters.set -> void
 override Tracon.AGUIParameterRequest.Equals(object? obj) -> bool

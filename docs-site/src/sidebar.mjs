@@ -66,6 +66,7 @@ export const sidebar = [
       { label: 'Workflow requests and time limits', slug: 'concepts/workflow-requests' },
       { label: 'A workflow a person can send back', slug: 'guides/review-and-revise-workflow' },
       { label: 'Jobs, schedules, and queues', slug: 'guides/background-work' },
+      { label: 'Step runs and measured media', slug: 'guides/step-runs' },
     ],
   },
   {

@@ -54,6 +54,106 @@ public sealed class OpenAIImageWireTests
     }
 
     [Fact]
+    public async Task The_model_of_the_call_replaces_the_one_the_generator_was_created_with()
+    {
+        await using var server = StubHttpServer.Respond(200, "OK", Answer);
+        using var generator = Factory(server).CreateImageGenerator("gpt-image-1");
+
+        await generator.GenerateAsync(
+            new ImageGenerationRequest("a red kite"),
+            new ImageGenerationOptions { ModelId = "gpt-image-1-mini" },
+            TestContext.Current.CancellationToken);
+
+        var body = await server.RequestBody;
+
+        body.ShouldContain("\"model\":\"gpt-image-1-mini\"");
+        body.ShouldNotContain("\"model\":\"gpt-image-1\"");
+    }
+
+    [Fact]
+    public async Task A_call_that_names_no_model_uses_the_one_the_generator_was_created_with()
+    {
+        await using var server = StubHttpServer.Respond(200, "OK", Answer);
+        using var generator = Factory(server).CreateImageGenerator("gpt-image-1");
+
+        await generator.GenerateAsync(new ImageGenerationRequest("a red kite"), new ImageGenerationOptions { ModelId = "  " }, TestContext.Current.CancellationToken);
+
+        (await server.RequestBody).ShouldContain("\"model\":\"gpt-image-1\"");
+    }
+
+    [Fact]
+    public async Task The_quality_setting_is_sent_and_another_providers_quality_is_not()
+    {
+        await using var server = StubHttpServer.Respond(200, "OK", Answer);
+        using var generator = Factory(server).CreateImageGenerator("gpt-image-1");
+
+        await generator.GenerateAsync(
+            new ImageGenerationRequest("a red kite"),
+            new ImageGenerationOptions
+            {
+                AdditionalProperties = new AdditionalPropertiesDictionary
+                {
+                    ["openai.quality"] = System.Text.Json.JsonSerializer.SerializeToElement("low"),
+                    ["azure-openai.quality"] = System.Text.Json.JsonSerializer.SerializeToElement("high"),
+                },
+            },
+            TestContext.Current.CancellationToken);
+
+        var body = await server.RequestBody;
+
+        body.ShouldContain("\"quality\":\"low\"");
+        body.ShouldNotContain("high", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task An_edit_posts_the_model_and_the_quality_of_the_call_in_its_form()
+    {
+        await using var server = StubHttpServer.Respond(200, "OK", Answer);
+        using var generator = Factory(server).CreateImageGenerator("gpt-image-1");
+
+        byte[] png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+        await generator.GenerateAsync(
+            new ImageGenerationRequest("a red kite", [new DataContent(png, "image/png")]),
+            new ImageGenerationOptions
+            {
+                ModelId = "gpt-image-1-mini",
+                AdditionalProperties = new AdditionalPropertiesDictionary
+                {
+                    ["openai.quality"] = System.Text.Json.JsonSerializer.SerializeToElement("medium"),
+                    ["azure-openai.quality"] = System.Text.Json.JsonSerializer.SerializeToElement("high"),
+                },
+            },
+            TestContext.Current.CancellationToken);
+
+        (await server.RequestHead).ShouldStartWith("POST /v1/images/edits HTTP/1.1");
+
+        var body = await server.RequestBody;
+
+        body.ShouldContain("name=model", Case.Sensitive);
+        body.ShouldContain("gpt-image-1-mini", Case.Sensitive);
+        body.ShouldContain("name=quality", Case.Sensitive);
+        body.ShouldContain("medium", Case.Sensitive);
+        body.ShouldNotContain("high", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_quality_that_is_not_text_is_refused_before_the_request_is_sent_and_the_message_names_no_value()
+    {
+        await using var server = StubHttpServer.Respond(200, "OK", Answer);
+        using var generator = Factory(server).CreateImageGenerator("gpt-image-1");
+
+        var failure = await Should.ThrowAsync<TraconException>(
+            () => generator.GenerateAsync(
+                new ImageGenerationRequest("a red kite"),
+                new ImageGenerationOptions { AdditionalProperties = new AdditionalPropertiesDictionary { ["openai.quality"] = 4242 } },
+                TestContext.Current.CancellationToken));
+
+        failure.Message.ShouldContain("openai.quality", Case.Sensitive);
+        failure.Message.ShouldNotContain("4242", Case.Sensitive);
+    }
+
+    [Fact]
     public async Task An_error_answer_throws_the_client_library_exception()
     {
         await using var server = StubHttpServer.Respond(400, "Bad Request", """{"error":{"code":"invalid_size","message":"bad"}}""");
@@ -63,6 +163,26 @@ public sealed class OpenAIImageWireTests
             () => generator.GenerateAsync(new ImageGenerationRequest("x"), cancellationToken: TestContext.Current.CancellationToken));
 
         exception.Status.ShouldBe(400);
+
+        // The client library's message carries the status and none of the body; the code the provider put in it travels beside it,
+        // so the provider failure Tracon raises for it can name the code.
+        exception.Data["tracon.provider-error-code"].ShouldBe("invalid_size");
+        exception.Message.ShouldNotContain("invalid_size", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData("""{"error":{"code":null,"type":"image_generation_user_error","message":"x"}}""", "image_generation_user_error")]
+    [InlineData("""{"error":{"code":"a sentence, not a code","message":"x"}}""", null)]
+    [InlineData("""<html>502</html>""", null)]
+    public async Task The_code_falls_back_to_the_type_and_a_body_with_none_adds_none(string body, string? expected)
+    {
+        await using var server = StubHttpServer.Respond(400, "Bad Request", body);
+        using var generator = Factory(server).CreateImageGenerator("gpt-image-1");
+
+        var exception = await Should.ThrowAsync<ClientResultException>(
+            () => generator.GenerateAsync(new ImageGenerationRequest("x"), cancellationToken: TestContext.Current.CancellationToken));
+
+        exception.Data["tracon.provider-error-code"].ShouldBe(expected);
     }
 
     [Fact]

@@ -164,10 +164,12 @@ internal static class ObservabilityEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("TraconListRunNonTokenUsage")
             .WithTags("Tracon", "Runs")
-            .WithSummary("Lists the non-token usage items a run's workflow function nodes reported.")
+            .WithSummary("Lists the non-token usage items a run reported.")
             .WithDescription(
-                "Each item is one call of IWorkflowContext.ReportUsageAsync, in the order reported: " +
-                "the node's name, the unit and quantity, and the amount when the node reported one. " +
+                "Each item is one report, in the order reported: a workflow function node's " +
+                "IWorkflowContext.ReportUsageAsync, or a call of the host's image or speech service made " +
+                "inside the run (IImageGenerationService, ISpeechSynthesisService). It carries the node's name " +
+                "(null for a media service call), the unit and quantity, and the amount when one was reported. " +
                 "The items of the run itself only, not of the runs below it; a tool's measurement stays on " +
                 "GET /api/runs/{runId}/tools. The run's total is on the run record (nonTokenCost, " +
                 "treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a " +

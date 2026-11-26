@@ -111,7 +111,16 @@ public sealed partial class RunRecordingAgent
         // read whatever the caller's execution context happened to restore.
         var attribution = ResolveAttribution(runId);
         var sessionId = session is null ? null : GetSessionId(session);
-        var depth = Math.Max(runOptions?.Depth ?? 0, 0);
+
+        // An agent run that names the step it is started in as its parent joins that step's tree: the root, the depth and the
+        // budget come from the step's scope when the caller set none. Without the budget a child would write nothing to the quota
+        // counter, so a step's model calls would spend outside it.
+        var step = TraconRunContext.Current is { IsStep: true } enclosing
+            && runOptions?.ParentRunId == enclosing.RunId
+            && string.Equals(enclosing.TenantId, tenantId, StringComparison.Ordinal)
+                ? enclosing
+                : null;
+        var depth = runOptions?.Depth is > 0 ? runOptions.Depth : step is null ? 0 : step.Depth + 1;
         var agentVersion = runOptions?.AgentVersion ?? AgentVersion;
 
         var activity = ActivitySource.StartActivity(TraconDiagnostics.RunActivityName, ActivityKind.Internal);
@@ -160,7 +169,9 @@ public sealed partial class RunRecordingAgent
         // the root stream.
         var writer = _services.CreateWriter(runId, _logger, runIdIsNew: runOptions?.RunId is null);
 
-        var budget = runOptions?.Budget ?? (depth == 0 ? _services.AgentGraph.CreateBudget(_services.TimeProvider) : null);
+        var budget = runOptions?.Budget
+            ?? step?.Budget
+            ?? (depth == 0 ? _services.AgentGraph.CreateBudget(_services.TimeProvider) : null);
 
         // The root names the counter its whole tree adds to, once, on the budget every
         // run in the tree shares. A child that ends after the root, in a task that carries
@@ -181,7 +192,7 @@ public sealed partial class RunRecordingAgent
         var scope = new AgentRunScope
         {
             RunId = runId,
-            RootRunId = runOptions?.RootRunId ?? runId,
+            RootRunId = runOptions?.RootRunId ?? step?.RootRunId ?? runId,
 
             // A sub-agent receives no values (the same rule as a call from a direct run), so only a root has them. Who
             // supplied them is the surface's to say; a marker without a surface's word is the embedding code's own call,

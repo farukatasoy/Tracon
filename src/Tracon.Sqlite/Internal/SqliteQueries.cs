@@ -133,7 +133,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
     /// </summary>
     private string InsertRunText(bool onlyIfQueued)
     {
-        var guard = onlyIfQueued ? "\nWHERE status = @status_queued" : string.Empty;
+        // A row never changes hands: an id another tenant's run holds is left as it is, and the statement returns no row.
+        var guard = onlyIfQueued
+            ? "\nWHERE tenant_id = excluded.tenant_id AND status = @status_queued"
+            : "\nWHERE tenant_id = excluded.tenant_id";
 
         return $"""
             INSERT INTO {Schema}runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,

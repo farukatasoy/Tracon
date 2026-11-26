@@ -123,11 +123,8 @@ public sealed class GoogleLiveSetupRotationTests
                         options.Endpoint = wire.BaseAddress;
                         options.ApiKeyConfigurationName = KeyName;
                     })
-                    .UseGoogleImages(static options =>
-                    {
-                        options.Enabled = true;
-                        options.Model = "canary-image-model";
-                    });
+                    .UseGoogleImages(static provider => provider.Model = "canary-image-model")
+                    .ConfigureImages(static images => images.Enabled = true);
             },
             configureServices: services =>
             {

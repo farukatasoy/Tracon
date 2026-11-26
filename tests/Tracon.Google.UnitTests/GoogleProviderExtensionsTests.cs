@@ -23,8 +23,11 @@ public sealed class GoogleProviderExtensionsTests
         using var provider = services.BuildServiceProvider();
 
         provider.GetRequiredKeyedService<IImageGenerator>(GoogleProviderNames.Google).ShouldNotBeNull();
-        provider.GetRequiredService<IOptions<TraconImageOptions>>().Value.Provider
-            .ShouldBe(GoogleProviderNames.Google);
+
+        var options = provider.GetRequiredService<IOptions<TraconImageOptions>>().Value;
+
+        options.Providers[GoogleProviderNames.Google].Model.ShouldBe("imagen-4.0-generate-001");
+        options.Provider.ShouldBeNull();
     }
 #pragma warning restore MEAI001
 

@@ -39,6 +39,9 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
     /// <summary>Gets or sets whether writing the row of a tool invocation fails.</summary>
     public bool FailToolInvocations { get; set; }
 
+    /// <summary>Gets or sets whether writing a non-token usage item fails.</summary>
+    public bool FailNonTokenUsage { get; set; }
+
     public int ReadsRefused { get; private set; }
 
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
@@ -131,7 +134,10 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
 
     public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken cancellationToken = default) => inner.ListToolInvocationsAsync(runId, cancellationToken);
 
-    public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken cancellationToken = default) => inner.RecordNonTokenUsageAsync(record, cancellationToken);
+    public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken cancellationToken = default)
+        => FailNonTokenUsage
+            ? throw new InvalidOperationException("the store is unavailable")
+            : inner.RecordNonTokenUsageAsync(record, cancellationToken);
 
     public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(Guid runId, CancellationToken cancellationToken = default) => inner.ListNonTokenUsageAsync(runId, cancellationToken);
 

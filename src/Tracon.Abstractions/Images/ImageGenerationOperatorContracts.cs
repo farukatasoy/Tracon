@@ -16,6 +16,12 @@ internal sealed record ImageGenerationOperatorRequest
 
     [Description("Gets the session to which generated attachments belong.")]
     public string? SessionId { get; init; }
+
+    [Description("Gets the image provider to draw with (openai, azure-openai or google). Defaults to Tracon:Images:Provider, or the only registered one.")]
+    public string? Provider { get; init; }
+
+    [Description("Gets the model or Azure deployment to draw with. Defaults to the provider's configured model.")]
+    public string? Model { get; init; }
 }
 
 [Description("The result of an operator image-generation action.")]

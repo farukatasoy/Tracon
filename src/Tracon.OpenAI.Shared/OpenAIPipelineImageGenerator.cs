@@ -38,15 +38,23 @@ namespace Tracon;
 /// OpenAI v1 endpoints take the same request: the deployment name is the model.
 /// </para>
 /// <para>
-/// The request carries what <see cref="ImageGenerationOptions"/> names: count, size, media type and
-/// response format. <see cref="ImageGenerationOptions.RawRepresentationFactory"/> is not read: it
+/// The request carries what <see cref="ImageGenerationOptions"/> names: the model, count, size, media type and
+/// response format. The model of a call (<see cref="ImageGenerationOptions.ModelId"/>) replaces the one the generator was
+/// created with; one registered generator serves a host that changes the model without a restart.
+/// <see cref="ImageGenerationOptions.RawRepresentationFactory"/> is not read: it
 /// returns a type of the OpenAI client library, which this class does not use.
+/// </para>
+/// <para>
+/// The one provider setting is the image quality, read from <see cref="ImageGenerationOptions.AdditionalProperties"/> under
+/// <c>{provider}.quality</c> (<c>openai.quality</c>, <c>azure-openai.quality</c>). A value that is not a string is refused before
+/// the request is sent.
 /// </para>
 /// </remarks>
 internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
 {
     private readonly Func<OpenAIPipelineTarget> _target;
     private readonly string _model;
+    private readonly string _qualityKey;
     private readonly ImageGeneratorMetadata _metadata;
 
     /// <summary>Creates a generator over a client's pipeline.</summary>
@@ -74,6 +82,7 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
 
         _target = target;
         _model = model;
+        _qualityKey = providerName + ".quality";
         _metadata = new ImageGeneratorMetadata(providerName, target().Endpoint, model);
     }
 
@@ -137,13 +146,18 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
         using (var writer = new Utf8JsonWriter(buffer))
         {
             writer.WriteStartObject();
-            writer.WriteString("model", _model);
+            writer.WriteString("model", ModelOf(options));
             writer.WriteString("prompt", prompt);
             writer.WriteNumber("n", options?.Count ?? 1);
 
             if (Size(options) is { } size)
             {
                 writer.WriteString("size", size);
+            }
+
+            if (Quality(options) is { } quality)
+            {
+                writer.WriteString("quality", quality);
             }
 
             if (OutputFormat(options) is { } format)
@@ -172,7 +186,7 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
 
         var form = new MultipartFormDataContent
         {
-            { new StringContent(_model), "model" },
+            { new StringContent(ModelOf(options)), "model" },
             { new StringContent(prompt), "prompt" },
             { new StringContent((options?.Count ?? 1).ToString(CultureInfo.InvariantCulture)), "n" },
         };
@@ -180,6 +194,11 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
         if (Size(options) is { } size)
         {
             form.Add(new StringContent(size), "size");
+        }
+
+        if (Quality(options) is { } quality)
+        {
+            form.Add(new StringContent(quality), "quality");
         }
 
         if (OutputFormat(options) is { } format)
@@ -240,9 +259,51 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
             ?? throw new TraconException("The OpenAI client returned no response.");
 
         // The same exception type ImageClient threw, so a caller's error handling does not change.
-        return response.IsError
-            ? throw await ClientResultException.CreateAsync(response).ConfigureAwait(false)
-            : response.Content;
+        if (response.IsError)
+        {
+            var failure = await ClientResultException.CreateAsync(response).ConfigureAwait(false);
+
+            // The SDK's message for this call carries the status and none of the body. The code the provider put in it
+            // (insufficient_quota, content_policy_violation) is the one thing a caller needs from it, and only that is kept.
+            ProviderErrorCodes.Attach(failure, ReadErrorCode(response));
+
+            throw failure;
+        }
+
+        return response.Content;
+    }
+
+    /// <summary>Reads <c>error.code</c> (else <c>error.type</c>) from the body of a failed answer; never anything else of it.</summary>
+    private static string? ReadErrorCode(PipelineResponse response)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(response.Content);
+
+            // A body that is JSON and not an object (an array, a string, a number) has no property to read.
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("error", out var error)
+                || error.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var name in new[] { "code", "type" })
+            {
+                if (error.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                    && ProviderErrorCodes.IsCode(value.GetString()))
+                {
+                    return value.GetString();
+                }
+            }
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
+        {
+            // Not JSON, or not text a code can be read from: a gateway's page. There is no code to read, and the failure is thrown
+            // as it is.
+        }
+
+        return null;
     }
 
     private static ImageGenerationResponse ToResponse(BinaryData answer)
@@ -311,6 +372,27 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
 
     private static long? Count(JsonElement element, string name)
         => element.TryGetProperty(name, out var value) && value.TryGetInt64(out var count) && count >= 0 ? count : null;
+
+    /// <summary>The model of the call, or the one the generator was created with when the call names none.</summary>
+    private string ModelOf(ImageGenerationOptions? options)
+        => string.IsNullOrWhiteSpace(options?.ModelId) ? _model : options.ModelId;
+
+    /// <summary>The quality the call asks for, or <see langword="null"/> when it asks for none.</summary>
+    /// <exception cref="TraconException">The value is not a string. The message names the key and never the value.</exception>
+    private string? Quality(ImageGenerationOptions? options)
+    {
+        if (options?.AdditionalProperties is not { } properties || !properties.TryGetValue(_qualityKey, out var value))
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            string text when !string.IsNullOrWhiteSpace(text) => text,
+            JsonElement { ValueKind: JsonValueKind.String } element when !string.IsNullOrWhiteSpace(element.GetString()) => element.GetString(),
+            _ => throw new TraconException($"The image setting '{_qualityKey}' must be a non-empty string."),
+        };
+    }
 
     private static string? Size(ImageGenerationOptions? options)
         => options?.ImageSize is { } size

@@ -68,9 +68,7 @@ internal sealed class VoicePricing : IVoicePricingReader
 
         var model = modelId ?? DefaultSynthesisModel(providerName);
 
-        return Find(providerName, model)?.PerMillionCharacters is { } rate
-            ? rate * characters / 1_000_000m
-            : null;
+        return VoiceCharacterPricing.Price(_options.Value.Pricing, providerName, model, characters);
     }
 
     /// <inheritdoc />

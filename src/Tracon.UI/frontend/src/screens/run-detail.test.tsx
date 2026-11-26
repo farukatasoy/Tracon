@@ -205,6 +205,48 @@ describe('RunDetailScreen', () => {
   });
 });
 
+describe('RunDetailScreen step run', () => {
+  let restoreFetch: () => void;
+
+  afterEach(() => restoreFetch());
+
+  it('names the step without a link to an agent page and offers no eval case', async () => {
+    // A step is named by the host's code. No agent has that name, so a link to the agent page led nowhere, and the run keeps no
+    // input a case could be made from.
+    const parent = '44444444-4444-4444-4444-444444444444';
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', {
+        ...runRecord(),
+        kind: 'Step',
+        agentName: 'narration-step',
+        status: 'Completed',
+        completedAt: '2026-09-01T10:00:30Z',
+        childRunCount: 1,
+      }),
+      {
+        method: 'GET',
+        pattern: 'api/runs/:runId/events',
+        handler: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+      },
+      fixture('GET', 'api/runs/:runId/trace', { spans: [] }),
+      fixture('GET', 'api/runs/:runId/tree', [
+        { ...runRecord(), kind: 'Step', agentName: 'narration-step', status: 'Completed', completedAt: '2026-09-01T10:00:30Z' },
+        { ...runRecord(), id: parent, kind: 'Step', agentName: 'cover-step', parentRunId: runId, depth: 1, status: 'Completed', completedAt: '2026-09-01T10:00:20Z' },
+      ]),
+      fixture('GET', 'api/runs/:runId/tools', []),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    await screen.findByText('cover-step');
+
+    expect(screen.queryByRole('link', { name: 'narration-step' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'cover-step' })).toBeNull();
+    expect(screen.queryByText('Promote to eval case')).toBeNull();
+  });
+});
+
 describe('RunDetailScreen answered workflow request', () => {
   let restoreFetch: () => void;
 

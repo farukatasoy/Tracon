@@ -172,11 +172,12 @@ public sealed class GenerateImageToolTests
         {
             options.Enabled = true;
             options.Provider = "test-images";
-            options.Model = "image-1";
+            options.Providers["test-images"] = new TraconImageProviderOptions { Model = "image-1" };
             configure?.Invoke(options);
         });
         services.AddSingleton(Options.Create(new TraconOptions()));
         services.AddSingleton<IImageGenerator>(generator);
+        services.AddSingleton<ImageProviderSelection>();
         services.AddSingleton<ImageGeneratorResolver>();
         services.AddSingleton<ImagePricing>();
         services.AddSingleton<IAttachmentStore>(new InMemoryAttachmentStore());

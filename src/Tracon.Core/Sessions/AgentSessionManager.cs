@@ -382,6 +382,39 @@ public sealed class AgentSessionManager
         await SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Writes one assistant message that no run produced into a session's history, and saves the session.</summary>
+    /// <param name="agent">The agent the session belongs to.</param>
+    /// <param name="session">The open session.</param>
+    /// <param name="text">What the assistant said.</param>
+    /// <param name="cancellationToken">The cancellation token of the write.</param>
+    /// <returns>The completion task.</returns>
+    /// <exception cref="InvalidOperationException">The manager was created without a chat history provider.</exception>
+    /// <exception cref="TraconSessionConflictException">Another turn changed the session first.</exception>
+    /// <remarks>
+    /// A fixed opening the host decided (a greeting) is the one thing this is for: no model ran, so the message is the host's
+    /// own text and is not screened by the content guards. It is not public: a host that wants to write a message of its own
+    /// into a conversation has no safe way to say whose words it is, and the AG-UI opening request is the supported door.
+    /// </remarks>
+    internal async ValueTask RecordAssistantMessageAsync(
+        AIAgent agent,
+        AgentSession session,
+        string text,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+
+        var chatHistory = _chatHistory
+            ?? throw new InvalidOperationException("This session manager has no chat history provider to write a conversation with.");
+
+        await ChatHistoryReader
+            .AppendAsync(agent, session, chatHistory, [], [new ChatMessage(ChatRole.Assistant, text)], cancellationToken)
+            .ConfigureAwait(false);
+
+        await SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Turns a stored record back into a session and remembers which record
     /// (identity and generation) it was read from.

@@ -29,7 +29,11 @@ internal static partial class OptionScalarCatalog
             : type == typeof(VoiceConversationOptions) ? ComposeVoiceConversation : null;
 
     private static partial IReadOnlyDictionary<string, string?> BaseKeysFor(Type type)
-        => new Dictionary<string, string?>(StringComparer.Ordinal);
+        => type == typeof(TraconImageOptions)
+            // The model lives in a section of the provider the options name, one level below the scalars: a companion cannot
+            // say it, because a companion belongs to the object that holds the switch.
+            ? new Dictionary<string, string?>(StringComparer.Ordinal) { ["Tracon:Images:Providers:probe-provider:Model"] = "probe-model" }
+            : new Dictionary<string, string?>(StringComparer.Ordinal);
 }
 
 internal sealed partial record OptionScalar
@@ -39,9 +43,8 @@ internal sealed partial record OptionScalar
         // Script execution refuses to start without this acknowledgement.
         ["Tracon:Skills:Scripts:PlatformIsolationAcknowledged"] = "true",
 
-        // Image generation refuses to start without a provider and a model.
+        // Image generation refuses to start without a provider; its model is a base key (BaseKeysFor).
         ["Tracon:Images:Provider"] = "probe-provider",
-        ["Tracon:Images:Model"] = "probe-model",
 
         // Content protection refuses to start without an active key.
         ["Tracon:ContentProtection:ActiveKeyId"] = "probe-key",

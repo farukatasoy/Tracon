@@ -27,11 +27,9 @@ public sealed class ImageProviderKeyQuotedProbe
             CanaryKeyKind.Setup,
             Scenario,
             database,
-            configure: static builder => builder.UseOpenAIImages(static options =>
-            {
-                options.Enabled = true;
-                options.Model = "canary-image-model";
-            }),
+            configure: static builder => builder
+                .UseOpenAIImages(static provider => provider.Model = "canary-image-model")
+                .ConfigureImages(static images => images.Enabled = true),
             withTool: false);
 
         canary.Wire.Mode = CanaryWireServer.Behavior.RefuseAndQuote;

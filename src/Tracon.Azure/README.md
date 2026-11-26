@@ -9,11 +9,8 @@ authenticated Azure client for image generation. `Model` is the Azure image depl
 name, not a public model name.
 
 ```csharp
-tracon.UseAzureOpenAIImages(options =>
-{
-    options.Enabled = true;
-    options.Model = "image-deployment";
-});
+tracon.UseAzureOpenAIImages(provider => provider.Model = "image-deployment")
+      .ConfigureImages(images => images.Enabled = true);
 ```
 
 The generator key is `azure-openai`. Configure prices under

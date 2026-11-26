@@ -34,6 +34,35 @@ internal sealed class ImageAttachmentWriter
         _logger = logger;
     }
 
+    /// <summary>Turns every generated image into bytes with its media type, downloading one the provider returned as an address.</summary>
+    /// <param name="contents">What the provider returned.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The images, in the provider's order.</returns>
+    /// <remarks>An address is read through the outbound-network guard and held to the attachment size limit, as a saved image is.</remarks>
+    public async ValueTask<IReadOnlyList<DataContent>> MaterializeAsync(IList<AIContent> contents, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(contents);
+
+        var images = new List<DataContent>(contents.Count);
+
+        foreach (var content in contents)
+        {
+            if (content is DataContent data)
+            {
+                images.Add(data);
+
+                continue;
+            }
+
+            var bytes = await ReadBytesAsync(content, cancellationToken).ConfigureAwait(false);
+            var mediaType = content is UriContent { MediaType: { Length: > 0 } declared } ? declared : "image/png";
+
+            images.Add(new DataContent(bytes, mediaType));
+        }
+
+        return images;
+    }
+
     /// <summary>Saves every generated image.</summary>
     public async ValueTask<IReadOnlyList<AttachmentDescriptor>> WriteAsync(
         IList<AIContent> contents,

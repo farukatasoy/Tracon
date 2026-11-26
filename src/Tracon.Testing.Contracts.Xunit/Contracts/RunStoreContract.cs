@@ -255,6 +255,51 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task StartRunAsync_refuses_an_id_another_tenant_holds_and_leaves_that_row_as_it_was()
+    {
+        // A row never changes hands. The start is an upsert, so a caller that names an id a run of another tenant holds would
+        // otherwise take the row over: its events, its tool calls and its usage would be read as the new tenant's.
+        AmbientTenant.TenantId = TenantA;
+
+        var running = TraconId.NewId();
+        var queued = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(running, "tenant-a-agent") with { UserId = "ada" });
+        await Store.StartRunAsync(TestData.Run(queued, "tenant-a-queued") with { Status = RunStatus.Queued });
+
+        AmbientTenant.TenantId = TenantB;
+
+        await Should.ThrowAsync<TraconException>(async () => await Store.StartRunAsync(TestData.Run(running, "tenant-b-agent")));
+
+        try
+        {
+            (await Store.PromoteQueuedRunAsync(TestData.Run(queued, "tenant-b-queued"))).ShouldBeFalse("a promotion writes nothing over another tenant's row");
+        }
+        catch (TraconException)
+        {
+            // A store that leaves the promotion to the default implementation refuses it the way it refuses the start.
+        }
+
+        (await Store.GetRunAsync(running)).ShouldBeNull("the row is not the other tenant's");
+
+        AmbientTenant.TenantId = TenantA;
+
+        var kept = (await Store.GetRunAsync(running)).ShouldNotBeNull();
+
+        kept.TenantId.ShouldBe(TenantA);
+        kept.AgentName.ShouldBe("tenant-a-agent");
+        kept.UserId.ShouldBe("ada");
+
+        var stillQueued = (await Store.GetRunAsync(queued)).ShouldNotBeNull();
+
+        stillQueued.Status.ShouldBe(RunStatus.Queued);
+        stillQueued.AgentName.ShouldBe("tenant-a-queued");
+
+        // The owner starts its own row again, as a queued run does when the worker moves it on.
+        (await Store.StartRunAsync(TestData.Run(running, "tenant-a-agent"))).TenantId.ShouldBe(TenantA);
+    }
+
+    [Fact]
     public async Task PromoteQueuedRunAsync_writes_the_row_when_there_is_none()
     {
         // The write that opened the row is best effort: a run whose first write failed still gets its row here.
@@ -3229,6 +3274,46 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         agentRun.ShouldNotBeNull();
         agentRun.Kind.ShouldBe(RunKind.Agent);
         agentRun.WorkflowName.ShouldBeNull();
+    }
+
+    /// <summary>A step run keeps its kind, its place in the tree and its reported cost.</summary>
+    /// <returns>The completion of the case.</returns>
+    [Fact]
+    public async Task A_step_run_keeps_its_kind_and_its_non_token_cost_in_the_tree()
+    {
+        // A step of the host's own code is a run with no agent: a store that read an unknown kind back as an agent turn would
+        // send it into continuation, and one that left its cost out of the root's tree would lose what it spent.
+        var rootId = TraconId.NewId();
+        var stepId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId, "pipeline") with { Kind = RunKind.Step });
+        await Store.StartRunAsync(TestData.Run(stepId, "render") with
+        {
+            Kind = RunKind.Step,
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = stepId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            EventCount = 0,
+            NonTokenCost = new RunNonTokenCost { Amount = 0.25m, Currency = "USD", CurrencyCount = 1 },
+        });
+
+        var step = (await Store.GetRunAsync(stepId)).ShouldNotBeNull();
+
+        step.Kind.ShouldBe(RunKind.Step);
+        step.ParentRunId.ShouldBe(rootId);
+        step.NonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.25m);
+
+        var root = (await Store.GetRunAsync(rootId)).ShouldNotBeNull();
+
+        root.Kind.ShouldBe(RunKind.Step);
+        root.TreeNonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.25m);
     }
 
     [Fact]

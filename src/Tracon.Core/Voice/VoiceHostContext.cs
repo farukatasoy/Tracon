@@ -40,7 +40,7 @@ internal sealed class VoiceHostContext
     /// <param name="cancellationToken">The cancellation token of the connection or of the turn.</param>
     /// <returns>The decision; a refusal is a value, as it is for the HTTP endpoints.</returns>
     public ValueTask<RunAdmissionDecision> CheckRunAsync(string agentName, string sessionId, CancellationToken cancellationToken)
-        => _admission.CheckAsync(agentName, sessionId, cancellationToken);
+        => _admission.CheckAsync(RunChannel.Voice, agentName, sessionId, cancellationToken);
 
     /// <summary>Registers a callback that runs when the host begins to stop.</summary>
     /// <param name="callback">The callback; it runs once, on the thread that stops the host.</param>

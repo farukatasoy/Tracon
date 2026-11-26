@@ -27,8 +27,12 @@ public sealed class OpenAIProviderExtensionsTests
         using var provider = services.BuildServiceProvider();
 
         provider.GetRequiredKeyedService<IImageGenerator>(OpenAIProviderNames.ChatCompletions).ShouldNotBeNull();
-        provider.GetRequiredService<IOptions<TraconImageOptions>>().Value.Provider
-            .ShouldBe(OpenAIProviderNames.ChatCompletions);
+
+        // The model is this provider's own entry, and the shared options name no provider: with one registered, it is the default.
+        var options = provider.GetRequiredService<IOptions<TraconImageOptions>>().Value;
+
+        options.Providers[OpenAIProviderNames.ChatCompletions].Model.ShouldBe("gpt-image-1");
+        options.Provider.ShouldBeNull();
     }
 #pragma warning restore MEAI001
 

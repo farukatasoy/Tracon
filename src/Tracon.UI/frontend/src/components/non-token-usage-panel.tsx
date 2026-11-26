@@ -7,8 +7,8 @@ import { Badge, Mono, Panel } from './ui';
 import { UsageLine } from './usage-line';
 
 /**
- * What a run's workflow function nodes reported they spent beyond tokens, one row
- * per report, with the run's total underneath.
+ * What a run's workflow function nodes and media service calls reported they spent
+ * beyond tokens, one row per report, with the run's total underneath.
  *
  * The rows are the items; the totals are the run's snapshot, so a tool's
  * measurement (shown on its own tool call) is in the total without being a row

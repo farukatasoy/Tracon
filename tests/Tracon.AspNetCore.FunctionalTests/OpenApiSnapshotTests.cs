@@ -167,7 +167,7 @@ public sealed class OpenApiSnapshotTests
                 {
                     options.Enabled = true;
                     options.Provider = "openapi";
-                    options.Model = "image-1";
+                    options.Providers["openapi"] = new TraconImageProviderOptions { Model = "image-1" };
                 });
                 services.AddSingleton<IImageGenerator, OpenApiImageGenerator>();
                 configureMoreServices?.Invoke(services);

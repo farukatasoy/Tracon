@@ -264,9 +264,22 @@ public static partial class TraconServiceCollectionExtensions
             options.Provider = provider;
         }
 
-        if (section[nameof(TraconImageOptions.Model)] is { Length: > 0 } model)
+        // Tracon:Images:Providers:{name}:Model. The settings are code only: a value of another type cannot be read from text
+        // without a guess.
+        foreach (var providerSection in section.GetSection(nameof(TraconImageOptions.Providers)).GetChildren())
         {
-            options.Model = model;
+            if (providerSection[nameof(TraconImageProviderOptions.Model)] is not { Length: > 0 } model)
+            {
+                continue;
+            }
+
+            if (!options.Providers.TryGetValue(providerSection.Key, out var entry))
+            {
+                entry = new TraconImageProviderOptions();
+                options.Providers[providerSection.Key] = entry;
+            }
+
+            entry.Model = model;
         }
 
         read.Int32(

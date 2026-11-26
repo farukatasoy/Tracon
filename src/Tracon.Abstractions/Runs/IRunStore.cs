@@ -121,6 +121,11 @@ public interface IRunStore
     /// runs it does not know it.
     /// </para>
     /// <para>
+    /// A row never changes hands: when <see cref="RunStartInfo.RunId"/> names a run that another tenant holds, the call writes
+    /// nothing, leaves that run as it is and throws a <see cref="TraconException"/> whose text does not name the other tenant.
+    /// The upsert is for the tenant's own row.
+    /// </para>
+    /// <para>
     /// A conforming implementation returns the run as it holds it after the
     /// write: the COALESCE rule applied, and the text and the times as the
     /// store keeps them. A caller that reads the return value instead of
@@ -383,7 +388,7 @@ public interface IRunStore
         Guid runId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Records one non-token item a workflow function node reported.</summary>
+    /// <summary>Records one non-token item reported inside a run: a workflow function node's, or a media service call's.</summary>
     /// <param name="record">The reported item.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes when the item is written.</returns>
@@ -404,7 +409,7 @@ public interface IRunStore
         NonTokenUsageRecord record,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Lists the non-token items a run's workflow function nodes reported, in the order reported.</summary>
+    /// <summary>Lists the non-token items reported inside a run (function nodes and media service calls), in the order reported.</summary>
     /// <param name="runId">The run id.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>

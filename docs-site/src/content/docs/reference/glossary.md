@@ -91,7 +91,7 @@ each term means inside Tracon.
 
 ## Execution and state
 
-**Run.** One agent or workflow execution. A run has an id, status, timing, usage, optional
+**Run.** One agent, workflow or [step](/guides/step-runs/) execution. A run has an id, status, timing, usage, optional
   cost, error classification, and ordered events when recording succeeds.
 
 **Root run.** The execution a caller started. Child-agent and workflow work can create descendant

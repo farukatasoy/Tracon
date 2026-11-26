@@ -148,19 +148,18 @@ internal sealed class NonTokenCostAccumulator
     }
 
     /// <summary>
-    /// What a run's tools measured, from the call records they were written to, for a row that holds no snapshot.
+    /// Everything a run reported beyond tokens, from both places it is written to: the items and the tool call records.
     /// </summary>
     /// <param name="runStore">The run store.</param>
     /// <param name="runId">The run.</param>
-    /// <param name="currency">The currency the measurements add up in (<c>Tracon:Pricing:Currency</c>).</param>
+    /// <param name="currency">The currency the amounts add up in (<c>Tracon:Pricing:Currency</c>).</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The snapshot the run would have closed with; <see langword="null"/> when no tool measured anything.</returns>
+    /// <returns>The snapshot the run would have closed with; <see langword="null"/> when it reported nothing.</returns>
     /// <remarks>
-    /// An agent run has no function node, so nothing was written to the items: what its tools reported sits on the record of each
-    /// call, written as the result arrives in a streamed run. A run that never streamed wrote its calls when it ended, and a
-    /// process that died before that left none. The records are added up with the rule the run itself would have used.
+    /// An item is written by what reports through the run itself (a function node, a step, a media service); a tool's own
+    /// measurement stays on its call record. Neither writes the other, so adding both counts every amount once.
     /// </remarks>
-    public static async ValueTask<RunNonTokenCost?> SnapshotFromToolInvocationsAsync(
+    public static async ValueTask<RunNonTokenCost?> SnapshotFromRecordsAsync(
         IRunStore runStore,
         Guid runId,
         string? currency,
@@ -168,21 +167,24 @@ internal sealed class NonTokenCostAccumulator
     {
         ArgumentNullException.ThrowIfNull(runStore);
 
+        var items = await runStore.ListNonTokenUsageAsync(runId, cancellationToken).ConfigureAwait(false);
         var invocations = await runStore.ListToolInvocationsAsync(runId, cancellationToken).ConfigureAwait(false);
-        NonTokenCostAccumulator? accumulator = null;
+        var accumulator = new NonTokenCostAccumulator(currency);
+
+        foreach (var item in items)
+        {
+            accumulator.AddNodeItem(item.Usage);
+        }
 
         foreach (var invocation in invocations)
         {
-            if (invocation.Usage is not { } usage)
+            if (invocation.Usage is { } usage)
             {
-                continue;
+                accumulator.ReportToolMeasurement(invocation.ToolCallId ?? invocation.Id.ToString("N"), usage);
             }
-
-            accumulator ??= new NonTokenCostAccumulator(currency);
-            accumulator.ReportToolMeasurement(invocation.ToolCallId ?? invocation.Id.ToString("N"), usage);
         }
 
-        return accumulator?.Seal();
+        return accumulator.Seal();
     }
 
     /// <summary>Checks an item a reporter wants to record.</summary>

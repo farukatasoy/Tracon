@@ -2,7 +2,7 @@ namespace Tracon;
 
 /// <summary>
 /// Records one non-token item that code running inside a run reports — the shared body
-/// behind <c>IWorkflowContext.ReportUsageAsync</c>.
+/// behind <c>IWorkflowContext.ReportUsageAsync</c> and the media services.
 /// </summary>
 /// <remarks>
 /// <para>

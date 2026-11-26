@@ -10,7 +10,7 @@ public static class GoogleImageBuilderExtensions
 {
     /// <summary>Registers the Google image generator.</summary>
     /// <param name="builder">The Tracon chain.</param>
-    /// <param name="configure">Optional image-tool settings.</param>
+    /// <param name="configure">Optional settings of this provider: its model.</param>
     /// <returns>The continuation of the chain.</returns>
     /// <remarks>
     /// <para>
@@ -25,6 +25,15 @@ public static class GoogleImageBuilderExtensions
     /// model that only supports it fails every request.
     /// </para>
     /// <para>
+    /// <paramref name="configure"/> changes the entry of <c>google</c> in <see cref="TraconImageOptions.Providers"/> and no
+    /// other. The provider has no setting of its own: <see cref="TraconImageProviderOptions.ProviderSettings"/> must stay empty.
+    /// </para>
+    /// <para>
+    /// <strong>A preview image model needs <c>GoogleProviderOptions.ApiVersion = "v1beta"</c>.</strong> The default <c>v1</c>
+    /// does not list the preview image models, and a call to one fails with a "not found for API version v1" answer. The
+    /// version is the provider's, shared by chat and images: raising it moves the chat models to <c>v1beta</c> too.
+    /// </para>
+    /// <para>
     /// The adapter generates from a prompt only. <c>Count</c> is passed as the
     /// candidate count and an image model commonly returns one image whatever
     /// you ask for. A requested media type is passed to the model and the
@@ -36,31 +45,30 @@ public static class GoogleImageBuilderExtensions
     /// <code>
     /// builder.AddTracon()
     ///        .UseGoogle(builder.Configuration.GetSection(GoogleProviderOptions.SectionName))
-    ///        .UseGoogleImages(options =&gt;
-    ///        {
-    ///            options.Enabled = true;
-    ///            options.Model = "gemini-2.5-flash-image";
-    ///        });
+    ///        .UseGoogleImages(provider =&gt; provider.Model = "gemini-2.5-flash-image")
+    ///        .ConfigureImages(images =&gt; images.Enabled = true);
     /// </code>
     /// </example>
     /// </remarks>
 #pragma warning disable MEAI001
     public static ITraconBuilder UseGoogleImages(
         this ITraconBuilder builder,
-        Action<TraconImageOptions>? configure = null)
+        Action<TraconImageProviderOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         var services = builder.Services;
 
+        ImageProviderRegistrations.Register(services, GoogleProviderNames.Google);
+
         if (configure is not null)
         {
-            services.Configure(configure);
+            services.Configure<TraconImageOptions>(
+                options => configure(ImageProviderRegistrations.ProviderOptions(options, GoogleProviderNames.Google)));
         }
 
         GoogleProviderRequirement.Require(services, nameof(UseGoogleImages));
 
-        services.PostConfigure<TraconImageOptions>(static options => options.Provider ??= GoogleProviderNames.Google);
         services.TryAddKeyedSingleton<IImageGenerator>(GoogleProviderNames.Google, static (provider, _) =>
         {
             _ = provider.GetRequiredService<IOptions<TraconImageOptions>>().Value;

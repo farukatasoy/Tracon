@@ -201,6 +201,13 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TenantProviderCredentialResolver>(),
             provider.GetService<IOptions<TraconTenantProviderOptions>>()));
 
+        // The host's own speech calls, measured and recorded on the current run. The price reader comes from the speech
+        // package when it is used; without it the price table is read directly.
+        services.TryAddSingleton<ISpeechSynthesisService>(static provider => new SpeechSynthesisService(
+            provider.GetRequiredService<ISpeechProviderResolver>(),
+            provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
+            provider.GetService<IVoicePricingReader>()));
+
         // Provider retry classifier. Registered BEFORE
         // IModelProviderRegistry so its constructor can resolve it. The
         // taxonomy is Tracon's opinion; thanks to TryAddSingleton, the
@@ -568,6 +575,11 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<ISessionStore>(),
             provider.GetService<QuotaEnforcer>(),
             provider.GetService<Microsoft.Extensions.Logging.ILogger<RunAdmission>>()));
+
+        // A step of the host's own code recorded as a run: the third recorder, with the services every recorder shares.
+        services.TryAddSingleton<ITraconStepRunner>(static provider => new TraconStepRunner(
+            RunRecordingServices.Create(provider),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TraconStepRunner>>()));
 
         // The one path that deletes a session for a caller — record, the
         // copy of its content and its attachments. Internal: the HTTP edge asks the gates

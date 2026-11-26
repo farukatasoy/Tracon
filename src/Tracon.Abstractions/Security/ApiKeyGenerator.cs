@@ -45,6 +45,16 @@ public static class ApiKeyGenerator
         };
     }
 
+    /// <summary>Tells whether a presented value has the shape of a key this generator makes.</summary>
+    /// <param name="value">The presented value.</param>
+    /// <returns><see langword="true"/> when the value starts with the key marker.</returns>
+    /// <remarks>
+    /// It decides whose a credential is, never whether it is valid: a value with the shape is still looked up by its
+    /// hash. Every key a store issues comes from <see cref="Generate"/>, so a value without the shape cannot be one.
+    /// </remarks>
+    internal static bool HasKeyShape(string value)
+        => value.StartsWith(KeyPrefixMarker, StringComparison.Ordinal);
+
     /// <summary>Computes the SHA-256 hash of a raw key value.</summary>
     /// <param name="plaintextKey">The raw value.</param>
     /// <returns>The 32-byte hash.</returns>

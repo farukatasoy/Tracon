@@ -1,10 +1,21 @@
+using System.Text.Json;
+using Microsoft.Extensions.Options;
+
 namespace Tracon;
 
-/// <summary>Settings for the image-generation tool.</summary>
+/// <summary>Settings for image generation.</summary>
 /// <remarks>
-/// The tool is off by default. Setting <see cref="Enabled"/> to <see langword="true"/>
-/// registers <c>generate_image</c> only when an <see cref="Microsoft.Extensions.AI.IImageGenerator"/>
+/// <para>
+/// The <c>generate_image</c> tool and the operator endpoint are off by default. Setting <see cref="Enabled"/> to
+/// <see langword="true"/> registers <c>generate_image</c> only when an <see cref="Microsoft.Extensions.AI.IImageGenerator"/>
 /// is also registered.
+/// </para>
+/// <para>
+/// A host can register more than one image provider (<c>UseOpenAIImages</c>, <c>UseAzureOpenAIImages</c>,
+/// <c>UseGoogleImages</c>). Each provider keeps its own model and settings in <see cref="Providers"/>, and
+/// <see cref="Provider"/> names the one the tool and the operator endpoint draw with. A host that registers one provider
+/// does not need to name it.
+/// </para>
 /// </remarks>
 public sealed class TraconImageOptions
 {
@@ -14,19 +25,25 @@ public sealed class TraconImageOptions
     /// <summary>Gets or sets whether the image tool and operator endpoint are enabled.</summary>
     public bool Enabled { get; set; }
 
-    /// <summary>Gets or sets the provider name used to find configured image prices.</summary>
+    /// <summary>Gets or sets the name of the provider the tool and the operator endpoint draw with.</summary>
     /// <remarks>
-    /// Provider extensions set this value when it is empty. Set it explicitly when
-    /// registering a custom <see cref="Microsoft.Extensions.AI.IImageGenerator"/>.
+    /// <para>
+    /// Optional when exactly one image provider is registered: that one is the default. Required when more than one is
+    /// registered and <see cref="Enabled"/> is <see langword="true"/>, or when the generator is a custom
+    /// <see cref="Microsoft.Extensions.AI.IImageGenerator"/> registered without a provider extension. Like every Tracon
+    /// option it is read when the host starts: a change needs a restart.
+    /// </para>
+    /// <para>The name is the stable provider name: <c>openai</c>, <c>azure-openai</c> or <c>google</c>.</para>
     /// </remarks>
     public string? Provider { get; set; }
 
-    /// <summary>Gets or sets the image model.</summary>
+    /// <summary>Gets the model and the settings of each image provider, by provider name.</summary>
     /// <remarks>
-    /// Image model names are not inferred from a chat model. Providers use distinct
-    /// model catalogues, and an inferred name could spend money on the wrong model.
+    /// Each <c>Use*Images</c> call writes to the entry of its own provider and no other, so two providers never share a
+    /// model. Configuration binds the <c>Tracon:Images:Providers:{name}:Model</c> keys into it.
     /// </remarks>
-    public string? Model { get; set; }
+    public IDictionary<string, TraconImageProviderOptions> Providers { get; } =
+        new Dictionary<string, TraconImageProviderOptions>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gets or sets the most images one call may produce. Default is one.</summary>
     public int MaxImagesPerRequest { get; set; } = 1;
@@ -55,11 +72,48 @@ public sealed class TraconImageOptions
     public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(2);
 }
 
-/// <summary>Validates <see cref="TraconImageOptions"/> during application startup.</summary>
-internal sealed class TraconImageOptionsValidator : Microsoft.Extensions.Options.IValidateOptions<TraconImageOptions>
+/// <summary>The model and the settings of one image provider.</summary>
+public sealed class TraconImageProviderOptions
 {
+    /// <summary>Gets or sets the image model, or the Azure deployment.</summary>
+    /// <remarks>
+    /// Image model names are not inferred from a chat model. Providers use distinct model catalogues, and an inferred name
+    /// could spend money on the wrong model.
+    /// </remarks>
+    public string? Model { get; set; }
+
+    /// <summary>
+    /// Gets the provider-specific settings, keyed under the provider's prefix (for example <c>openai.quality</c>). Empty by
+    /// default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A key the provider does not support, a key of another provider and a value of the wrong type fail at startup, and a
+    /// call that carries one is refused before the provider is called: nothing is ignored silently. The message names the key,
+    /// never the value.
+    /// </para>
+    /// <para>
+    /// OpenAI and Azure OpenAI support <c>openai.quality</c> and <c>azure-openai.quality</c> (a string such as
+    /// <c>low</c>, <c>medium</c>, <c>high</c> or <c>auto</c>). Google supports none. Code sets them; configuration does not bind
+    /// this dictionary.
+    /// </para>
+    /// </remarks>
+    public IDictionary<string, JsonElement> ProviderSettings { get; } =
+        new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>Validates <see cref="TraconImageOptions"/> during application startup.</summary>
+internal sealed class TraconImageOptionsValidator : IValidateOptions<TraconImageOptions>
+{
+    private readonly IReadOnlyList<ImageProviderRegistration> _registrations;
+
+    /// <summary>Creates a validator.</summary>
+    /// <param name="registrations">The image providers the host registered; none when the generator is the host's own.</param>
+    public TraconImageOptionsValidator(IEnumerable<ImageProviderRegistration>? registrations = null)
+        => _registrations = [.. registrations ?? []];
+
     /// <inheritdoc />
-    public Microsoft.Extensions.Options.ValidateOptionsResult Validate(string? name, TraconImageOptions options)
+    public ValidateOptionsResult Validate(string? name, TraconImageOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -80,24 +134,56 @@ internal sealed class TraconImageOptionsValidator : Microsoft.Extensions.Options
 
         // Refused while image generation is off as well: a name of blanks is not "not set".
         OptionText.AddWhenOnlyWhiteSpace(options.Provider, nameof(TraconImageOptions), nameof(TraconImageOptions.Provider), ref failures);
-        OptionText.AddWhenOnlyWhiteSpace(options.Model, nameof(TraconImageOptions), nameof(TraconImageOptions.Model), ref failures);
 
-        if (options.Enabled && string.IsNullOrEmpty(options.Model))
+        foreach (var (providerName, provider) in options.Providers)
         {
-            (failures ??= []).Add(
-                $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Model)} is required when " +
-                $"{nameof(TraconImageOptions.Enabled)} is true.");
+            if (string.IsNullOrWhiteSpace(providerName))
+            {
+                (failures ??= []).Add($"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Providers)} has an entry whose provider name is blank.");
+
+                continue;
+            }
+
+            OptionText.AddWhenOnlyWhiteSpace(
+                provider.Model,
+                $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Providers)}[{providerName}]",
+                nameof(TraconImageProviderOptions.Model),
+                ref failures);
+
+            try
+            {
+                ImageProviderSettingKeys.Validate(providerName, provider.ProviderSettings);
+            }
+            catch (TraconException exception)
+            {
+                (failures ??= []).Add($"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Providers)}[{providerName}]: {exception.Message}");
+            }
         }
 
-        if (options.Enabled && string.IsNullOrEmpty(options.Provider))
+        if (options.Enabled)
         {
-            (failures ??= []).Add(
-                $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Provider)} is required when " +
-                $"{nameof(TraconImageOptions.Enabled)} is true.");
+            var defaultProvider = ImageProviderSelection.DefaultProviderName(options, _registrations);
+
+            if (defaultProvider is null)
+            {
+                (failures ??= []).Add(
+                    _registrations.Count > 1
+                        ? $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Provider)} is required when {nameof(TraconImageOptions.Enabled)} is true " +
+                          $"and more than one image provider is registered ({string.Join(", ", _registrations.Select(static r => r.Name))}): " +
+                          $"name the one the tool draws with ({TraconImageOptions.SectionName}:Provider)."
+                        : $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Provider)} is required when {nameof(TraconImageOptions.Enabled)} is true " +
+                          "and no image provider extension is registered; name the provider of your own generator.");
+            }
+            else if (!options.Providers.TryGetValue(defaultProvider, out var chosen) || string.IsNullOrEmpty(chosen.Model))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Providers)}[{defaultProvider}].{nameof(TraconImageProviderOptions.Model)} is required when " +
+                    $"{nameof(TraconImageOptions.Enabled)} is true.");
+            }
         }
 
         return failures is null
-            ? Microsoft.Extensions.Options.ValidateOptionsResult.Success
-            : Microsoft.Extensions.Options.ValidateOptionsResult.Fail(failures);
+            ? ValidateOptionsResult.Success
+            : ValidateOptionsResult.Fail(failures);
     }
 }

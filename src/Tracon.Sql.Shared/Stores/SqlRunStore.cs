@@ -174,8 +174,15 @@ internal sealed class SqlRunStore : IRunStore
             };
         }
 
-        // The statement returns the row it wrote; no row means it left the row alone. An ordinary start always gets one.
-        return (record, stored is not null || !onlyIfQueued);
+        // The statement returns the row it wrote; no row means it left the row alone. The write that leaves the queue says so. An
+        // ordinary start gets a row unless the id is held by a run of another tenant: a row never changes hands, and the caller
+        // is told its start did not happen.
+        if (stored is null && !onlyIfQueued)
+        {
+            throw new TraconException($"A run with id '{info.RunId}' already exists.");
+        }
+
+        return (record, stored is not null);
     }
 
     /// <summary>Binds the parameters of the statement that writes the start of a run.</summary>
