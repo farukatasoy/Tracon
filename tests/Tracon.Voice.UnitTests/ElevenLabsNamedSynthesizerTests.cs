@@ -140,7 +140,38 @@ public sealed class ElevenLabsNamedSynthesizerTests
         failure.Message.ShouldContain("ApiKey", Case.Sensitive);
         failure.Message.ShouldNotContain("BEFORE", Case.Sensitive, "registering your own provider first is no remedy for a named synthesizer, which is always the built-in client");
         failure.Message.ShouldNotContain("serves both", Case.Sensitive);
-        failure.Message.ShouldNotContain("batch-key-value", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_named_synthesizer_whose_configuration_key_holds_an_unusable_key_names_the_key_and_never_shows_its_value()
+    {
+        // A line break inside the key cannot be sent in a header, so the value is refused. It is a secret: the failure says which
+        // configuration key held it and shows no part of it.
+        const string Head = "LEAK-CANARY-head";
+        const string Tail = "tail-LEAK-CANARY";
+
+        var services = new ServiceCollection();
+        var own = new OwnSpeechProvider();
+
+        services.AddSingleton<ISpeechSynthesizer>(own);
+        services.AddSingleton<ISpeechTranscriber>(own);
+        services.AddSingleton<IConfiguration>(Configuration(("Voice:BatchKey", Head + "\n" + Tail)));
+
+        services.AddTracon()
+            .UseVoice(static options => options.DefaultVoiceId = "voice-1")
+            .AddElevenLabsSynthesizer("batch", static options => options.ApiKeyConfigurationName = "Voice:BatchKey");
+
+        await using var provider = services.BuildServiceProvider();
+
+        var failure = await Should.ThrowAsync<TraconException>(
+            async () => await provider.GetRequiredService<ISpeechProviderResolver>().GetSynthesizerAsync("batch", TestContext.Current.CancellationToken));
+
+        failure.Message.ShouldContain("'batch'", Case.Sensitive);
+        failure.Message.ShouldContain("'Voice:BatchKey'", Case.Sensitive, "the configuration key that held the unusable value is named");
+        failure.Message.ShouldNotContain("LEAK-CANARY", Case.Sensitive);
+        failure.Message.ShouldNotContain(Head, Case.Sensitive);
+        failure.Message.ShouldNotContain(Tail, Case.Sensitive);
+        failure.ToString().ShouldNotContain("LEAK-CANARY", Case.Sensitive);
     }
 
     [Fact]

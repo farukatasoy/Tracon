@@ -285,6 +285,27 @@ public sealed class ElevenLabsRetryTests
     }
 
     [Fact]
+    public async Task A_cancellation_while_a_request_is_in_flight_ends_the_call_and_is_not_counted_as_a_try()
+    {
+        var clock = new ManualClock();
+        var handler = new BlockedHandler();
+        using var client = Create(handler, clock, maxRetries: 3, static options => options.MaxConcurrentRequests = 1);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        var call = client.SynthesizeAsync(Speech("hello"), cancellation.Token).AsTask();
+
+        await WaitUntil.TrueAsync(() => handler.Entered == 1, "the request reached the provider and is held there");
+        await cancellation.CancelAsync();
+        await WaitUntil.TrueAsync(() => call.IsCompleted, "the call ends when its caller cancels");
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await call);
+
+        handler.Entered.ShouldBe(1, "a cancellation is not a connection failure, so nothing is sent again");
+        handler.ObservedCancellation.ShouldBeTrue("the caller's token reached the provider call");
+        clock.CreatedTimers.ShouldBe(0, "no wait is armed for a repeat that never happens");
+    }
+
+    [Fact]
     public async Task A_timestamped_synthesis_is_repeated()
     {
         var clock = new ManualClock();
@@ -430,6 +451,36 @@ public sealed class ElevenLabsRetryTests
     }
 
     private static HttpResponseMessage Success() => StubHttpMessageHandler.Binary(Mp3Bytes);
+
+    /// <summary>A handler that holds every request until its token is cancelled, and counts the requests it was given.</summary>
+    private sealed class BlockedHandler : HttpMessageHandler
+    {
+        private readonly TaskCompletionSource _never = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _entered;
+        private int _observedCancellation;
+
+        public int Entered => Volatile.Read(ref _entered);
+
+        public bool ObservedCancellation => Volatile.Read(ref _observedCancellation) == 1;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _entered);
+
+            try
+            {
+                await _never.Task.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                Interlocked.Exchange(ref _observedCancellation, 1);
+
+                throw;
+            }
+
+            throw new InvalidOperationException("The request was never meant to be answered.");
+        }
+    }
 
     /// <summary>A body whose connection drops before the first byte, as the provider's does when it cuts a generation off.</summary>
     private sealed class DroppedContent : HttpContent

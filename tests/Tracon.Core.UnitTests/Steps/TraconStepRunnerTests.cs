@@ -493,9 +493,10 @@ public sealed class TraconStepRunnerTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task A_parent_that_has_already_ended_is_accepted_and_the_cost_of_the_child_joins_the_total_of_its_tree(bool parentFailed)
+    [InlineData(RunStatus.Completed)]
+    [InlineData(RunStatus.Failed)]
+    [InlineData(RunStatus.Canceled)]
+    public async Task A_parent_that_has_already_ended_is_accepted_and_the_cost_of_the_child_joins_the_total_of_its_tree(RunStatus parentEndedAs)
     {
         // The state of the parent is not asked: the host that voices the parts of a podcast in steps of their own, after the
         // step that planned them has ended, relies on the part joining the plan's tree.
@@ -503,23 +504,43 @@ public sealed class TraconStepRunnerTests
         var steps = provider.GetRequiredService<ITraconStepRunner>();
         var rootId = Guid.CreateVersion7();
         var childId = Guid.CreateVersion7();
+        var parent = new TraconStepOptions { Name = "plan", RunId = rootId };
 
-        if (parentFailed)
+        switch (parentEndedAs)
         {
-            await Should.ThrowAsync<InvalidOperationException>(
-                async () => await steps.RunAsync(
-                    new TraconStepOptions { Name = "plan", RunId = rootId },
-                    _ => throw new InvalidOperationException("the plan failed"),
-                    TestContext.Current.CancellationToken));
-        }
-        else
-        {
-            await steps.RunAsync(new TraconStepOptions { Name = "plan", RunId = rootId }, _ => ValueTask.CompletedTask, TestContext.Current.CancellationToken);
+            case RunStatus.Completed:
+                await steps.RunAsync(parent, _ => ValueTask.CompletedTask, TestContext.Current.CancellationToken);
+                break;
+
+            case RunStatus.Failed:
+                await Should.ThrowAsync<InvalidOperationException>(
+                    async () => await steps.RunAsync(
+                        parent,
+                        _ => throw new InvalidOperationException("the plan failed"),
+                        TestContext.Current.CancellationToken));
+                break;
+
+            default:
+                // The caller cancels while the step runs: the run closes as canceled, as a cancelled caller closes any step.
+                using (var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken))
+                {
+                    await Should.ThrowAsync<OperationCanceledException>(
+                        async () => await steps.RunAsync(
+                            parent,
+                            async token =>
+                            {
+                                await cancellation.CancelAsync();
+                                token.ThrowIfCancellationRequested();
+                            },
+                            cancellation.Token));
+                }
+
+                break;
         }
 
         var ended = (await Runs(provider).GetRunAsync(rootId, TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
-        ended.Status.ShouldBe(parentFailed ? RunStatus.Failed : RunStatus.Completed, "the parent is over before the child starts");
+        ended.Status.ShouldBe(parentEndedAs, "the parent is over before the child starts");
 
         await steps.RunAsync(
             new TraconStepOptions { Name = "part", RunId = childId, ParentRunId = rootId },

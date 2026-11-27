@@ -93,7 +93,9 @@ is used instead, and the measurement is flagged as an **estimate**.
 provider's own unit (the `character-cost` response header); it is not a count of the characters
 sent, and the sum of the values is not promised to match the provider's subscription counter.
 Tracon does not add or split them: two requests are two results with a value each.
-`SpeechAudio.CharactersSent` is the count of characters Tracon sent, to compare against it.
+`SpeechAudio.CharactersSent` is the count of characters Tracon sent, to compare against it. Only the
+built-in ElevenLabs client reports it: the built-in OpenAI speech synthesizer and the built-in Gemini
+synthesizer leave it `null`, as does a synthesizer of your own that does not set it.
 
 ## Repeat a failed request
 

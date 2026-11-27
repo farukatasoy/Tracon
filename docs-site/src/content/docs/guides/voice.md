@@ -173,8 +173,9 @@ quote `PerMillionCharacters` in that unit.
   single-voice request, or the sum of the turns of a dialogue (inline tags such as
   `[laughs]` included), counted before the call and counted once when a failed request was
   sent again. Compare it with `CharactersBilled` to see how far the provider's unit is from
-  the text: the two can differ, and neither is a measurement of the other. A synthesizer of
-  your own that does not report it leaves it `null`.
+  the text: the two can differ, and neither is a measurement of the other. Only the built-in
+  ElevenLabs client reports it. The built-in OpenAI speech synthesizer and the built-in Gemini
+  synthesizer leave it `null`, as does a synthesizer of your own that does not set it.
 
 Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
 `ProviderName` of the implementation that did the work — `elevenlabs` for the built-in

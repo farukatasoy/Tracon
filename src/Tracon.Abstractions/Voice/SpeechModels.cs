@@ -123,10 +123,17 @@ public sealed class SpeechAudio
     /// does not report it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The length of the text of a single-voice request; the sum of the lengths of the turns of a dialogue, tags the provider
     /// reads (for example <c>[laughs]</c>) included. It is a count Tracon took before the call, not a measurement of the
     /// provider, and a request that was sent again is counted once. A host that compares it with
     /// <see cref="CharactersBilled"/> sees how far the provider's unit is from the text it sent.
+    /// </para>
+    /// <para>
+    /// Only the built-in ElevenLabs client reports it. The built-in OpenAI speech synthesizer (a
+    /// <c>Microsoft.Extensions.AI</c> speech client), the built-in Gemini synthesizer and a synthesizer of your own that does not
+    /// set it leave it <see langword="null"/>.
+    /// </para>
     /// </remarks>
     public int? CharactersSent { get; init; }
 
