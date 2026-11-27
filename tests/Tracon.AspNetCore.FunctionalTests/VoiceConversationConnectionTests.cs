@@ -640,6 +640,11 @@ public sealed class VoiceConversationConnectionTests
 
         calls.ShouldHaveSingleItem();
         results.ShouldBe(calls, "the call the conversation ended with got its result, so the next request is a valid history");
+
+        // The result that stays behind asks nothing of the model that reads it now.
+        history.SelectMany(static message => message.Contents)
+            .OfType<Microsoft.Extensions.AI.FunctionResultContent>()
+            .Single().Result.ShouldNotBeNull().ToString().ShouldBe(EndConversationTool.EndedText);
         history[^1].Role.ShouldBe(Microsoft.Extensions.AI.ChatRole.User);
     }
 
@@ -670,8 +675,12 @@ public sealed class VoiceConversationConnectionTests
     }
 
     [Fact]
-    public async Task A_barge_in_on_a_goodbye_said_before_the_call_keeps_the_conversation_going()
+    public async Task A_cancel_while_the_goodbye_is_spoken_cuts_the_turn_before_the_tool_runs_and_the_conversation_goes_on()
     {
+        // What this proves: with the goodbye said first, the tool runs only after the goodbye was spoken, so a cancel that
+        // lands while the goodbye is spoken ends the turn before the tool ran and no end was ever requested. Dropping a
+        // request that WAS made (the cancel after the tool ran) is the case of
+        // `A_barge_in_drops_the_end_request_and_the_conversation_goes_on`, in the other order.
         var voice = new StubVoiceProvider { HoldSynthesis = true };
         var model = new SpokenToolCallModelProvider(Provider)
             .SaysThenCalls("Goodbye, take care.", EndConversationTool.ToolName);
@@ -685,8 +694,7 @@ public sealed class VoiceConversationConnectionTests
         await client.SendAudioAsync(new byte[3200]);
         await client.SendControlAsync(new { type = "commit" });
 
-        // The caption is sent before the sentence is synthesized, and the synthesis holds the goodbye in progress: the tool
-        // runs after the goodbye was spoken, so it has not run yet.
+        // The caption of the goodbye is sent before the sentence is synthesized, so it says nothing about the tool.
         await client.WaitForAsync("text");
 
         await client.SendControlAsync(new { type = "cancel" });
@@ -695,11 +703,20 @@ public sealed class VoiceConversationConnectionTests
 
         (await client.WaitForAsync("done", frames)).Flag("cancelled").ShouldBe(true);
 
+        // The conversation goes on: the caller speaks again and the agent answers.
+        voice.HoldSynthesis = false;
+        await client.SendAudioAsync(new byte[3200]);
         await client.SendControlAsync(new { type = "commit" });
-        await client.WaitForAsync("idle", frames).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await client.WaitForAsync("done", frames);
 
         frames.ShouldNotContain(static frame => frame.Type == "ended");
         client.CloseStatus.ShouldBeNull();
+
+        // The tool never ran: the next request carries no result of it.
+        model.Requests.ShouldBe(2);
+        model.Histories[1].SelectMany(static message => message.Contents)
+            .OfType<Microsoft.Extensions.AI.FunctionResultContent>()
+            .ShouldBeEmpty("the turn was cut before the tool ran");
     }
 
     [Fact]

@@ -83,6 +83,8 @@ internal sealed class EndConversationTool(VoiceConversationEndRegistry registry)
 
     internal const string EndingText = "The conversation will end after this answer. Say a short goodbye now.";
 
+    internal const string EndedText = "The conversation has ended.";
+
     internal const string NotAConversationText = "This run is not a voice conversation, so nothing was ended.";
 
     private const string Schema = """
@@ -123,6 +125,11 @@ internal sealed class EndConversationTool(VoiceConversationEndRegistry registry)
         if (FunctionInvokingChatClient.CurrentContext is { } loop && GoodbyeWasSaidBeforeTheCall(loop))
         {
             loop.Terminate = true;
+
+            // No model reads this result in this turn, and it stays in the session's history: a conversation resumed later
+            // shows it to a model as the last thing before the caller's next words. It says what happened and asks nothing,
+            // so that model does not say goodbye again or end the new conversation at once.
+            return ValueTask.FromResult<object?>(EndedText);
         }
 
         return ValueTask.FromResult<object?>(EndingText);

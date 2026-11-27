@@ -247,6 +247,43 @@ public sealed class EndConversationToolTests
         model.Requests.ShouldBe(2);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_call_that_stops_the_loop_leaves_a_result_that_asks_nothing_of_a_later_model(bool streaming)
+    {
+        // No model reads this result in this turn. It stays in the history, and a session that is resumed later shows it to a
+        // model as the last thing before the caller's next words: it must not tell that model to say goodbye or to end anything.
+        var model = new ScriptedModel(Turn(Said("Goodbye, take care."), Call("end-1")));
+
+        var outcome = await RunAsync(model, streaming);
+
+        outcome.EndRequested.ShouldBeTrue();
+        model.Requests.ShouldBe(1);
+
+        var result = outcome.EndResult.ShouldNotBeNull();
+
+        result.ShouldBe(EndConversationTool.EndedText);
+        result.ShouldNotContain("goodbye", Case.Insensitive);
+        result.ShouldNotContain("say", Case.Insensitive);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_call_that_lets_the_loop_go_on_leaves_the_result_that_asks_for_the_goodbye(bool streaming)
+    {
+        // The model reads this result in the next request, and it is what tells it to say its goodbye now.
+        var model = new ScriptedModel(
+            Turn(Call("end-1")),
+            Turn(Said("Goodbye, then.")));
+
+        var outcome = await RunAsync(model, streaming);
+
+        model.Requests.ShouldBe(2);
+        outcome.EndResult.ShouldBe(EndConversationTool.EndingText);
+    }
+
     [Fact]
     public async Task A_call_made_outside_the_loop_asks_for_the_end_and_changes_nothing_else()
     {
@@ -310,24 +347,36 @@ public sealed class EndConversationToolTests
             var options = new ChatOptions { Tools = tools };
 
             string text;
+            IEnumerable<AIContent> contents;
 
             if (streaming)
             {
                 var builder = new System.Text.StringBuilder();
+                var seen = new List<AIContent>();
 
                 await foreach (var update in loop.GetStreamingResponseAsync("go", options, TestContext.Current.CancellationToken))
                 {
                     builder.Append(update.Text);
+                    seen.AddRange(update.Contents);
                 }
 
                 text = builder.ToString();
+                contents = seen;
             }
             else
             {
-                text = (await loop.GetResponseAsync("go", options, TestContext.Current.CancellationToken)).Text;
+                var response = await loop.GetResponseAsync("go", options, TestContext.Current.CancellationToken);
+
+                text = response.Text;
+                contents = response.Messages.SelectMany(static message => message.Contents);
             }
 
-            return new Outcome(requested, text);
+            // What the tool answered, as it stays in the history: the call that asks to end is "end-1" in every script.
+            var endResult = contents
+                .OfType<FunctionResultContent>()
+                .FirstOrDefault(static result => string.Equals(result.CallId, "end-1", StringComparison.Ordinal))?.Result?.ToString();
+
+            return new Outcome(requested, text, endResult);
         }
         finally
         {
@@ -345,7 +394,7 @@ public sealed class EndConversationToolTests
 
     private static ChatResponseUpdate[] Turn(params ChatResponseUpdate[] updates) => updates;
 
-    private sealed record Outcome(bool EndRequested, string Text);
+    private sealed record Outcome(bool EndRequested, string Text, string? EndResult);
 
     /// <summary>A tool that keeps the history the loop shows it.</summary>
     private sealed class Probe
