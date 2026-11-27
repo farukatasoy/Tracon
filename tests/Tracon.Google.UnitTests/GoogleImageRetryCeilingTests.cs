@@ -5,8 +5,8 @@ using Tracon.Google.UnitTests.Infrastructure;
 namespace Tracon.Google.UnitTests;
 
 /// <summary>
-/// The Google image client has no retry setting to lower, so a retry ceiling on the Google image provider fails at startup
-/// instead of reading as a protection that is not there.
+/// Tracon does not retry Google image calls and offers no ceiling for them, so a retry ceiling on the Google image provider
+/// fails at startup instead of reading as a protection that is not there.
 /// </summary>
 public sealed class GoogleImageRetryCeilingTests
 {
@@ -19,7 +19,8 @@ public sealed class GoogleImageRetryCeilingTests
 
         failure.Message.ShouldContain("Providers[google]");
         failure.Message.ShouldContain("MaxRetries");
-        failure.Message.ShouldContain("no retry setting");
+        failure.Message.ShouldContain("does not retry");
+        failure.Message.ShouldContain("offers no ceiling");
     }
 
     [Fact]

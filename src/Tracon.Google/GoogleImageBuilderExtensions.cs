@@ -27,8 +27,8 @@ public static class GoogleImageBuilderExtensions
     /// <para>
     /// <paramref name="configure"/> changes the entry of <c>google</c> in <see cref="TraconImageOptions.Providers"/> and no
     /// other. The provider has no setting of its own: <see cref="TraconImageProviderOptions.ProviderSettings"/> must stay empty,
-    /// and so must <see cref="TraconImageProviderOptions.MaxRetries"/>. The Google image client has no retry setting to lower,
-    /// so a value there fails at startup instead of being ignored.
+    /// and so must <see cref="TraconImageProviderOptions.MaxRetries"/>. Tracon does not retry Google image calls and offers no
+    /// ceiling for them, so a value there fails at startup instead of being ignored.
     /// </para>
     /// <para>
     /// <strong>A preview image model needs <c>GoogleProviderOptions.ApiVersion = "v1beta"</c>.</strong> The default <c>v1</c>

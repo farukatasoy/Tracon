@@ -470,7 +470,9 @@ An image model uses either `PerImage` or `OutputCostPerMillionTokens`, never bot
 `SizeMultipliers` applies only to a per-image price and uses the exact provider size
 string, for example `1024x1024`. An image response with no matching configured price
 records its real quantity but leaves `cost` as `null`; Tracon does not estimate
-image prices.
+image prices. A flat `PerImage` rate is one price for every quality, so a call that
+asks for another `openai.quality` is recorded at the same cost; price a token-billed
+image model by tokens when you vary the quality per call.
 
 ### Images
 
@@ -524,8 +526,9 @@ are code only and are not bound from configuration.
 `Providers:{name}:MaxRetries` is a ceiling on how often the provider's client sends one failing image call again, from
 `0` (send once) to `10`. Left out, the client's own count applies: three, or `OpenAIProviderOptions.MaxRetries` for OpenAI.
 It only lowers the count, it does not change chat calls on the same client, and a value above the client's count changes
-nothing. Only `openai` and `azure-openai` take it; a value on any other provider, `google` included, or one outside the
-range stops the host at start. You can set the model in code and this key in configuration for the same provider.
+nothing. Only `openai` and `azure-openai` take it; a value on any other provider, `google` included (Tracon does not retry
+Google image calls and offers no ceiling for them), or one outside the range stops the host at start. You can set the model
+in code and this key in configuration for the same provider.
 
 ## Operational sections
 

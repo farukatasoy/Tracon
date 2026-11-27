@@ -270,10 +270,18 @@ are never changed. A key the provider does not support, a key of another provide
 The `generate_image` tool and `POST /api/images/generate` take no such setting. The quality changes what a call costs,
 so a model or a client does not choose it: it is set in code.
 
+The cost Tracon records does not follow the quality. A flat `PerImage` rate in `Tracon:Pricing:Images` is one price for
+every quality, so a `high` call and a `low` call are recorded at the same cost. If you vary the quality per call, price a
+token-billed image model by tokens (`OutputCostPerMillionTokens`): the token count is the one the provider reports for
+that call.
+
+A `with` copy of a `TraconImageRequest` shares its `ProviderSettings` dictionary with the original, and request equality
+compares that dictionary by reference.
+
 ### Send a failed image call fewer times
 
-An image call is billed. The OpenAI client sends a call again on `429`, `500` and `503`, so with its default of three
-retries one failing call reaches the server four times. That count is shared with chat, and a count that suits chat can
+An image call is billed. The OpenAI client sends a call again after a retryable failure (such as `429` or a `5xx`
+answer), so with its default of three retries one failing call reaches the server four times. That count is shared with chat, and a count that suits chat can
 be too high for a call that is priced per image. `Tracon:Images:Providers:{name}:MaxRetries` lowers the count for image
 calls alone, from `0` (send once) to `10`:
 
@@ -290,8 +298,8 @@ calls alone, from `0` (send once) to `10`:
 It is a ceiling: a value above the client's own count changes nothing, and chat calls on the same client keep the
 client's count. The OpenAI and Azure OpenAI image providers take it, and so does the matching `MaxRetries` property of
 `TraconImageProviderOptions` in code. Azure OpenAI has no retry option of its own, so this is the one way to ask its
-client for fewer than three. Google has no retry setting to lower: a value on `google` stops the host at start instead of
-being ignored.
+client for fewer than three. Tracon does not retry Google image calls and offers no ceiling for them: a value on `google`
+stops the host at start instead of being ignored.
 
 ## Troubleshooting
 

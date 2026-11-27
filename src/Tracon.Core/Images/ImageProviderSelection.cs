@@ -222,7 +222,8 @@ internal static class ImageProviderSettingKeys
     /// <param name="provider">The provider name.</param>
     /// <returns>
     /// <see langword="true"/> for the providers whose generator is written over the OpenAI client library (<c>openai</c> and
-    /// <c>azure-openai</c>); <see langword="false"/> for the others, whose client has no retry setting to lower.
+    /// <c>azure-openai</c>); <see langword="false"/> for the others, whose image calls Tracon does not retry and for which it
+    /// offers no ceiling.
     /// </returns>
     public static bool SupportsMaxRetries(string provider)
         => provider.ToUpperInvariant() is "OPENAI" or "AZURE-OPENAI";

@@ -141,7 +141,7 @@ public sealed class ImageOptionsValidationTests
     [InlineData("google")]
     [InlineData("GOOGLE")]
     [InlineData("my-own-provider")]
-    public void A_retry_ceiling_on_a_provider_that_has_no_retry_setting_fails_at_startup_instead_of_being_ignored(string provider)
+    public void A_retry_ceiling_on_a_provider_whose_image_calls_are_not_retried_fails_at_startup_instead_of_being_ignored(string provider)
     {
         var options = new TraconImageOptions();
         options.Providers[provider] = new TraconImageProviderOptions { MaxRetries = 1 };
@@ -154,6 +154,8 @@ public sealed class ImageOptionsValidationTests
 
         failure.ShouldContain($"Providers[{provider}]");
         failure.ShouldContain("MaxRetries");
+        failure.ShouldContain("does not retry");
+        failure.ShouldContain("offers no ceiling");
         failure.ShouldContain("openai", Case.Sensitive);
         failure.ShouldContain("azure-openai", Case.Sensitive);
     }

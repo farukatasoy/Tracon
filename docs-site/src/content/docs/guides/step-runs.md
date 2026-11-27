@@ -91,7 +91,7 @@ the failure mask.
 
 | Service | Call | Result |
 |---|---|---|
-| `IImageGenerationService` | `GenerateAsync(TraconImageRequest)` — prompt, count, size, and optionally provider and model | The images as bytes with their media type, the measurement, and whether it was recorded |
+| `IImageGenerationService` | `GenerateAsync(TraconImageRequest)` — prompt, count, size, and optionally provider, model and provider settings for this call (`openai.quality`) | The images as bytes with their media type, the measurement, and whether it was recorded |
 | `ISpeechSynthesisService` | `SynthesizeAsync(SpeechRequest, provider)` | The audio, the measurement, and whether it was recorded |
 | `ISpeechSynthesisService` | `SynthesizeDialogueAsync(SpeechDialogueRequest, provider)` | The dialogue audio and its segments, the measurement, and whether it was recorded |
 

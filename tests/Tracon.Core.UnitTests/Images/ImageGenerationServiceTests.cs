@@ -103,6 +103,35 @@ public sealed class ImageGenerationServiceTests
     }
 
     [Fact]
+    public async Task A_flat_per_image_price_is_one_price_for_every_quality_the_call_asks_for()
+    {
+        // The documented limit of the measurement: the quality of a call is not a price factor. A host that varies the quality
+        // prices a token-billed model by tokens instead.
+        var generator = new Generator();
+        await using var provider = BuildOpenAI(
+            generator,
+            configureServices: services => services.Configure<TraconOptions>(options =>
+            {
+                options.Pricing.Currency = "USD";
+                options.Pricing.Images["openai"] = new Dictionary<string, ImagePriceOverride>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["image-1"] = new ImagePriceOverride { PerImage = 0.04m },
+                };
+            }));
+        var images = provider.GetRequiredService<IImageGenerationService>();
+
+        var high = await images.GenerateAsync(
+            new TraconImageRequest { Prompt = "a kite", ProviderSettings = { ["openai.quality"] = Text("high") } },
+            TestContext.Current.CancellationToken);
+        var low = await images.GenerateAsync(
+            new TraconImageRequest { Prompt = "a kite", ProviderSettings = { ["openai.quality"] = Text("low") } },
+            TestContext.Current.CancellationToken);
+
+        high.Usage.Cost.ShouldBe(0.04m);
+        low.Usage.Cost.ShouldBe(high.Usage.Cost, "a flat per-image rate does not follow the quality");
+    }
+
+    [Fact]
     public async Task A_call_setting_with_no_registered_one_reaches_the_provider()
     {
         var generator = new Generator();
@@ -130,7 +159,7 @@ public sealed class ImageGenerationServiceTests
         var options = generator.Options.ShouldHaveSingleItem();
 
         options.AdditionalProperties.ShouldNotBeNull().Count.ShouldBe(1, "one setting, not the registered one beside the call's");
-        QualityOf(options).ShouldBe("high", "the generator reads the key by its exact spelling");
+        QualityOf(options).ShouldBe("high", "the lookup of the lower-case key finds the call's value: the options' dictionary ignores letter case");
     }
 
     [Theory]
@@ -232,7 +261,10 @@ public sealed class ImageGenerationServiceTests
             ? (value as JsonElement?)?.GetString()
             : null;
 
-    private static ServiceProvider BuildOpenAI(Generator generator, Action<TraconImageProviderOptions>? registered = null)
+    private static ServiceProvider BuildOpenAI(
+        Generator generator,
+        Action<TraconImageProviderOptions>? registered = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var services = new ServiceCollection();
 
@@ -245,6 +277,7 @@ public sealed class ImageGenerationServiceTests
             });
 
         services.AddKeyedSingleton<IImageGenerator>("openai", generator);
+        configureServices?.Invoke(services);
 
         return services.BuildServiceProvider();
     }

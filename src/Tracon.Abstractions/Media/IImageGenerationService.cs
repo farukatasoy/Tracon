@@ -32,8 +32,8 @@ namespace Tracon;
 /// <para>
 /// <strong>Delivery:</strong> no delivery guarantee applies. One call sends one request; a failed call is not repeated by this
 /// service, but the provider client's own retries apply, and an image call is billed. The OpenAI and Azure OpenAI clients send a
-/// call again on <c>429</c>, <c>500</c> and <c>503</c> up to three times by default, so one failing call can reach the provider
-/// four times. <c>Tracon:Images:Providers:{name}:MaxRetries</c> (<c>TraconImageProviderOptions.MaxRetries</c>) is a ceiling on
+/// call again after a retryable failure (such as <c>429</c> or a <c>5xx</c> answer) up to three times by default, so one failing
+/// call can reach the provider four times. <c>Tracon:Images:Providers:{name}:MaxRetries</c> (<c>TraconImageProviderOptions.MaxRetries</c>) is a ceiling on
 /// that count for image calls: <c>0</c> sends the call once. It only lowers the count, and chat calls keep the client's.
 /// </para>
 /// </remarks>
@@ -106,6 +106,16 @@ public sealed record TraconImageRequest
     /// <para>
     /// Code sets it. The <c>generate_image</c> tool and <c>POST /api/images/generate</c> send none and cannot be given any:
     /// the quality of an image changes what the call costs, and a model or a client must not choose it.
+    /// </para>
+    /// <para>
+    /// <strong>The measured cost does not follow the quality.</strong> A flat <c>PerImage</c> price in <c>Tracon:Pricing:Images</c>
+    /// is one price for every quality: a <c>high</c> call and a <c>low</c> call are recorded at the same cost. A host that varies
+    /// the quality per call prices a token-billed image model by tokens (<c>OutputCostPerMillionTokens</c>): the token count is the
+    /// one the provider reports for that call.
+    /// </para>
+    /// <para>
+    /// A <see langword="with"/> copy of the request shares this dictionary with the original, and record equality compares it by
+    /// reference, so two requests with the same settings in two dictionaries are not equal.
     /// </para>
     /// <example>
     /// <code>

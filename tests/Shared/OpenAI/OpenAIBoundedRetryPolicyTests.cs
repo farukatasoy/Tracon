@@ -269,6 +269,44 @@ public sealed class OpenAIBoundedRetryPolicyTests
         transport.Calls.ShouldBe(1 + 4, "a message with no ceiling is sent the first time and the policy's three retries");
     }
 
+    /// <summary>
+    /// Messages with different ceilings that are in flight on one pipeline at the same time each keep their own count. The
+    /// policy is one object shared by every message of the client, so a count kept on the policy instead of on the message
+    /// would let one message's retries use up another's: with ceilings of one and three, the one that may retry three times
+    /// would stop after two.
+    /// </summary>
+    [Fact]
+    public async Task Messages_with_different_ceilings_in_flight_on_one_pipeline_each_keep_their_own_count()
+    {
+        var clock = new ManualClock();
+        var transport = new Script((503, null));
+        var pipeline = ClientPipeline.Create(new ClientPipelineOptions
+        {
+            RetryPolicy = new OpenAIBoundedRetryPolicy(clock),
+            Transport = new HttpClientPipelineTransport(new HttpClient(transport)),
+        });
+
+        (int Ceiling, int ExpectedCalls)[] expectations = [(0, 1), (1, 2), (3, 4)];
+        var sends = new List<Task>();
+
+        foreach (var (ceiling, _) in expectations)
+        {
+            var message = pipeline.CreateMessage(new Uri($"http://provider.invalid/v1/ceiling-{ceiling}"), "GET");
+            OpenAIBoundedRetryPolicy.CapRetries(message, ceiling);
+            sends.Add(pipeline.SendAsync(message).AsTask());
+        }
+
+        // The message that may not retry has ended; the other two are each waiting out their first backoff at once.
+        await WaitUntil.TrueAsync(() => clock.Pending.Count == 2, "both messages that may retry to be waiting on the clock together");
+
+        await clock.AdvanceUntilAsync(Task.WhenAll(sends));
+
+        foreach (var (ceiling, expectedCalls) in expectations)
+        {
+            transport.CallsTo($"/v1/ceiling-{ceiling}").ShouldBe(expectedCalls, $"the message with a ceiling of {ceiling} is sent once and then as often as its own ceiling allows");
+        }
+    }
+
     [Fact]
     public void A_negative_ceiling_is_refused()
     {
@@ -336,15 +374,30 @@ public sealed class OpenAIBoundedRetryPolicyTests
     /// <summary>A transport that answers from a list, repeating the last answer when the list runs out.</summary>
     private sealed class Script(params (int Status, string? RetryAfter)[] answers) : HttpMessageHandler
     {
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _callsByPath = new(StringComparer.Ordinal);
         private int _calls;
 
         public int Calls => Volatile.Read(ref _calls);
 
+        /// <summary>Gets how many requests reached the transport for one path.</summary>
+        public int CallsTo(string path) => _callsByPath.TryGetValue(path, out var calls) ? calls : 0;
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(Next());
+        {
+            Record(request);
+
+            return Task.FromResult(Next());
+        }
 
         protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Next();
+        {
+            Record(request);
+
+            return Next();
+        }
+
+        private void Record(HttpRequestMessage request)
+            => _callsByPath.AddOrUpdate(request.RequestUri!.AbsolutePath, 1, static (_, calls) => calls + 1);
 
         private HttpResponseMessage Next()
         {
