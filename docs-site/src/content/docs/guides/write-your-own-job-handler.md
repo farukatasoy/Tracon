@@ -199,6 +199,68 @@ item failed completes as `Failed`. Keep the `ReportItemAsync` call outside the
 a finished item is caught as that item's failure, and work that succeeded is
 recorded as `Failed`.
 
+## End the job for good when another attempt cannot succeed
+
+Whatever your handler throws counts as a failed attempt, and the worker leases the job again until its
+attempts are spent. That is right for a network error and wrong for a rule of your own that cannot
+change between attempts: the order the job is about does not exist, the input is malformed. Each repeat
+pays for the work in front of that check again. Throw `JobPermanentFailureException` there:
+
+```csharp
+public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+{
+    var order = await orders.FindAsync(context.Job.TargetName, cancellationToken);
+
+    if (order is null)
+    {
+        // The order will not exist on the next attempt either.
+        throw new JobPermanentFailureException(
+            "order.not-found",
+            reason: $"Order {context.Job.TargetName} is not in the database.");
+    }
+
+    // ...
+}
+```
+
+- **The job ends `Failed` on the attempt that threw.** `attempt` stays at that number, whatever
+  `MaxAttempts` is, and the `job.failed` event is published as for any other failure.
+- **The stored message is the code and a reference**, `order.not-found (ref: 1f3a9c2e)`. A job's
+  `errorMessage` is stored, returned over HTTP and shown in the console, so no free text enters it. The
+  code is 1 to 64 characters: lowercase ASCII letters, digits, `.`, `_` or `-`. Any other value throws
+  `ArgumentException` where you build the exception.
+- **`reason` and the inner exception go to the log**, once, under the same reference. Put the order
+  number or the customer there, not in the code.
+- **It ends this one job.** A workflow's node retry and an online evaluation read Tracon's own failure
+  identities and do not treat it as a failure that repeats. A job that was cancelled stays `Cancelled`.
+
+`JobRetryException` is the opposite request (try again, after a delay), and an ordinary exception stays
+what it was: retried until the attempt limit.
+
+## Keep one tenant from taking every slot
+
+The worker leases the oldest ready job. When one tenant queues a burst of your jobs, its first few fill
+every slot of the lane, and another tenant's job waits until one of them ends. To let a tenant hold at
+most a few slots of one handler, name the handler key and the ceiling:
+
+```json
+{
+  "Tracon": {
+    "Scheduling": {
+      "TenantCapHandlerKeys": [ "contoso.nightly-report" ],
+      "MaxLeasedPerTenant": 2
+    }
+  }
+}
+```
+
+A tenant at the ceiling has its jobs of those keys skipped, and the oldest job that is still eligible is
+leased instead. Its held-back jobs stay `Pending` and run as its other jobs end. The setting is off by
+default, and one ceiling covers one set of keys. Every key must belong to a registered handler, and the
+ceiling must be at least `1`: anything else stops the host at startup. The ceiling is soft and shared by
+every process that uses the same store; [Keep one tenant from filling a lane](/guides/background-work/#keep-one-tenant-from-filling-a-lane)
+says how exact it is and how it relates to the workflow engine's own limit.
+
 ## Verify your implementation
 
 Add the contract package to your test project:

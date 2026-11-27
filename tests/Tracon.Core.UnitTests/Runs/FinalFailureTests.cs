@@ -72,6 +72,17 @@ public sealed class FinalFailureTests
     /// either can clear on the next attempt.
     /// </summary>
     [Fact]
+    public void A_job_handlers_permanent_failure_is_not_a_same_answer_identity()
+    {
+        // Only the job worker reads it. A workflow node's retry and the online evaluation ask this question too, and a
+        // consumer's rule that ends one job must not end their repeats.
+        var failure = new JobPermanentFailureException("order.not-found");
+
+        FinalFailure.IsFinal(failure).ShouldBeFalse();
+        FinalFailure.IsFinal(new InvalidOperationException("outer", failure)).ShouldBeFalse();
+    }
+
+    [Fact]
     public void A_compilation_failure_is_not_final()
     {
         var failure = new TraconCompilationException(

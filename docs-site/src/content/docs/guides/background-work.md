@@ -328,6 +328,41 @@ never closed this way.
 A value outside `1` to `MaxConcurrentRuns`, or one that is not a number, stops the host
 at startup. The limit is read once, when the process starts.
 
+## Keep one tenant from filling a lane
+
+The worker leases the oldest ready job whichever tenant owns it. A tenant that queues a
+burst of jobs of one handler fills the slots of the lane, and another tenant's job waits
+behind the burst. A separate lane does not fix that: it splits the slots between kinds of
+work, not between tenants. Name the handler keys and the most jobs of them one tenant may
+hold leased at once:
+
+```json
+{
+  "Tracon": {
+    "Scheduling": {
+      "TenantCapHandlerKeys": [ "contoso.podcast" ],
+      "MaxLeasedPerTenant": 2
+    }
+  }
+}
+```
+
+With four slots, a tenant that queued six `contoso.podcast` jobs holds two of them; the other
+two slots go to the oldest eligible jobs of anyone else, so a second tenant's job starts at
+once. The six jobs run as the tenant's own jobs end: held-back jobs stay `Pending`.
+
+- **Off by default.** Leave `MaxLeasedPerTenant` out and the worker leases in age order.
+- **Soft, not a quota.** The count covers every process that shares the store, but it is read,
+  not locked. Workers that lease at the same moment can take a tenant past the ceiling by up
+  to their own number.
+- **One set of keys, one number.** Every key must belong to a registered handler, and the
+  number must be at least `1`; a key nobody registered, a ceiling without keys, or keys without
+  a ceiling stops the host at startup.
+- **Not together with the workflow ceiling.** `Tracon:Workflows:MaxConcurrentRunsPerTenant`
+  (above) uses the same mechanism for the workflow handler keys, and one lease request carries
+  one ceiling. A host that sets both stops at startup and the error names both settings; turn
+  one of them off.
+
 ## Create a recurring schedule
 
 The schedule name is part of the URL. The body selects the handler key, target,
@@ -683,6 +718,8 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
 | `Scheduling.LaneByHandlerKey` | empty | Maps a handler key to a lane when the caller left it unset |
 | `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default. `tracon.workflow-run` is never accepted, and `tracon.retention.fanout` is accepted only when named here, from the default tenant |
+| `Scheduling.TenantCapHandlerKeys` | empty | Handler keys the per-tenant ceiling below covers; every key must belong to a registered handler, and it is set together with `MaxLeasedPerTenant` |
+| `Scheduling.MaxLeasedPerTenant` | `null` | The most jobs of `TenantCapHandlerKeys` one tenant may hold leased at once, at least `1`; `null` sets no ceiling. Soft, and not combinable with `Workflows.MaxConcurrentRunsPerTenant` |
 | `AsyncRun.Enabled` | `true` | A queued run request returns `501` when disabled |
 | `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries, and queued workflow runs while workflow recovery is off |
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |
@@ -726,6 +763,10 @@ whose status is no longer `Pending`; see
   `HttpRequestException` with `404` while a resource is not there yet, keeps its
   retries. A `JobRetryException` keeps its retries too, and an attempt that reached its
   time limit counts like any failed attempt.
+- A handler that knows another attempt cannot succeed says so: it throws
+  `JobPermanentFailureException` with a stable code, and the job ends `Failed` on that
+  attempt with the code as its `errorMessage`. See
+  [Write your own job handler](/guides/write-your-own-job-handler/#end-the-job-for-good-when-another-attempt-cannot-succeed).
 - A store error while a handler records a failed attempt (a webhook delivery's
   failed send, an eval run closed as `Failed`) is tried again the same way and never
   replaces the attempt's own failure: a failed webhook send keeps its retry delay.

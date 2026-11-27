@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
 /// Every key of <c>Tracon:Scheduling</c> really reaches
-/// <see cref="TraconSchedulingOptions"/> — the scalars and the five collections.
+/// <see cref="TraconSchedulingOptions"/> — the scalars and the six collections.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -49,6 +49,10 @@ public sealed class TraconSchedulingOptionsBindingTests
             ["Tracon:Scheduling:LeaseDuration"] = "00:02:00",
             ["Tracon:Scheduling:MaxAttempts"] = "5",
             ["Tracon:Scheduling:MaxItemsPerJob"] = "250",
+
+            // A ceiling comes with the keys it covers, or startup refuses it; a built-in key is always registered.
+            ["Tracon:Scheduling:MaxLeasedPerTenant"] = "4",
+            ["Tracon:Scheduling:TenantCapHandlerKeys:0"] = JobHandlerKeys.AgentBatch,
         };
 
         var options = Bind(values);
@@ -60,8 +64,10 @@ public sealed class TraconSchedulingOptionsBindingTests
         options.LeaseDuration.ShouldBe(TimeSpan.FromMinutes(2));
         options.MaxAttempts.ShouldBe(5);
         options.MaxItemsPerJob.ShouldBe(250);
+        options.MaxLeasedPerTenant.ShouldBe(4);
+        options.TenantCapHandlerKeys.ShouldBe([JobHandlerKeys.AgentBatch]);
 
-        // The collections are bound and asserted in The_lane_collections_are_bound, and the duration limits in the
+        // The other collections are bound and asserted in The_lane_collections_are_bound, and the duration limits in the
         // test that names MaxDurationByHandlerKey.
         OptionsKeyCoverage.ShouldCoverEveryMember(
             values, "Tracon:Scheduling", options,

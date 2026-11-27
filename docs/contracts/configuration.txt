@@ -291,8 +291,10 @@ Tracon:Scheduling:MaxConcurrentJobs
 Tracon:Scheduling:MaxConcurrentJobsPerLane:*
 Tracon:Scheduling:MaxDurationByHandlerKey:*
 Tracon:Scheduling:MaxItemsPerJob
+Tracon:Scheduling:MaxLeasedPerTenant
 Tracon:Scheduling:PollInterval
 Tracon:Scheduling:RunWorker
+Tracon:Scheduling:TenantCapHandlerKeys:*
 Tracon:SessionOwnership:Enabled
 Tracon:SessionOwnership:ManagementPolicy
 Tracon:SessionOwnership:RefuseUnownedSessions

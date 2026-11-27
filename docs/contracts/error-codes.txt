@@ -22,6 +22,7 @@ invalid_parameters
 invalid_request_error
 invalid_run_attribution
 job_max_duration_exceeded
+job_permanent_failure
 job_retry
 loop_unsatisfied
 model_not_found

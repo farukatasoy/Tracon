@@ -83,7 +83,84 @@ public sealed class JobWorkerTenantCapTests
         await worker.StopAsync(TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task A_ceiling_set_in_the_scheduling_options_keeps_one_tenants_burst_from_filling_every_slot()
+    {
+        // Four slots, one lane. Tenant A queued six jobs, all older than the one tenant B queued last. In plain age order
+        // A's first four fill the slots and B waits for one of them to end.
+        var jobs = new RecordingJobStore();
+        var handler = new HoldingHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+        var options = new TraconSchedulingOptions { MaxLeasedPerTenant = 2 };
+        options.TenantCapHandlerKeys.Add(JobHandlerKeys.AgentBatch);
+
+        var now = DateTimeOffset.UtcNow;
+        var burst = new List<Guid>();
+
+        for (var index = 0; index < 6; index++)
+        {
+            burst.Add(await EnqueueAsync(jobs, "tenant-a", now.AddMinutes(-60 + index)));
+        }
+
+        var other = await EnqueueAsync(jobs, "tenant-b", now.AddMinutes(-10));
+
+        using var worker = CreateWorker(jobs, host, options);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        // B's job is leased although four of A's older jobs were ready first; A holds two, which is its ceiling.
+        await WaitUntil.TrueAsync(() => handler.Started.Count >= 3, "the ceiling's two jobs of tenant A and the job of tenant B to start");
+        await WaitUntil.TrueAsync(() => jobs.EmptyLeases >= 1, "the worker to ask again and find nothing eligible");
+
+        handler.Started.ShouldContain(other);
+        handler.Started.Count(burst.Contains).ShouldBe(2, "tenant A held more jobs than its ceiling while a slot stood free");
+        jobs.Requests.ShouldAllBe(static request => request.TenantCap != null && request.TenantCap.MaxLeasedPerTenant == 2);
+
+        // The ceiling holds jobs back; it does not drop them.
+        handler.ReleaseAll();
+        await WaitUntil.TrueAsync(() => handler.Started.Count >= 7, "the rest of tenant A's jobs to run once its slots were free");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Without_the_setting_one_tenants_burst_fills_the_slots_in_age_order()
+    {
+        var jobs = new RecordingJobStore();
+        var handler = new HoldingHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var now = DateTimeOffset.UtcNow;
+        var burst = new List<Guid>();
+
+        for (var index = 0; index < 6; index++)
+        {
+            burst.Add(await EnqueueAsync(jobs, "tenant-a", now.AddMinutes(-60 + index)));
+        }
+
+        var other = await EnqueueAsync(jobs, "tenant-b", now.AddMinutes(-10));
+
+        using var worker = CreateWorker(jobs, host, new TraconSchedulingOptions());
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => handler.Started.Count >= 4, "the four slots to fill");
+
+        // The pre-existing order: nothing asks for a ceiling, and B waits behind A's four.
+        handler.Started.ToArray().ShouldBe(burst.Take(4), ignoreOrder: true);
+        handler.Started.ShouldNotContain(other);
+        jobs.Requests.ShouldAllBe(static request => request.TenantCap == null);
+
+        handler.ReleaseAll();
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static JobWorkerBackgroundService CreateWorker(IJobStore jobs, TestJobHandlerHost host, TraconSchedulingOptions settings)
+        => CreateWorker(jobs, host, JobTenantBindings.Create(capSource: null, hostScope: null, settings));
+
     private static JobWorkerBackgroundService CreateWorker(IJobStore jobs, TestJobHandlerHost host, IJobTenantCapSource? capSource)
+        => CreateWorker(jobs, host, new JobTenantBindings(capSource, HostScope: null));
+
+    private static JobWorkerBackgroundService CreateWorker(IJobStore jobs, TestJobHandlerHost host, JobTenantBindings tenancy)
         => new(
             jobs,
             new InMemoryJobScheduleStore(),
@@ -99,7 +176,7 @@ public sealed class JobWorkerTenantCapTests
             new SchemaReadyGate([]),
             new NotDraining(),
             logger: NullLogger<JobWorkerBackgroundService>.Instance,
-            tenancy: new JobTenantBindings(capSource, HostScope: null));
+            tenancy: tenancy);
 
     private static async Task<Guid> EnqueueAsync(IJobStore jobs, string tenantId, DateTimeOffset scheduledFor)
     {

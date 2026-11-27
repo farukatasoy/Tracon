@@ -1093,6 +1093,12 @@ internal sealed class JobWorkerBackgroundService(
     /// persisted as is and not logged a second time.
     /// </para>
     /// <para>
+    /// A <see cref="JobPermanentFailureException"/> fails the job on this attempt as well: the handler decided
+    /// another attempt cannot succeed. Its code is what is persisted (with a reference), its free text and its
+    /// inner exception go to the log under that reference, and it is not judged by the time limit the attempt may
+    /// also have reached.
+    /// </para>
+    /// <para>
     /// A failure <see cref="FinalFailure.IsFinal"/> calls final fails the job on
     /// this attempt too: the next attempt would get the same answer and pay for the
     /// work again. It is logged and persisted like any other failure. A
@@ -1117,16 +1123,37 @@ internal sealed class JobWorkerBackgroundService(
         CancellationToken stoppingToken)
     {
         var nonRetryable = exception is NonRetryableJobException;
+        var permanent = exception as JobPermanentFailureException;
 
         // Read from the failure's stable identity, never its text. An attempt
         // that reached its time limit is not judged by what the handler threw on its
-        // way out (see the remarks).
+        // way out (see the remarks): a handler that decided the work cannot succeed
+        // is the exception to that, its decision is the cause.
         var final = nonRetryable
+            || permanent is not null
             || (maxDurationExceeded is null && exception is not JobRetryException && FinalFailure.IsFinal(exception));
         var correlationId = SafeErrorText.NewCorrelationId();
         string safeMessage;
 
-        if (!nonRetryable && maxDurationExceeded is { } limit)
+        if (permanent is not null)
+        {
+            // The handler is no logger: it throws, and the free text it gave goes to the log here, once, under the
+            // reference the stored message carries. The stored message is the code and the reference and nothing else.
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(
+                    exception,
+                    "Job {JobId} failed for good on attempt {Attempt} with code {Code}: {Reason} (ref: {CorrelationId})",
+                    job.Id,
+                    job.Attempt,
+                    permanent.Code,
+                    permanent.Reason ?? "no reason given",
+                    correlationId);
+            }
+
+            safeMessage = JobErrorCodes.Format(permanent.Code, correlationId);
+        }
+        else if (!nonRetryable && maxDurationExceeded is { } limit)
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Error))
             {

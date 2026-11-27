@@ -1629,6 +1629,10 @@ Tracon.JobLeaseRequest.Owner.get -> string!
 Tracon.JobLeaseRequest.Owner.init -> void
 Tracon.JobLeaseRequest.TenantCap.get -> Tracon.JobTenantCap?
 Tracon.JobLeaseRequest.TenantCap.init -> void
+Tracon.JobPermanentFailureException
+Tracon.JobPermanentFailureException.Code.get -> string!
+Tracon.JobPermanentFailureException.JobPermanentFailureException(string! code, string? reason = null, System.Exception? innerException = null) -> void
+Tracon.JobPermanentFailureException.Reason.get -> string?
 Tracon.JobQuery
 Tracon.JobQuery.<Clone>$() -> Tracon.JobQuery!
 Tracon.JobQuery.Equals(Tracon.JobQuery? other) -> bool
@@ -4027,10 +4031,13 @@ Tracon.TraconSchedulingOptions.MaxConcurrentJobsPerLane.get -> System.Collection
 Tracon.TraconSchedulingOptions.MaxDurationByHandlerKey.get -> System.Collections.Generic.IDictionary<string!, System.TimeSpan>!
 Tracon.TraconSchedulingOptions.MaxItemsPerJob.get -> int
 Tracon.TraconSchedulingOptions.MaxItemsPerJob.set -> void
+Tracon.TraconSchedulingOptions.MaxLeasedPerTenant.get -> int?
+Tracon.TraconSchedulingOptions.MaxLeasedPerTenant.set -> void
 Tracon.TraconSchedulingOptions.PollInterval.get -> System.TimeSpan
 Tracon.TraconSchedulingOptions.PollInterval.set -> void
 Tracon.TraconSchedulingOptions.RunWorker.get -> bool
 Tracon.TraconSchedulingOptions.RunWorker.set -> void
+Tracon.TraconSchedulingOptions.TenantCapHandlerKeys.get -> System.Collections.Generic.IList<string!>!
 Tracon.TraconSchedulingOptions.TraconSchedulingOptions() -> void
 Tracon.TraconSessionConflictException
 Tracon.TraconSessionConflictException.SessionId.get -> string?
@@ -4607,6 +4614,7 @@ const Tracon.JobHandlerKeys.WebhookDelivery = "tracon.webhook-delivery" -> strin
 const Tracon.JobHandlerKeys.Workflow = "tracon.workflow" -> string!
 const Tracon.JobHandlerKeys.WorkflowRun = "tracon.workflow-run" -> string!
 const Tracon.JobLanes.Default = "default" -> string!
+const Tracon.JobPermanentFailureException.JobPermanentFailureErrorType = "job_permanent_failure" -> string!
 const Tracon.JobRetryException.JobRetryErrorType = "job_retry" -> string!
 const Tracon.LoopSettings.DefaultMaxIterations = 10 -> int
 const Tracon.RetentionTargets.Attachments = "attachments" -> string!
@@ -4672,6 +4680,7 @@ const Tracon.TraconErrorTypes.JobAttemptsExhausted = "tracon.job.attempts-exhaus
 const Tracon.TraconErrorTypes.JobHandlerActivationFailed = "tracon.job.handler-activation-failed" -> string!
 const Tracon.TraconErrorTypes.JobMaxDurationExceeded = "job_max_duration_exceeded" -> string!
 const Tracon.TraconErrorTypes.JobMaxDurationExceededCode = "tracon.job.max-duration-exceeded" -> string!
+const Tracon.TraconErrorTypes.JobPermanentFailure = "job_permanent_failure" -> string!
 const Tracon.TraconErrorTypes.JobRetry = "job_retry" -> string!
 const Tracon.TraconErrorTypes.JobSessionSaveFailed = "tracon.job.session-save-failed" -> string!
 const Tracon.TraconErrorTypes.JobUnknownHandlerKey = "tracon.job.unknown-handler-key" -> string!
@@ -4903,6 +4912,7 @@ override Tracon.JobTenantCap.ToString() -> string!
 override Tracon.JobRequest.Equals(object? obj) -> bool
 override Tracon.JobRequest.GetHashCode() -> int
 override Tracon.JobRequest.ToString() -> string!
+override Tracon.JobPermanentFailureException.ErrorType.get -> string!
 override Tracon.JobRetryException.ErrorType.get -> string!
 override Tracon.JobSchedule.Equals(object? obj) -> bool
 override Tracon.JobSchedule.GetHashCode() -> int

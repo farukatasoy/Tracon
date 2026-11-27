@@ -147,6 +147,48 @@ public sealed class FinalFailureJobRetryTests
         job.Attempt.ShouldBe(2, "a consumer's own failure is never read as one of Tracon's final identities");
     }
 
+    [Fact]
+    public async Task A_consumer_handler_that_fails_for_good_ends_on_its_first_attempt_and_the_api_shows_only_its_code()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                builder.AddJobHandler<FailsForGoodHandler>(FailsForGoodHandler.Key);
+                builder.UseScheduling(
+                static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
+
+        var jobs = host.Services.GetRequiredService<IJobStore>();
+        var tenantId = host.Services.GetRequiredService<ITenantContext>().TenantId;
+        var now = DateTimeOffset.UtcNow;
+        var queued = await jobs.EnqueueAsync(
+            new JobRecord
+            {
+                Id = TraconId.NewId(),
+                TenantId = tenantId,
+                HandlerKey = FailsForGoodHandler.Key,
+                TargetName = "order-42",
+                Status = JobStatus.Pending,
+                Payload = JsonSerializer.SerializeToElement(new { }),
+                MaxAttempts = 3,
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            []);
+
+        var job = await WaitForEndAsync(host, queued.Id);
+
+        job.Status.ShouldBe(JobStatus.Failed);
+        job.Attempt.ShouldBe(1, "a handler that said another attempt cannot succeed was run again");
+
+        // What a client reads over HTTP is the code and a reference. The handler's free text is in the log.
+        using var response = await host.Client.GetAsync(new Uri($"/tracon/api/jobs/{queued.Id}", UriKind.Relative));
+        var errorMessage = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("job").GetProperty("errorMessage").GetString();
+
+        errorMessage.ShouldNotBeNull().ShouldStartWith("order.not-found (ref: ");
+        errorMessage.ShouldNotContain("Jane");
+    }
+
     private static Task<TraconTestHost> StartQueuedRunHostAsync(IModelProvider model)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
@@ -270,6 +312,14 @@ public sealed class FinalFailureJobRetryTests
     }
 
     /// <summary>A consumer handler that waits for a resource that is not there yet.</summary>
+    private sealed class FailsForGoodHandler : IJobHandler
+    {
+        public const string Key = "contoso.fail-for-good";
+
+        public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+            => throw new JobPermanentFailureException("order.not-found", "Order 42 of Jane Doe is not in the database.");
+    }
+
     private sealed class NotFoundYetHandler : IJobHandler
     {
         public const string Key = "contoso.wait-for-resource";

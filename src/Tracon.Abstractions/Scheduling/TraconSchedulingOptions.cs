@@ -182,4 +182,49 @@ public sealed class TraconSchedulingOptions
     /// </para>
     /// </remarks>
     public IList<string> HttpSchedulableHandlerKeys { get; } = [];
+
+    /// <summary>
+    /// The handler keys <see cref="MaxLeasedPerTenant"/> applies to. Empty — the default — means no tenant ceiling.
+    /// Every key must belong to a handler registered with <c>AddJobHandler</c>.
+    /// </summary>
+    /// <remarks>
+    /// Set it together with <see cref="MaxLeasedPerTenant"/>: one without the other is a startup error, so a
+    /// mistyped ceiling does not go unnoticed.
+    /// </remarks>
+    public IList<string> TenantCapHandlerKeys { get; } = [];
+
+    /// <summary>
+    /// The most jobs of <see cref="TenantCapHandlerKeys"/> one tenant may hold leased at the same time, so that one
+    /// tenant's burst of work does not fill every worker slot of a lane and delay the other tenants' jobs.
+    /// <see langword="null"/> — the default — sets no ceiling: the oldest ready job is leased whichever tenant it belongs to.
+    /// At least 1.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A tenant at the ceiling has its jobs of those keys skipped, and the oldest job that is still eligible is leased
+    /// instead; a job of another key, or of another tenant, is never affected. The count is shared by every worker that
+    /// uses the same store.
+    /// </para>
+    /// <para>
+    /// <strong>The ceiling is soft.</strong> Workers that lease at the same moment can each read a count below the
+    /// ceiling, so a tenant can exceed it by up to the number of workers leasing at once. It is a fairness limit, not a
+    /// quota.
+    /// </para>
+    /// <para>
+    /// One ceiling covers one set of keys. It cannot be combined with the workflow engine's
+    /// <c>Tracon:Workflows:MaxConcurrentRunsPerTenant</c>, which uses the same mechanism for its own keys: a host that
+    /// sets both fails at startup.
+    /// </para>
+    /// <example>
+    /// <code language="json">
+    /// "Tracon": {
+    ///   "Scheduling": {
+    ///     "TenantCapHandlerKeys": [ "contoso.podcast" ],
+    ///     "MaxLeasedPerTenant": 2
+    ///   }
+    /// }
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public int? MaxLeasedPerTenant { get; set; }
 }

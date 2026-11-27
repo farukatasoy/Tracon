@@ -97,6 +97,12 @@ public interface IJobHandler
     /// keeps failing until then leaves the job to the lease-lapse case above.
     /// </para>
     /// <para>
+    /// <strong>Failing for good.</strong> Whatever a handler throws counts as a failed attempt, and the job is leased
+    /// again until its attempts are spent. A handler that knows another attempt would get the same answer (the order
+    /// the job is about does not exist, the input is malformed) throws <see cref="JobPermanentFailureException"/>
+    /// with a stable code: the job fails on this attempt, with that code as its error message.
+    /// </para>
+    /// <para>
     /// <strong>A running handler is never interrupted by its own lease running
     /// out.</strong>
     /// The worker renews the lease on a timer for as long as

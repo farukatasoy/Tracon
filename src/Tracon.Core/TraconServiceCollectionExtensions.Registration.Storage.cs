@@ -473,10 +473,14 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<IRunAttributionContext>()));
 
         // The two tenant concerns of the worker, taken together so its constructor does not grow for each: the
-        // ceiling the workflows package names, and the scope the host opens (both optional, both null when nobody made one).
-        services.TryAddSingleton(static provider => new JobTenantBindings(
+        // ceiling (the workflows package's, or the one the scheduling settings name) and the scope the host opens (both
+        // optional, both null when nobody made one). 🚨 The settings' ceiling is read HERE and is not registered as an
+        // IJobTenantCapSource: the first registration wins, this one comes before the workflows package's, and a core
+        // source in the container would silently hide the engine's.
+        services.TryAddSingleton(static provider => JobTenantBindings.Create(
             provider.GetService<IJobTenantCapSource>(),
-            provider.GetService<IHostTenantScope>()));
+            provider.GetService<IHostTenantScope>(),
+            provider.GetRequiredService<IOptions<TraconSchedulingOptions>>().Value));
 
         // Behind a gate: a host that serves requests and leaves the jobs to a
         // worker process (RunWorker = false) does not build the worker at all.

@@ -550,6 +550,8 @@ in code and this key in configuration for the same provider.
 | `Scheduling:MaxConcurrentJobsPerLane` | empty; a lane not listed shares `MaxConcurrentJobs`. A value that is not a number fails at startup |
 | `Scheduling:LaneByHandlerKey` | empty; maps a handler key to a lane when the caller left it unset |
 | `Scheduling:HttpSchedulableHandlerKeys` | empty; the handler keys `PUT /api/schedules/{name}` accepts. Empty means the built-in keys; a non-empty list replaces that default rather than extending it |
+| `Scheduling:TenantCapHandlerKeys` | empty; the handler keys the per-tenant lease ceiling covers. Each must belong to a registered handler, and the list is set together with `Scheduling:MaxLeasedPerTenant`; any other combination fails at startup |
+| `Scheduling:MaxLeasedPerTenant` | `null`; no ceiling. Otherwise the most jobs of `Scheduling:TenantCapHandlerKeys` one tenant may hold leased at once, at least `1`. Soft, and it cannot be set together with `Workflows:MaxConcurrentRunsPerTenant`: a host that sets both fails at startup |
 | `AsyncRun:Enabled` | `true` |
 | `AsyncRun:MaxAttempts` | `1` |
 | `SingletonExecution:Enabled` | `false` |

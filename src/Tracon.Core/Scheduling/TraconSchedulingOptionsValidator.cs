@@ -6,10 +6,17 @@ namespace Tracon;
 /// Validates <see cref="TraconSchedulingOptions"/> when the application starts.
 /// </summary>
 /// <remarks>
+/// <para>
 /// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
 /// and produces <c>IL2026</c>.
+/// </para>
+/// <para>
+/// The handler registry is optional because most checks need none: it is there for the one that asks whether a
+/// handler is registered for a key. Without it that one check is skipped, as it is in a unit test of the other rules.
+/// </para>
 /// </remarks>
-internal sealed class TraconSchedulingOptionsValidator : IValidateOptions<TraconSchedulingOptions>
+/// <param name="registry">The registered handlers; <see langword="null"/> skips the check that a named key has one.</param>
+internal sealed class TraconSchedulingOptionsValidator(JobHandlerRegistry? registry = null) : IValidateOptions<TraconSchedulingOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, TraconSchedulingOptions options)
@@ -154,8 +161,54 @@ internal sealed class TraconSchedulingOptionsValidator : IValidateOptions<Tracon
             }
         }
 
+        ValidateTenantCap(options, ref failures);
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
+    }
+
+    /// <summary>
+    /// Checks the per-tenant ceiling: a ceiling and the keys it covers come together, every key belongs to a registered
+    /// handler, and the ceiling is at least one.
+    /// </summary>
+    /// <remarks>
+    /// A key nobody registered caps nothing and says nothing, and a ceiling over no keys (or keys with no ceiling) is a
+    /// setting that does nothing. Each is a configuration mistake that would otherwise look like a working limit, so
+    /// each stops the host.
+    /// </remarks>
+    private void ValidateTenantCap(TraconSchedulingOptions options, ref List<string>? failures)
+    {
+        const string KeysName = $"{nameof(TraconSchedulingOptions)}.{nameof(TraconSchedulingOptions.TenantCapHandlerKeys)}";
+        const string CeilingName = $"{nameof(TraconSchedulingOptions)}.{nameof(TraconSchedulingOptions.MaxLeasedPerTenant)}";
+
+        if (options.MaxLeasedPerTenant is { } ceiling && ceiling < 1)
+        {
+            (failures ??= []).Add($"{CeilingName} must be at least 1. Actual value: {ceiling}.");
+        }
+
+        if (options.MaxLeasedPerTenant is not null && options.TenantCapHandlerKeys.Count == 0)
+        {
+            (failures ??= []).Add($"{CeilingName} is set but {KeysName} is empty, so the ceiling would apply to no job.");
+        }
+
+        if (options.MaxLeasedPerTenant is null && options.TenantCapHandlerKeys.Count > 0)
+        {
+            (failures ??= []).Add($"{KeysName} names handler keys but {CeilingName} is not set, so no ceiling would apply.");
+        }
+
+        foreach (var handlerKey in options.TenantCapHandlerKeys)
+        {
+            if (!JobHandlerKeys.IsValidKey(handlerKey))
+            {
+                (failures ??= []).Add($"{KeysName} contains '{handlerKey}', which is not a valid job handler key.");
+            }
+            else if (registry is not null && !registry.IsRegistered(handlerKey))
+            {
+                (failures ??= []).Add(
+                    $"{KeysName} contains '{handlerKey}', but no job handler is registered for that key " +
+                    "(AddJobHandler). A ceiling over a key nothing is registered for would cap no job.");
+            }
+        }
     }
 }

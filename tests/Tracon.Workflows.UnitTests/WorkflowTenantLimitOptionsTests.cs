@@ -78,6 +78,32 @@ public sealed class WorkflowTenantLimitOptionsTests
     }
 
     [Fact]
+    public void The_engines_ceiling_and_the_scheduling_ceiling_together_stop_the_worker_and_name_both_settings()
+    {
+        // One lease request carries one ceiling; the engine's source stays the only registered one, so the scheduling
+        // setting is checked where the worker's bindings are built.
+        using var provider = Build(
+            SchedulingCeiling,
+            ("Tracon:Workflows:MaxConcurrentRunsPerTenant", "2"));
+
+        var message = Should.Throw<InvalidOperationException>(() => provider.GetRequiredService<JobTenantBindings>()).Message;
+
+        message.ShouldContain("Tracon:Scheduling:MaxLeasedPerTenant");
+        message.ShouldContain("Tracon:Workflows:MaxConcurrentRunsPerTenant");
+    }
+
+    [Fact]
+    public void The_scheduling_ceiling_stands_when_the_engine_has_none()
+    {
+        using var provider = Build(SchedulingCeiling);
+
+        var cap = provider.GetRequiredService<JobTenantBindings>().CapSource.ShouldNotBeNull().Current.ShouldNotBeNull();
+
+        cap.HandlerKeys.ShouldBe([JobHandlerKeys.AgentBatch]);
+        cap.MaxLeasedPerTenant.ShouldBe(3);
+    }
+
+    [Fact]
     public void With_the_engine_off_the_worker_leases_with_no_ceiling()
     {
         using var provider = Build(
@@ -87,7 +113,16 @@ public sealed class WorkflowTenantLimitOptionsTests
         provider.GetRequiredService<IJobTenantCapSource>().Current.ShouldBeNull();
     }
 
+    private static void SchedulingCeiling(TraconSchedulingOptions options)
+    {
+        options.TenantCapHandlerKeys.Add(JobHandlerKeys.AgentBatch);
+        options.MaxLeasedPerTenant = 3;
+    }
+
     private static ServiceProvider Build(params (string Key, string Value)[] settings)
+        => Build(configureScheduling: null, settings);
+
+    private static ServiceProvider Build(Action<TraconSchedulingOptions>? configureScheduling, params (string Key, string Value)[] settings)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(settings.Select(setting => new KeyValuePair<string, string?>(setting.Key, setting.Value)))
@@ -95,6 +130,11 @@ public sealed class WorkflowTenantLimitOptionsTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddTracon().UseWorkflows();
+
+        if (configureScheduling is not null)
+        {
+            services.Configure(configureScheduling);
+        }
 
         return services.BuildServiceProvider();
     }

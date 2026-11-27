@@ -49,10 +49,15 @@ public static partial class TraconServiceCollectionExtensions
             static o => o.MaxItemsPerJob,
             static (o, v) => o.MaxItemsPerJob = v);
 
+        read.Int32(
+            nameof(TraconSchedulingOptions.MaxLeasedPerTenant),
+            static o => o.MaxLeasedPerTenant,
+            static (o, v) => o.MaxLeasedPerTenant = v);
+
         BindSchedulingCollections(section, options);
     }
 
-    /// <summary>Binds the five collection keys of the <c>Tracon:Scheduling</c> section.</summary>
+    /// <summary>Binds the six collection keys of the <c>Tracon:Scheduling</c> section.</summary>
     /// <remarks>
     /// <para>
     /// These were listed as configuration keys and once bound nowhere, so a
@@ -83,6 +88,8 @@ public static partial class TraconServiceCollectionExtensions
         read.StringList(nameof(TraconSchedulingOptions.HttpSchedulableHandlerKeys), options.HttpSchedulableHandlerKeys);
 
         read.TimeSpanMap(nameof(TraconSchedulingOptions.MaxDurationByHandlerKey), options.MaxDurationByHandlerKey);
+
+        read.StringList(nameof(TraconSchedulingOptions.TenantCapHandlerKeys), options.TenantCapHandlerKeys);
     }
 
     /// <summary>Binds single-executor selection settings from configuration.</summary>
