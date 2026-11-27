@@ -15,18 +15,20 @@ internal static class ElevenLabsClientFactory
     /// <param name="configuration">The configuration the names are read from.</param>
     /// <param name="loggerFactory">The logger factory a warning is written with.</param>
     /// <param name="httpClient">The HTTP client to use, or <see langword="null"/> to build one; a test passes a fake handler.</param>
+    /// <param name="timeProvider">The clock the wait before a repeated request runs on, or <see langword="null"/> for the system clock.</param>
     /// <returns>The client.</returns>
     internal static ElevenLabsSpeechClient Create(
         VoiceOptions options,
         IConfiguration? configuration,
         ILoggerFactory? loggerFactory,
-        HttpClient? httpClient = null)
+        HttpClient? httpClient = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         if (string.IsNullOrWhiteSpace(options.ApiKeyConfigurationName) && string.IsNullOrWhiteSpace(options.EndpointConfigurationName))
         {
-            return new ElevenLabsSpeechClient(options, httpClient);
+            return new ElevenLabsSpeechClient(options, httpClient, timeProvider: timeProvider);
         }
 
         var source = new SetupCredentialSource(
@@ -50,6 +52,7 @@ internal static class ElevenLabsClientFactory
                 return new ElevenLabsSpeechClient.ElevenLabsTarget(
                     snapshot.ApiKey,
                     Uri.TryCreate(snapshot.Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : ElevenLabsSpeechClient.DefaultEndpoint);
-            });
+            },
+            timeProvider);
     }
 }

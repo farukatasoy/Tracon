@@ -147,6 +147,27 @@ public sealed class ElevenLabsDialogueResponseTests
     }
 
     [Fact]
+    public async Task The_characters_sent_are_the_sum_of_the_turns_and_stay_apart_from_the_providers_count()
+    {
+        var plain = new StubHttpMessageHandler(_ => DialogueTestData.RawResponse(characterCost: "20"));
+        var timestamped = new StubHttpMessageHandler(
+            _ => DialogueTestData.TimestampedResponse(DialogueTestData.TwoSegments, characterCost: "20"));
+        using var plainClient = DialogueTestData.CreateClient(plain);
+        using var timestampedClient = DialogueTestData.CreateClient(timestamped);
+
+        var raw = await plainClient.SynthesizeDialogueAsync(DialogueTestData.TwoTurns(), TestContext.Current.CancellationToken);
+        var withTimestamps = await timestampedClient.SynthesizeDialogueAsync(
+            DialogueTestData.TwoTurns(includeTimestamps: true),
+            TestContext.Current.CancellationToken);
+
+        // "Merhaba." (8) + "Selam." (6); the provider said 20.
+        raw.Audio.CharactersSent.ShouldBe(14);
+        raw.Audio.CharactersBilled.ShouldBe(20);
+        withTimestamps.Audio.CharactersSent.ShouldBe(14);
+        withTimestamps.Audio.CharactersBilled.ShouldBe(20);
+    }
+
+    [Fact]
     public async Task Without_a_provider_count_the_turns_characters_are_an_estimate()
     {
         var handler = new StubHttpMessageHandler(_ => DialogueTestData.RawResponse());

@@ -492,6 +492,53 @@ public sealed class TraconStepRunnerTests
         root.TreeNonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.5m);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_parent_that_has_already_ended_is_accepted_and_the_cost_of_the_child_joins_the_total_of_its_tree(bool parentFailed)
+    {
+        // The state of the parent is not asked: the host that voices the parts of a podcast in steps of their own, after the
+        // step that planned them has ended, relies on the part joining the plan's tree.
+        await using var provider = Build();
+        var steps = provider.GetRequiredService<ITraconStepRunner>();
+        var rootId = Guid.CreateVersion7();
+        var childId = Guid.CreateVersion7();
+
+        if (parentFailed)
+        {
+            await Should.ThrowAsync<InvalidOperationException>(
+                async () => await steps.RunAsync(
+                    new TraconStepOptions { Name = "plan", RunId = rootId },
+                    _ => throw new InvalidOperationException("the plan failed"),
+                    TestContext.Current.CancellationToken));
+        }
+        else
+        {
+            await steps.RunAsync(new TraconStepOptions { Name = "plan", RunId = rootId }, _ => ValueTask.CompletedTask, TestContext.Current.CancellationToken);
+        }
+
+        var ended = (await Runs(provider).GetRunAsync(rootId, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        ended.Status.ShouldBe(parentFailed ? RunStatus.Failed : RunStatus.Completed, "the parent is over before the child starts");
+
+        await steps.RunAsync(
+            new TraconStepOptions { Name = "part", RunId = childId, ParentRunId = rootId },
+            async token => await provider.GetRequiredService<IImageGenerationService>()
+                .GenerateAsync(new TraconImageRequest { Prompt = "a cover" }, token).ConfigureAwait(false),
+            TestContext.Current.CancellationToken);
+
+        var child = (await Runs(provider).GetRunAsync(childId, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        child.ParentRunId.ShouldBe(rootId);
+        child.RootRunId.ShouldBe(rootId);
+        child.Status.ShouldBe(RunStatus.Completed);
+
+        var root = (await Runs(provider).GetRunAsync(rootId, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        root.Status.ShouldBe(ended.Status, "a child joining the tree does not reopen or change the parent");
+        root.TreeNonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.5m);
+    }
+
     [Fact]
     public async Task A_parent_of_another_tenant_is_refused_before_anything_is_written()
     {

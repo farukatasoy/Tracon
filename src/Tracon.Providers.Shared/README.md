@@ -21,6 +21,7 @@ mechanism as `Tracon.Sql.Shared`.
 | `Tracon.Anthropic` | same |
 | `Tracon.Google` | same |
 | `Tracon.Azure` | same |
+| `Tracon.Voice` | `<Compile Include="../Tracon.Providers.Shared/ProviderRetryAfter.cs" LinkBase="Shared" />`: this one file only, for the wait before a repeated speech request |
 
 ## What is here
 
@@ -29,7 +30,7 @@ mechanism as `Tracon.Sql.Shared`.
 | `ProviderHealthCheckCore.cs` | The `GET` model-list call, timeout, failure mapping, body parsing | Endpoint, auth headers, body shape |
 | `ModelProviderCore.cs` | Known-model set, BYOK factory and client caches, tenant endpoint guard rule, configuration diagnostic | `BuildCredentialFactory` (each SDK takes different options) |
 | `ProviderRegistrationCore.cs` | Options + validator registration, "already registered" check, configuration readers, `Models` binding | Chat client factory registration, `AddModelProvider` |
-| `ProviderRetryAfter.cs` | The longest `Retry-After` a retry obeys, and the reader that tells an absurd header from a usable one. The Google library does not read the header, so only three adapters call it | The OpenAI retry policy (`Tracon.OpenAI.Shared`) and the Anthropic message handler |
+| `ProviderRetryAfter.cs` | The longest `Retry-After` a retry obeys, and the reader that tells an absurd header from a usable one. The Google library does not read the header, so only three adapters call it; `Tracon.Voice` calls it too, for its own retry loop | The OpenAI retry policy (`Tracon.OpenAI.Shared`), the Anthropic message handler and the speech client's retry loop (`Tracon.Voice`) |
 
 ## Rules
 
@@ -45,7 +46,9 @@ mechanism as `Tracon.Sql.Shared`.
   code (live/sideband, OpenAI-compatible providers) stays in `Tracon.OpenAI`.
   The one exception is a rule that every provider must follow but one SDK
   already satisfies (`ProviderRetryAfter`): the ceiling is written once, and the
-  adapter whose library needs no help compiles it unused.
+  adapter whose library needs no help compiles it unused. `Tracon.Voice` is a
+  fifth package that compiles this one file, because its client writes its own
+  retry loop and obeys the same ceiling.
 - **No conditional compilation symbols.** The same text compiles the same way
   in all four packages; a provider difference is a delegate or a parameter.
 - **No reference to a provider SDK namespace** (`OpenAI`, `Anthropic`,

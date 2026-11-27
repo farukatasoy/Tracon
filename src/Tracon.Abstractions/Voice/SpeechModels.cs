@@ -98,8 +98,37 @@ public sealed class SpeechAudio
     /// <summary>The audio's duration. <see langword="null"/> if the provider does not report it.</summary>
     public TimeSpan? Duration { get; init; }
 
-    /// <summary>The billed character count.</summary>
+    /// <summary>
+    /// The quantity the provider reported for this one request, in the provider's own unit; or, when the provider reports none,
+    /// the length of the text sent.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It is the number a character price is multiplied by (<c>Tracon:Pricing:Voice:{provider}:{model}:PerMillionCharacters</c>),
+    /// so a price is quoted in the unit of this value. <see cref="UsageSource"/> tells which of the two it is.
+    /// </para>
+    /// <para>
+    /// The ElevenLabs client reads the <c>character-cost</c> response header (<c>x-character-cost</c> when that is missing).
+    /// The value is what the provider says one request cost, in its own unit; its documentation does not say whether that unit is
+    /// a character or a credit, and it is not a count of the characters sent (compare <see cref="CharactersSent"/>: the two can
+    /// differ). The sum of the values of several requests is not guaranteed to match the provider's own counter for the
+    /// subscription, which the provider keeps by its own rules and reports elsewhere. Tracon does not add or split values: two
+    /// requests are two audio results with a value each, and a host that voices a text in parts adds them itself.
+    /// </para>
+    /// </remarks>
     public int? CharactersBilled { get; init; }
+
+    /// <summary>
+    /// The number of characters Tracon sent to the provider for this request, or <see langword="null"/> when the synthesizer
+    /// does not report it.
+    /// </summary>
+    /// <remarks>
+    /// The length of the text of a single-voice request; the sum of the lengths of the turns of a dialogue, tags the provider
+    /// reads (for example <c>[laughs]</c>) included. It is a count Tracon took before the call, not a measurement of the
+    /// provider, and a request that was sent again is counted once. A host that compares it with
+    /// <see cref="CharactersBilled"/> sees how far the provider's unit is from the text it sent.
+    /// </remarks>
+    public int? CharactersSent { get; init; }
 
     /// <summary>
     /// Where the <see cref="CharactersBilled"/> value came from.

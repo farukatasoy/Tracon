@@ -21,6 +21,8 @@ Tracon.VoiceOptions.MaxConcurrentRequests.get -> int
 Tracon.VoiceOptions.MaxConcurrentRequests.set -> void
 Tracon.VoiceOptions.MaxDialogueCharactersPerRequest.get -> int
 Tracon.VoiceOptions.MaxDialogueCharactersPerRequest.set -> void
+Tracon.VoiceOptions.MaxRetries.get -> int
+Tracon.VoiceOptions.MaxRetries.set -> void
 Tracon.VoiceOptions.OutputFormat.get -> string!
 Tracon.VoiceOptions.OutputFormat.set -> void
 Tracon.VoiceOptions.Provider.get -> string!

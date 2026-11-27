@@ -95,7 +95,8 @@ public static class VoiceBuilderExtensions
         services.TryAddSingleton(static provider => ElevenLabsClientFactory.Create(
             provider.GetRequiredService<IOptions<VoiceOptions>>().Value,
             provider.GetService<IConfiguration>(),
-            provider.GetService<ILoggerFactory>()));
+            provider.GetService<ILoggerFactory>(),
+            timeProvider: provider.GetService<TimeProvider>()));
 
         services.TryAddSingleton<ISpeechSynthesizer>(static provider =>
             provider.GetRequiredService<ElevenLabsSpeechClient>());
@@ -236,6 +237,11 @@ public static class VoiceBuilderExtensions
             nameof(VoiceOptions.MaxConcurrentRequests),
             static o => o.MaxConcurrentRequests,
             static (o, v) => o.MaxConcurrentRequests = v);
+
+        read.Int32(
+            nameof(VoiceOptions.MaxRetries),
+            static o => o.MaxRetries,
+            static (o, v) => o.MaxRetries = v);
 
         read.Boolean(
             nameof(VoiceOptions.RequireApproval),

@@ -135,6 +135,35 @@ public sealed class VoiceOptions
     /// </remarks>
     public bool RequireApproval { get; set; }
 
+    /// <summary>
+    /// How many times the built-in client sends a speech or dialogue request again after a failure that a repeat can
+    /// change. Default 0: a failed request is not repeated. From 0 to 10.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A request is repeated after a <c>429</c>, after a <c>5xx</c> answer and after a connection that failed or dropped
+    /// before the answer was complete. It is not repeated after any other <c>4xx</c>, after the client's own <see cref="Timeout"/> (the
+    /// provider may have finished a request the client gave up on, and a repeat would pay for it twice), or after a
+    /// cancellation. Streaming synthesis and transcription are never repeated: a stream is a live conversation's audio
+    /// and cannot wait, and the audio sent for transcription cannot be read twice.
+    /// </para>
+    /// <para>
+    /// The wait before a repeat is the provider's <c>Retry-After</c> when it is a delay of at most 60 seconds (a longer
+    /// one is ignored); otherwise 0.8 seconds, doubled for every repeat and never more than 60 seconds. The repeats run
+    /// while the call still holds its place among <see cref="MaxConcurrentRequests"/>: a pool that is repeating a
+    /// request is not free for another one. When every repeat fails, the last failure is thrown. <see cref="Timeout"/> is
+    /// the limit of one try, not of the whole call, which can last up to <c>MaxRetries + 1</c> times it plus the waits.
+    /// </para>
+    /// <para>
+    /// A repeat can be billed twice. Tracon has not measured whether a request the provider answered with a <c>5xx</c>
+    /// or cut off midway was billed, and the request identifiers a request can name
+    /// (<c>elevenlabs.previousRequestIds</c>) keep speech continuous; they do not make a repeat free. That is why the
+    /// setting is off by default. Set it on the synthesizer of a batch (<c>AddElevenLabsSynthesizer</c>) to leave a
+    /// live conversation's pool as it is.
+    /// </para>
+    /// </remarks>
+    public int MaxRetries { get; set; }
+
     /// <summary>Request timeout. 100 seconds when empty.</summary>
     /// <remarks>Must be from one millisecond to about 24.8 days (<see cref="int.MaxValue"/> milliseconds) when set; any other value fails at startup.</remarks>
     public TimeSpan? Timeout { get; set; }

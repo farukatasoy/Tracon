@@ -212,6 +212,7 @@ from one millisecond to about 49.7 days and fails at startup otherwise, while `E
 | `MaxCharactersPerRequest` | `5000` |
 | `MaxDialogueCharactersPerRequest` | `2000` |
 | `MaxConcurrentRequests` | `2` |
+| `MaxRetries` | `0`; how many times a failed speech or dialogue request is sent again, from `0` to `10` |
 | `RequireApproval` | `false` |
 | `Timeout` | `null`; implementation uses 100 seconds |
 
@@ -229,6 +230,12 @@ dialogue. `MaxDialogueCharactersPerRequest` must be greater than zero; a longer
 dialogue is refused, not split, and the built-in client reports the value through
 `ISpeechDialogueSynthesizer.DialogueCapabilities`. Synthesis, dialogue and
 transcription share the one `MaxConcurrentRequests` limit.
+
+`MaxRetries` applies to the built-in client's speech and dialogue requests only. A value
+outside `0` to `10` stops the host at start. It is off by default because a repeat can be
+billed twice; [Repeat a failed request](/guides/voice/#repeat-a-failed-request) says what
+is repeated, how long the client waits and why you may want it on a batch's synthesizer
+alone.
 
 ### Voice conversation
 

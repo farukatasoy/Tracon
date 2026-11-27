@@ -135,6 +135,10 @@ public sealed record TraconStepOptions
     /// <remarks>
     /// The parent must be a run of the current tenant. The step joins the parent's tree: its cost is counted in the root run's
     /// tree totals, and the quota entry is written under the root's name.
+    /// The state of the parent is not asked. A parent that has already ended, whether it completed, failed or was canceled,
+    /// accepts the step, and the step's cost is added to the totals of the tree as it is for a parent that is still running; the
+    /// ended parent's own status does not change. Only the parent's existence and its tenant are checked, so a step that must not
+    /// join a run that is over has to be refused by the host before it asks for the run to be the parent.
     /// </remarks>
     public Guid? ParentRunId { get; init; }
 }

@@ -255,6 +255,9 @@ builder.AddTracon()
 
 A failed call of the built-in client throws a `ProviderInvocationException`
 ([run errors](/concepts/run-errors/#decide-a-retry-from-the-failure-not-from-its-text)).
+Set `MaxRetries` on the batch's client alone to have it send a failed request again while a
+live conversation's requests are never held for a repeat:
+[Repeat a failed request](/guides/voice/#repeat-a-failed-request).
 
 ## How a conversation closes
 

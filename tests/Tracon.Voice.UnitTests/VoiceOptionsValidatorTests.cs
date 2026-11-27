@@ -103,6 +103,77 @@ public sealed class VoiceOptionsValidatorTests
         string.Join('\n', result.Failures ?? []).ShouldContain(expected);
     }
 
+    [Fact]
+    public void The_key_failure_names_the_configuration_key_that_holds_no_usable_key()
+    {
+        var result = Validate(new VoiceOptions { ApiKeyConfigurationName = "Voice:BatchKey" });
+
+        result.Failed.ShouldBeTrue();
+
+        var text = string.Join('\n', result.Failures ?? []);
+
+        text.ShouldContain("'Voice:BatchKey'", Case.Sensitive);
+        text.ShouldContain("user-secrets", Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_key_failure_with_no_configuration_key_name_names_none()
+    {
+        var text = string.Join('\n', Validate(new VoiceOptions()).Failures ?? []);
+
+        text.ShouldNotContain("configuration key", Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_named_synthesizer_failure_says_it_is_always_the_built_in_client_and_needs_a_key_of_its_own()
+    {
+        var result = new VoiceOptionsValidator(BuiltIn, configuration: null, namedSynthesizer: true)
+            .Validate(name: null, new VoiceOptions { ApiKeyConfigurationName = "Voice:BatchKey" });
+
+        result.Failed.ShouldBeTrue();
+
+        var text = string.Join('\n', result.Failures ?? []);
+
+        text.ShouldContain("'Voice:BatchKey'", Case.Sensitive);
+        text.ShouldContain("its own", Case.Sensitive);
+        text.ShouldContain(nameof(VoiceOptions.ApiKey), Case.Sensitive);
+        text.ShouldContain(nameof(VoiceOptions.ApiKeyConfigurationName), Case.Sensitive);
+        text.ShouldNotContain("BEFORE", Case.Sensitive);
+        text.ShouldNotContain("serves both", Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_named_synthesizer_with_an_unknown_provider_is_not_told_to_register_its_own_first()
+    {
+        var result = new VoiceOptionsValidator(BuiltIn, configuration: null, namedSynthesizer: true)
+            .Validate(name: null, new VoiceOptions { ApiKey = "k", Provider = "no-such-provider" });
+
+        result.Failed.ShouldBeTrue();
+        string.Join('\n', result.Failures ?? []).ShouldNotContain("BEFORE", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(10, true)]
+    [InlineData(-1, false)]
+    [InlineData(11, false)]
+    [InlineData(int.MaxValue, false)]
+    public void The_repeat_limit_is_from_zero_to_ten_whoever_serves_the_contracts(int maxRetries, bool accepted)
+    {
+        foreach (var binding in new[] { BuiltIn, BothCustom })
+        {
+            var result = Validate(new VoiceOptions { ApiKey = "k", MaxRetries = maxRetries }, binding);
+
+            result.Succeeded.ShouldBe(accepted, string.Join('\n', result.Failures ?? []));
+
+            if (!accepted)
+            {
+                string.Join('\n', result.Failures ?? []).ShouldContain(nameof(VoiceOptions.MaxRetries), Case.Sensitive);
+            }
+        }
+    }
+
     private static Microsoft.Extensions.Options.ValidateOptionsResult Validate(
         VoiceOptions options,
         VoiceProviderBinding? binding = null)

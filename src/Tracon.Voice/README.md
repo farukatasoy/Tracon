@@ -89,6 +89,27 @@ listed as unpriced and left out of the run's total.
 If the provider does not report the billed character count, the length of the text
 is used instead, and the measurement is flagged as an **estimate**.
 
+`SpeechAudio.CharactersBilled` is the value the provider reported for **one request**, in the
+provider's own unit (the `character-cost` response header); it is not a count of the characters
+sent, and the sum of the values is not promised to match the provider's subscription counter.
+Tracon does not add or split them: two requests are two results with a value each.
+`SpeechAudio.CharactersSent` is the count of characters Tracon sent, to compare against it.
+
+## Repeat a failed request
+
+A failed request is not sent again unless `MaxRetries` (0 to 10, `Tracon:Voice:MaxRetries`) says so. With it set,
+the built-in client repeats a speech or dialogue request after a `429`, a `5xx` or a connection that
+failed or dropped before the answer was complete, while the call keeps its place among `MaxConcurrentRequests`; it waits the
+provider's `Retry-After` (at most 60 seconds) or 0.8 seconds doubled for every repeat. It never repeats
+another `4xx`, the client's own timeout, streaming synthesis or transcription. A repeat can be billed twice;
+the setting is off by default, and belongs on a batch's synthesizer:
+
+```csharp
+builder.AddTracon()
+       .UseVoice(configuration.GetSection(VoiceOptions.SectionName))
+       .AddElevenLabsSynthesizer("batch", options => options.MaxRetries = 3);
+```
+
 ## A different provider
 
 `ElevenLabs` is an **implementation**, not a dependency. Register your own

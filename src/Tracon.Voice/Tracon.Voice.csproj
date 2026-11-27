@@ -10,6 +10,15 @@
   </ItemGroup>
 
   <!--
+    Shared source. Tracon.Providers.Shared is NOT a package; this one file is compiled into the assembly: the longest
+    Retry-After a repeated request obeys, written once for every provider that repeats a request. The rules:
+    src/Tracon.Providers.Shared/README.md.
+  -->
+  <ItemGroup>
+    <Compile Include="../Tracon.Providers.Shared/ProviderRetryAfter.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <!--
     NO NuGet package is taken on. The surface used is seven HTTP operations in
     four groups (text-to-speech with a streaming and a timestamps variant,
     text-to-dialogue with a timestamps variant, speech-to-text, and the voice

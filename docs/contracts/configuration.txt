@@ -372,6 +372,7 @@ Tracon:Voice:Live:PersistTranscript
 Tracon:Voice:MaxCharactersPerRequest
 Tracon:Voice:MaxConcurrentRequests
 Tracon:Voice:MaxDialogueCharactersPerRequest
+Tracon:Voice:MaxRetries
 Tracon:Voice:OutputFormat
 Tracon:Voice:Provider
 Tracon:Voice:RequireApproval

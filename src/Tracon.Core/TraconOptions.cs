@@ -1191,6 +1191,13 @@ public sealed class HostedToolPriceOverride
 public sealed class VoicePriceOverride
 {
     /// <summary>Gets or sets cost per million characters for text-to-speech.</summary>
+    /// <remarks>
+    /// The price is multiplied by <see cref="SpeechAudio.CharactersBilled"/> of each request: the quantity the provider reported
+    /// for it, in the provider's own unit (the ElevenLabs client reads its <c>character-cost</c> response header), or the length
+    /// of the text sent when the provider reported none. Quote the price per million of that unit. Tracon does not convert a
+    /// provider's unit into characters and does not promise that the sum of the values matches the provider's own counter for the
+    /// subscription; <see cref="SpeechAudio.CharactersSent"/> is the count of characters Tracon sent, for comparison.
+    /// </remarks>
     public decimal? PerMillionCharacters { get; set; }
 
     /// <summary>Gets or sets cost per minute for speech-to-text.</summary>

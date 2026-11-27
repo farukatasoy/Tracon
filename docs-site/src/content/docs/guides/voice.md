@@ -152,6 +152,30 @@ and left out of the total, because zero would claim the call was free.
 If the provider omits billed characters, the text length is used and marked as an
 estimate; an estimated amount still adds, and the total says it rests on an estimate.
 
+#### What `CharactersBilled` is
+
+`SpeechAudio.CharactersBilled` is the quantity the provider reported for **one request**, in
+the provider's own unit. The built-in client reads the `character-cost` response header
+(`x-character-cost` when that is missing). ElevenLabs' documentation does not say whether
+that unit is a character or a credit, and it is not a count of the characters you sent, so
+quote `PerMillionCharacters` in that unit.
+
+- **It is per request.** Tracon does not add or split values. Five requests are five audio
+  results and five usage items, each with its own value; a host that voices a text in parts
+  adds the values itself.
+- **It is not promised to match the provider's counter.** The sum of the values over a
+  month is not guaranteed to equal what the provider's subscription counter shows: the
+  provider keeps that counter by its own rules, and the header of one request cannot show
+  them. Do not reconcile a bill against it.
+- **The estimate is the text length.** With no header, `CharactersBilled` is the length of
+  the text sent and `UsageSource` is `Estimated`.
+- **`CharactersSent` is the count Tracon took.** It is the length of the text of a
+  single-voice request, or the sum of the turns of a dialogue (inline tags such as
+  `[laughs]` included), counted before the call and counted once when a failed request was
+  sent again. Compare it with `CharactersBilled` to see how far the provider's unit is from
+  the text: the two can differ, and neither is a measurement of the other. A synthesizer of
+  your own that does not report it leaves it `null`.
+
 Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
 `ProviderName` of the implementation that did the work — `elevenlabs` for the built-in
 client — not the `Tracon:Voice:Provider` setting. `{model}` is the model the
@@ -304,6 +328,65 @@ model identifier of one engine sent to another is a wrong request. Set them on t
 request when the engine needs them. `IVoicePricingReader.ForSynthesis` returns `null`
 when no price is configured; the item is then listed as unpriced instead of counting as
 zero.
+
+A second **built-in** client (`AddElevenLabsSynthesizer`) is always the built-in
+ElevenLabs client, whatever the default synthesizer is, and it needs a key of its own. A
+host that registered its own pair before `UseVoice()` has no key for the default, so give the
+named one `ApiKey` or `ApiKeyConfigurationName` in the callback. The key is checked at the first
+call for the name; a missing one is reported there, by the name of the configuration key that
+held none.
+
+### Repeat a failed request
+
+A request to ElevenLabs that fails is not sent again unless you ask. A batch that voices a
+podcast makes five requests; when the fifth fails with a `503`, the four finished parts are
+paid for, and the host that starts over pays for them again. `MaxRetries` is the number of
+times the built-in client sends a speech or dialogue request again, from `0` (the default) to
+`10`:
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .AddElevenLabsSynthesizer("batch", options =>
+    {
+        options.MaxConcurrentRequests = 4;
+        options.MaxRetries = 3;
+    });
+```
+
+Put it on the batch's synthesizer, as above: the named client copies the options of
+`UseVoice()` and keeps its own values, so a live conversation on the default synthesizer
+does not start to wait for a repeat. `Tracon:Voice:MaxRetries` in configuration sets it for the
+default synthesizer and for every named one that does not set its own, since they copy the
+options of `UseVoice()`.
+
+| Outcome of a try | Repeated |
+|---|---|
+| `429` or any `5xx` answer | Yes |
+| A connection that failed or dropped before the answer was complete | Yes |
+| Any other `4xx` (a voice that does not exist, a key the provider refuses) | No: the answer is the same every time |
+| The client's own `Timeout` | No: the provider may have finished, and billed, a request the client gave up on |
+| A cancellation | No: it ends the call and the wait at once |
+| Streaming synthesis and transcription | No: a conversation's audio cannot wait, and the audio sent for transcription is a stream that cannot be read twice |
+
+The wait before a repeat is the provider's `Retry-After` when it is a delay of at most 60
+seconds, and a longer one is ignored. Without one the wait is 0.8 seconds, doubled for every
+repeat and never more than 60 seconds. The repeats run while the call still holds its place
+among `MaxConcurrentRequests`: a pool that is waiting to repeat a request is not free for
+another one. When every try fails, the last failure is thrown as a single try would throw it,
+a `ProviderInvocationException`. `Timeout` is the limit of one try, not of the whole call, which
+can last up to `MaxRetries + 1` times `Timeout` plus the waits between the tries.
+
+A repeated request is measured once. The retry lives below the service that records a call, so
+a synthesis that took two tries is one usage item, with the quantity of the answer that
+succeeded.
+
+:::caution[A repeat can be billed twice]
+Tracon has not measured whether ElevenLabs bills a request it answered with a `5xx` or cut
+off midway, and a repeat of a request it did bill is paid for again. The request ids that a request can name
+(`elevenlabs.previousRequestIds`) keep speech continuous across requests; they are not an
+idempotency key and do not make a repeat free. That is why the setting is off by default.
+:::
 
 ### Use any Microsoft.Extensions.AI speech client
 
@@ -464,7 +547,7 @@ builder.AddTracon()
 | Splitting and joining | Yours. Split a long script where its content allows, voice each part, and join the audio. Raw `pcm_*` output has no file header: join the samples, then add the header |
 | Model | The request's `ModelId`, then `Tracon:Voice:DialogueModelId`, then the provider's default. The single-voice `SynthesisModelId` is never used. With the provider's default, the result names no model, so a price keyed by model is not found |
 | Timing | `IncludeTimestamps` returns `Segments` — the turn index, voice and start and end of each part — and character `Alignment` over the turns' texts joined in order. A report that names a turn or voice the request did not have, leaves a turn without a segment, or is out of order gives `Segments = null` and keeps the audio |
-| Usage | `Audio.CharactersBilled` comes from the provider when it reports a count (`UsageSource.Provider`), otherwise from the turns' text (`Estimated`). `Audio.ProviderRequestId` is the provider's id for the request |
+| Usage | `Audio.CharactersBilled` comes from the provider when it reports a count (`UsageSource.Provider`), otherwise from the turns' text (`Estimated`); it is the provider's value for the whole request, in its own unit. `Audio.CharactersSent` is the sum of the turns' lengths. `Audio.ProviderRequestId` is the provider's id for the request |
 | Tenant rules | The same as every other speech call (next section), applied to the dialogue capability's `ProviderName`. A synthesizer without the capability fails the call with a message that names it; the built-in client is not used in its place |
 
 There is no dialogue tool and no dialogue HTTP endpoint: a dialogue is a step written
@@ -863,7 +946,14 @@ The built-in ElevenLabs client serves at least one of the two speech contracts, 
 it has no key. The message names the contract it still serves. Set the key with
 `dotnet user-secrets set "Tracon:Voice:ApiKey" "..."`, or register your own
 `ISpeechSynthesizer` and `ISpeechTranscriber` **before** `UseVoice()`. A
-registration after `UseVoice()` is not seen, and the message is the same.
+registration after `UseVoice()` is not seen, and the message is the same. When
+`ApiKeyConfigurationName` is set, the message also names that configuration key as the one
+that holds no usable key.
+
+A named synthesizer (`AddElevenLabsSynthesizer`) fails differently, at the first call for
+its name: it is always the built-in client, so it asks for a key of its own even when you
+registered your own default pair first. Its message says so and names the configuration key
+that was empty; registering your own provider first is no remedy for it.
 
 ### A speech call returns `502` with `HTTP 403 (model_not_found)`
 

@@ -22,9 +22,9 @@ namespace Tracon;
 /// a bounded number of times. A value that is not a delay at all is already ignored by the libraries.
 /// </para>
 /// <para>
-/// Shared source: this type compiles into each provider assembly and stays <see langword="internal"/>
-/// (<c>src/Tracon.Providers.Shared/README.md</c>). The Google library does not read the header and caps its own
-/// backoff, so nothing there uses it.
+/// Shared source: this type compiles into each provider assembly and into the speech package, whose client writes its own
+/// retry loop, and stays <see langword="internal"/> (<c>src/Tracon.Providers.Shared/README.md</c>). The Google library does
+/// not read the header and caps its own backoff, so nothing there uses it.
 /// </para>
 /// </remarks>
 internal static class ProviderRetryAfter

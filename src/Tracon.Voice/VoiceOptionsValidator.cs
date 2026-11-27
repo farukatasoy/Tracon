@@ -29,15 +29,22 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
 
     private readonly VoiceProviderBinding _binding;
     private readonly IConfiguration? _configuration;
+    private readonly bool _namedSynthesizer;
 
     /// <summary>Creates a validator.</summary>
     /// <param name="binding">Which contracts the consumer bound before <c>UseVoice</c>.</param>
     /// <param name="configuration">The configuration a configuration key name of the API key is read from.</param>
-    public VoiceOptionsValidator(VoiceProviderBinding binding, IConfiguration? configuration = null)
+    /// <param name="namedSynthesizer">
+    /// The options are those of a named synthesizer (<c>AddElevenLabsSynthesizer</c>), which is always the built-in client and
+    /// whose key is its own whatever the default synthesizer is. A failure then says that, and not what suits the options of
+    /// <c>UseVoice</c> ("register your own provider before it").
+    /// </param>
+    public VoiceOptionsValidator(VoiceProviderBinding binding, IConfiguration? configuration = null, bool namedSynthesizer = false)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
         _configuration = configuration;
+        _namedSynthesizer = namedSynthesizer;
 
         _binding = binding;
     }
@@ -67,6 +74,15 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
         if (options.MaxConcurrentRequests <= 0)
         {
             (failures ??= []).Add($"{nameof(VoiceOptions)}: concurrent request limit must be greater than zero.");
+        }
+
+        // Checked whoever serves the contracts: a named synthesizer copies these options, and a value that cannot be used there
+        // should stop the host here, not at the first call of the copy.
+        if (options.MaxRetries is < 0 or > ElevenLabsRetry.MaximumMaxRetries)
+        {
+            (failures ??= []).Add(
+                $"{nameof(VoiceOptions)}.{nameof(VoiceOptions.MaxRetries)} must be from 0 to {ElevenLabsRetry.MaximumMaxRetries}. " +
+                $"Received value: {options.MaxRetries}.");
         }
 
         if (string.IsNullOrWhiteSpace(options.OutputFormat))
@@ -108,7 +124,7 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
             (failures ??= []).Add(
                 $"{nameof(VoiceOptions)}: provider '{options.Provider}' is not recognized. " +
                 $"Built-in provider: '{VoiceProviderNames.ElevenLabs}'. " +
-                RegisterFirst);
+                (_namedSynthesizer ? string.Empty : RegisterFirst));
         }
 
         OptionText.AddWhenOnlyWhiteSpace(options.ApiKeyConfigurationName, nameof(VoiceOptions), nameof(VoiceOptions.ApiKeyConfigurationName), ref failures);
@@ -117,10 +133,17 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
         if (string.IsNullOrWhiteSpace(options.ApiKey)
             && !SetupConfigurationName.GivesUsableKey(_configuration, options.ApiKeyConfigurationName, ElevenLabsSpeechClient.ApiKeyOptionName))
         {
-            (failures ??= []).Add(
-                $"{nameof(VoiceOptions)}: no API key was given, and {DescribeBuiltInUse()}. " +
-                "The key is a secret: `dotnet user-secrets set \"Tracon:Voice:ApiKey\" \"...\"`. " +
-                RegisterFirst);
+            (failures ??= []).Add(_namedSynthesizer
+                ? $"{nameof(VoiceOptions)}: no API key was given. A named ElevenLabs synthesizer is always the built-in client, " +
+                  "whatever the default synthesizer is, so it needs a key of its own: set " +
+                  $"{nameof(VoiceOptions.ApiKey)}, or {nameof(VoiceOptions.ApiKeyConfigurationName)} to the name of a configuration " +
+                  "key that holds the key. The key is a secret: keep it in `dotnet user-secrets` or an environment variable." +
+                  SetupConfigurationName.Hint(options.ApiKeyConfigurationName)
+                : $"{nameof(VoiceOptions)}: no API key was given, and {DescribeBuiltInUse()}. " +
+                  "The key is a secret: `dotnet user-secrets set \"Tracon:Voice:ApiKey\" \"...\"`." +
+                  SetupConfigurationName.Hint(options.ApiKeyConfigurationName) +
+                  " " +
+                  RegisterFirst);
         }
         else if (OutboundApiKey.Refusal(ElevenLabsSpeechClient.ApiKeyOptionName, options.ApiKey) is { } refusal)
         {

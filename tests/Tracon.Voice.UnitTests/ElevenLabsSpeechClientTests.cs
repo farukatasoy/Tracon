@@ -396,6 +396,45 @@ public sealed class ElevenLabsSpeechClientTests
     }
 
     [Fact]
+    public async Task The_characters_sent_are_the_length_of_the_text_and_the_billed_count_is_the_providers_own_value()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            var response = StubHttpMessageHandler.Binary(Mp3Bytes);
+            response.Headers.TryAddWithoutValidation("character-cost", "42");
+            return response;
+        });
+
+        using var client = CreateClient(handler);
+
+        var audio = await client.SynthesizeAsync(
+            new SpeechRequest { Text = "hello" },
+            TestContext.Current.CancellationToken);
+
+        audio.CharactersSent.ShouldBe(5, "the text Tracon sent, whatever the provider's unit says it cost");
+        audio.CharactersBilled.ShouldBe(42);
+    }
+
+    [Fact]
+    public async Task The_characters_sent_are_reported_when_the_provider_reports_no_count_and_on_the_timestamped_path()
+    {
+        var plain = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(Mp3Bytes));
+        var timestamped = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
+            $$"""{"audio_base64": "{{Convert.ToBase64String(Mp3Bytes)}}"}"""));
+
+        using var plainClient = CreateClient(plain);
+        using var timestampedClient = CreateClient(timestamped);
+
+        var withoutCount = await plainClient.SynthesizeAsync(new SpeechRequest { Text = "seven chars" }, TestContext.Current.CancellationToken);
+        var withTimestamps = await timestampedClient.SynthesizeAsync(
+            new SpeechRequest { Text = "seven chars", IncludeTimestamps = true },
+            TestContext.Current.CancellationToken);
+
+        withoutCount.CharactersSent.ShouldBe("seven chars".Length);
+        withTimestamps.CharactersSent.ShouldBe("seven chars".Length);
+    }
+
+    [Fact]
     public async Task Health_check_reads_the_voice_list_and_produces_no_charge()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(

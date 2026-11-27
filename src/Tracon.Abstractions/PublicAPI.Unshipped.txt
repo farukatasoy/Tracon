@@ -3302,6 +3302,8 @@ Tracon.SpeechAudio.Alignment.get -> System.Collections.Generic.IReadOnlyList<Tra
 Tracon.SpeechAudio.Alignment.init -> void
 Tracon.SpeechAudio.CharactersBilled.get -> int?
 Tracon.SpeechAudio.CharactersBilled.init -> void
+Tracon.SpeechAudio.CharactersSent.get -> int?
+Tracon.SpeechAudio.CharactersSent.init -> void
 Tracon.SpeechAudio.Data.get -> System.ReadOnlyMemory<byte>
 Tracon.SpeechAudio.Data.init -> void
 Tracon.SpeechAudio.Duration.get -> System.TimeSpan?

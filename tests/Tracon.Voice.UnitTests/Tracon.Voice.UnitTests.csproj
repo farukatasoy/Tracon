@@ -10,6 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The one fake clock of the test tree: the wait before a repeated request runs on it, not on real time. -->
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- In-memory configuration provider for the settings-binding-from-configuration tests. -->
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -102,6 +103,42 @@ public sealed class VoiceBuilderExtensionsTests
 
         ReferenceEquals(synthesizer, transcriber).ShouldBeTrue();
         ReferenceEquals(synthesizer, health).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void The_repeat_limit_is_off_by_default_and_the_one_in_configuration_reaches_the_built_in_client()
+    {
+        using var unset = BuildProvider(options => options.ApiKey = "k");
+        using var configured = BuildFromConfiguration(("Tracon:Voice:ApiKey", "k"), ("Tracon:Voice:MaxRetries", "3"));
+
+        unset.GetRequiredService<IOptions<VoiceOptions>>().Value.MaxRetries.ShouldBe(0, "a failed request is not repeated unless asked");
+        ((ElevenLabsSpeechClient)unset.GetRequiredService<ISpeechSynthesizer>()).MaxRetries.ShouldBe(0);
+
+        configured.GetRequiredService<IOptions<VoiceOptions>>().Value.MaxRetries.ShouldBe(3);
+        ((ElevenLabsSpeechClient)configured.GetRequiredService<ISpeechSynthesizer>()).MaxRetries.ShouldBe(3);
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("11")]
+    public void A_repeat_limit_out_of_range_stops_the_host_at_startup_and_names_the_key(string value)
+    {
+        using var provider = BuildFromConfiguration(("Tracon:Voice:ApiKey", "k"), ("Tracon:Voice:MaxRetries", value));
+
+        Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IStartupValidator>().Validate())
+            .Message.ShouldContain("MaxRetries", Case.Sensitive);
+    }
+
+    private static ServiceProvider BuildFromConfiguration(params (string Key, string Value)[] values)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(values.ToDictionary(static pair => pair.Key, static pair => (string?)pair.Value, StringComparer.Ordinal))
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddTracon().UseVoice(configuration.GetSection(VoiceOptions.SectionName));
+
+        return services.BuildServiceProvider();
     }
 
     private static ToolDescriptor Find(IReadOnlyList<ToolDescriptor> descriptors, string name)

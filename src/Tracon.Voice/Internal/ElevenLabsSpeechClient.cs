@@ -25,6 +25,11 @@ namespace Tracon;
 /// counter.
 /// </para>
 /// <para>
+/// With <see cref="VoiceOptions.MaxRetries"/> above zero, a speech or dialogue request that fails in a way a repeat can change
+/// is sent again inside the slot it holds (<c>SendWithRetryAsync</c>). Streaming synthesis, transcription and the voice list are
+/// one try: a conversation's audio cannot wait, and the audio of a transcription is a stream that cannot be read twice.
+/// </para>
+/// <para>
 /// The built-in client takes no tenant credential: a request that carries one
 /// is refused, never sent on the configured key.
 /// </para>
@@ -77,11 +82,20 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
     /// <paramref name="options"/>. A host that names configuration keys for them passes a reader of those keys, so a
     /// rotated key is the one the next request carries.
     /// </param>
-    public ElevenLabsSpeechClient(VoiceOptions options, HttpClient? httpClient = null, Func<ElevenLabsTarget>? target = null)
+    /// <param name="timeProvider">
+    /// The clock the wait before a repeated request runs on. When <see langword="null"/>, the system clock.
+    /// </param>
+    public ElevenLabsSpeechClient(
+        VoiceOptions options,
+        HttpClient? httpClient = null,
+        Func<ElevenLabsTarget>? target = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         _options = options;
+        Clock = timeProvider ?? TimeProvider.System;
+        MaxRetries = options.MaxRetries;
         _target = target ?? (() => new ElevenLabsTarget(options.ApiKey, options.Endpoint ?? DefaultEndpoint));
         _ownsHttpClient = httpClient is null;
 
@@ -93,6 +107,14 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         _http.Timeout = options.Timeout ?? DefaultTimeout;
         _concurrency = new SlotPool(options.MaxConcurrentRequests);
     }
+
+    /// <summary>The number of times a failed speech or dialogue request is sent again.</summary>
+    /// <remarks><c>internal</c>: unit tests verify that a named synthesizer carries its own value.</remarks>
+    internal int MaxRetries { get; }
+
+    /// <summary>The clock the wait before a repeated request runs on.</summary>
+    /// <remarks><c>internal</c>: unit tests verify that the container's clock reaches the client.</remarks>
+    internal TimeProvider Clock { get; }
 
     /// <inheritdoc />
     public string ProviderName => VoiceProviderNames.ElevenLabs;
@@ -142,10 +164,12 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         ElevenLabsRequestSettings settings,
         CancellationToken cancellationToken)
     {
-        using var message = BuildSynthesisRequest(request, voiceId, format, settings, streaming: false, withTimestamps: false);
-        using var response = await SendToProviderAsync(message, HttpCompletionOption.ResponseContentRead, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
-
-        await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
+        using var response = await SendWithRetryAsync(
+                () => BuildSynthesisRequest(request, voiceId, format, settings, streaming: false, withTimestamps: false),
+                HttpCompletionOption.ResponseContentRead,
+                "Speech could not be generated",
+                cancellationToken)
+            .ConfigureAwait(false);
 
         var data = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         var billed = ReadBilledCharacters(response);
@@ -156,6 +180,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             MediaType = MediaTypeForFormat(format),
             ModelId = SynthesisModel(request),
             CharactersBilled = billed ?? request.Text.Length,
+            CharactersSent = request.Text.Length,
 
             // When the provider does not report the count, the value is an
             // ESTIMATE and is marked as such. Presenting an estimate as a
@@ -179,10 +204,12 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         ElevenLabsRequestSettings settings,
         CancellationToken cancellationToken)
     {
-        using var message = BuildSynthesisRequest(request, voiceId, format, settings, streaming: false, withTimestamps: true);
-        using var response = await SendToProviderAsync(message, HttpCompletionOption.ResponseContentRead, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
-
-        await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
+        using var response = await SendWithRetryAsync(
+                () => BuildSynthesisRequest(request, voiceId, format, settings, streaming: false, withTimestamps: true),
+                HttpCompletionOption.ResponseContentRead,
+                "Speech could not be generated",
+                cancellationToken)
+            .ConfigureAwait(false);
 
         var billed = ReadBilledCharacters(response);
         var payload = await ReadTimestampedAudioAsync(response, cancellationToken).ConfigureAwait(false);
@@ -193,6 +220,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             MediaType = MediaTypeForFormat(format),
             ModelId = SynthesisModel(request),
             CharactersBilled = billed ?? request.Text.Length,
+            CharactersSent = request.Text.Length,
             UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
             Alignment = payload.Alignment,
             ProviderRequestId = ReadRequestId(response),
@@ -297,10 +325,12 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
 
         try
         {
-            using var message = BuildDialogueRequest(request, settings, model, format);
-            using var response = await SendToProviderAsync(message, HttpCompletionOption.ResponseContentRead, "Dialogue could not be generated", cancellationToken).ConfigureAwait(false);
-
-            await EnsureSuccessAsync(response, "Dialogue could not be generated", cancellationToken).ConfigureAwait(false);
+            using var response = await SendWithRetryAsync(
+                    () => BuildDialogueRequest(request, settings, model, format),
+                    HttpCompletionOption.ResponseContentRead,
+                    "Dialogue could not be generated",
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             var billed = ReadBilledCharacters(response);
             var requestId = ReadRequestId(response);
@@ -329,6 +359,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
                     MediaType = MediaTypeForFormat(format),
                     ModelId = model,
                     CharactersBilled = billed ?? characters,
+                    CharactersSent = characters,
                     UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
                     Alignment = alignment,
                     ProviderRequestId = requestId,
@@ -953,6 +984,77 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
                     ? TimeSpan.FromSeconds(seconds)
                     : null,
             };
+        }
+    }
+
+    /// <summary>
+    /// Sends a request and returns the answer when it succeeded, sending it again when the failure is one a repeat can change.
+    /// </summary>
+    /// <param name="build">Builds the request. Called once for every try: a message that was sent cannot be sent again.</param>
+    /// <param name="completion">When the call is complete.</param>
+    /// <param name="what">What the call does, for the sentence of a failure.</param>
+    /// <param name="cancellationToken">Ends the call, and the wait before a repeat, at once; it is never counted as a try.</param>
+    /// <returns>The answer of the try that succeeded; the caller disposes it.</returns>
+    /// <exception cref="ProviderInvocationException">
+    /// The failure of the last try, the one a single try would have given, when it is not one a repeat can change or the repeats
+    /// are used up.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The loop is inside the concurrency slot the caller holds: a pool that is waiting to repeat a request is not free for
+    /// another one. <see cref="MaxRetries"/> of zero is one try. The clock the wait runs on is the host's, so a test that stands in
+    /// for time does not wait for real.
+    /// </para>
+    /// <para>
+    /// The answer of a try that failed is not read: only the last failure's body is read for its code, and the failed tries of a
+    /// request that later succeeds leave no trace but the wait.
+    /// </para>
+    /// </remarks>
+    private async Task<HttpResponseMessage> SendWithRetryAsync(
+        Func<HttpRequestMessage> build,
+        HttpCompletionOption completion,
+        string what,
+        CancellationToken cancellationToken)
+    {
+        for (var repeat = 1; ; repeat++)
+        {
+            var canRepeat = repeat <= MaxRetries;
+            TimeSpan wait;
+            HttpResponseMessage? response = null;
+
+            try
+            {
+                using var message = build();
+
+                response = await SendToProviderAsync(message, completion, what, cancellationToken).ConfigureAwait(false);
+
+                if (!canRepeat || !ElevenLabsRetry.IsRetriable(response.StatusCode))
+                {
+                    // A success returns. A failure that is not repeated is thrown as it is: the same type, text and code a single
+                    // try gives.
+                    await EnsureSuccessAsync(response, what, cancellationToken).ConfigureAwait(false);
+
+                    var answer = response;
+                    response = null;
+
+                    return answer;
+                }
+
+                wait = ElevenLabsRetry.Delay(repeat, response, Clock.GetUtcNow());
+            }
+            catch (ProviderInvocationException failure) when (canRepeat && ElevenLabsRetry.IsConnectionFailure(failure))
+            {
+                wait = ElevenLabsRetry.Backoff(repeat);
+            }
+            finally
+            {
+                response?.Dispose();
+            }
+
+            if (wait > TimeSpan.Zero)
+            {
+                await Task.Delay(wait, Clock, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

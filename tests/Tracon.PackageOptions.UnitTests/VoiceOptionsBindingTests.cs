@@ -25,6 +25,7 @@ public sealed class VoiceOptionsBindingTests
             ["Tracon:Voice:DialogueModelId"] = "binding-probe-dialogue",
             ["Tracon:Voice:MaxDialogueCharactersPerRequest"] = "1500",
             ["Tracon:Voice:MaxConcurrentRequests"] = "3",
+            ["Tracon:Voice:MaxRetries"] = "4",
             ["Tracon:Voice:RequireApproval"] = "true",
             ["Tracon:Voice:Timeout"] = "00:01:30",
         };
@@ -45,6 +46,7 @@ public sealed class VoiceOptionsBindingTests
         options.DialogueModelId.ShouldBe("binding-probe-dialogue");
         options.MaxDialogueCharactersPerRequest.ShouldBe(1500);
         options.MaxConcurrentRequests.ShouldBe(3);
+        options.MaxRetries.ShouldBe(4);
         options.RequireApproval.ShouldBeTrue();
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(90));
         OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Voice", options);

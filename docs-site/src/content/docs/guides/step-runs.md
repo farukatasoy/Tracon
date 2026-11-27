@@ -62,7 +62,7 @@ the delegate: when `RunAsync` returns, your code is outside the run again.
 |---|---|
 | `Name` | Required. It is the run's agent name in run lists, statistics and quota. At most 200 characters, with no surrounding whitespace |
 | `RunId` | The id of the run, when you want to know it before the step ends. Make it in your own code (`Guid.CreateVersion7()`), never from a client's request. An id a run of your tenant already has is refused. An id a run of another tenant holds is refused by the run store, which never gives a row to another tenant: that run is left as it was, the refusal is logged and the step runs without a record. Without it, Tracon makes one |
-| `ParentRunId` | A run of the **same tenant** to attach the step to. The step then belongs to that run's tree. A run of another tenant is refused the same way as a run that does not exist |
+| `ParentRunId` | A run of the **same tenant** to attach the step to. The step then belongs to that run's tree. A run of another tenant is refused the same way as a run that does not exist. The parent's state is not asked: a parent that has already ended, completed, failed or canceled, accepts the step, and the step's cost joins the tree's total without changing the parent's own status |
 
 ## What the run holds
 
