@@ -41,6 +41,7 @@ export const sidebar = [
     items: [
       { label: 'Agents and definitions', slug: 'concepts/agents' },
       { label: 'Model providers', slug: 'guides/model-providers' },
+      { label: 'Google settings', slug: 'guides/google-settings' },
       { label: 'Add a tool', slug: 'getting-started/tools' },
       { label: 'Tools, skills, and MCP', slug: 'concepts/tools' },
       { label: 'Hosted tools', slug: 'guides/hosted-tools' },
@@ -49,6 +50,7 @@ export const sidebar = [
       { label: 'Attachments and multimodal', slug: 'guides/multimodal' },
       { label: 'Knowledge and RAG', slug: 'guides/knowledge' },
       { label: 'Voice and live conversation', slug: 'guides/voice' },
+      { label: 'Speech cost, pools and retries', slug: 'guides/speech-cost-and-pools' },
       { label: 'Voice conversation lifecycle', slug: 'guides/voice-conversation-lifecycle' },
       { label: 'Provider-hosted live voice', slug: 'guides/live-voice' },
       { label: 'Gemini speech and dialogue', slug: 'guides/gemini-speech' },

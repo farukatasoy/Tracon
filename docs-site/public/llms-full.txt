@@ -166,11 +166,11 @@ is the list.
 | Capability | Enable it | Storage and execution model |
 |---|---|---|
 | Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, a step can pin a version of a stored agent, and a `Handoff` workflow names who may hand off to whom (`Handoffs`) with a per-run limit (`MaxHandoffs`, error type `handoff_limit_exceeded`) |
-| Tenant run cap | `MaxConcurrentRunsPerTenant` | One tenant cannot take every workflow slot of a process or the front of the job queue: its run over the limit waits `Queued` for a tenant slot and holds no shared one, and a worker leases queued workflow jobs of a tenant under the limit first; across processes the count is read, not locked |
+| Tenant run cap | `MaxConcurrentRunsPerTenant`, `MaxLeasedPerTenant` | One tenant cannot take every workflow slot of a process or the front of the job queue: its run over the limit waits `Queued` for a tenant slot and holds no shared one, and a worker leases queued workflow jobs of a tenant under the limit first; across processes the count is read, not locked. Your own handlers get the same fairness in the queue from `Tracon:Scheduling:TenantCapHandlerKeys` with `MaxLeasedPerTenant` (one set of keys, soft, off by default, not together with the workflow cap) |
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
 | Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; an agent's tool call that needs approval is a request of the form `ToolApproval` (approve or refuse it, give a reason, optionally save a rule), where a pattern hosts the agent; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`); `GET /api/workflows/requests` lists the tenant's waiting requests, and a `RequestTimeout` closes a run nobody answered (`run.failed`) so retention can release what it kept |
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
-| Custom jobs | `AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
+| Custom jobs | `AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. `JobPermanentFailureException` fails a job on the attempt that threw; `JobInterruptedException` gives the attempt back when the host stops before the handler began; a handler that returns while the host stops completes its job. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
 | Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin (fixed in the graph, or read from a run parameter), and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
 | Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; a spent cost or time ceiling stops the next function node from starting, and a spent cost quota of the tenant does too (`tenant_quota_exceeded`), and `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` exempts one from both; the ceiling is the logical run's, so a run that continues an earlier one (an answer, a resume, a recovery) starts from what the earlier runs spent; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
@@ -182,10 +182,10 @@ is the list.
 | Singleton execution | `Tracon:SingletonExecution` | A distributed lease selects one active executor for singleton services |
 | Run reconciliation | `Tracon:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
 | Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound agent run at the root of its tree resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat`; a workflow run is resumed from its checkpoints instead |
-| Workflow recovery | `UseWorkflows(o => o.ResumeInterruptedRuns = true)` | A queued workflow run or batch item interrupted by a crash, a deploy or a graceful stop continues from its latest checkpoint when its job is leased again, as a new run linked by `ContinuedFromRunId`, up to `MaxResumeAttempts`; the step in progress runs again |
+| Workflow recovery | `ResumeInterruptedRuns` | A queued workflow run or batch item interrupted by a crash, a deploy or a graceful stop continues from its latest checkpoint when its job is leased again, as a new run linked by `ContinuedFromRunId`, up to `MaxResumeAttempts`; the step in progress runs again |
 | Workflow node retry | `AddWorkflowFunction(retryPolicy: ...)` | A transient provider error retries a single node without failing the run or costing an extra super-step |
 | Time limits | `options.Timeout`, `JobRequest.MaxDuration`, a node's `timeout`, a definition's `runTimeout`, `Tracon:Scheduling:MaxDurationByHandlerKey` | A workflow step past its timeout fails the run (`workflow_function_timeout`, `child_run_timeout`); a definition shortens its run timeout, or lengthens it up to `Tracon:Workflows:MaxRunTimeout`, and its `requestTimeout` closes a run nobody answered; a job past its limit has its handler's token cancelled and fails with `tracon.job.max-duration-exceeded`. A job cancel reaches a running handler within one `PollInterval` |
-| Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
+| Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and running jobs and refuses new ones instead of cutting execution off |
 
 In-memory stores make these contracts usable for local work. Durable queues,
 checkpoints, schedules, cross-process leases, and recovery need a SQL provider for
@@ -247,7 +247,7 @@ caller's role and key scopes. See the complete scope table in
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
 | OpenTelemetry traces | `ActivitySource` spans for runs, agents, chat calls, tools, embeddings, images, speech and workflow steps | Your exporter remains in control; Tracon can also persist a sample, and the stored spans carry no content unless you turn `RecordSensitiveData` on |
 | Metrics | Run counts, duration, tokens, cost, tools, errors, judges, background-job executions and attempt duration, plus optional quota and job-queue-depth gauges | Standard .NET metrics; high-cardinality tags are bounded and store-backed gauges are opt-in and cached |
-| Cost attribution | Per model, agent, run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free. `cost` is the token cost; what nodes, tools and media service calls reported beyond tokens is `nonTokenCost` on the run |
+| Cost attribution | Per model, agent, run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free, and so is a speech, transcription or image model you configure that no rate covers. `cost` is the token cost; what nodes, tools and media service calls reported beyond tokens is `nonTokenCost` on the run |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddTraconHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
@@ -3037,7 +3037,8 @@ the request was never sent. `IsTransient` tells the last from the other two.
 put none: a short token such as `insufficient_quota` or `content_policy_violation` (letters, digits,
 `_`, `.` and `-`, at most 64 characters), never the provider's sentence. It tells a spent quota from a
 rate limit when both are a `429`. It is read from the OpenAI and Azure OpenAI client library's
-message, from the body the OpenAI image generator and the speech client read, and from nowhere else:
+message, from the body the OpenAI image generator and the speech client read, from the status name
+Gemini puts in its error body (`UNAVAILABLE`, `RESOURCE_EXHAUSTED`), and from nowhere else:
 a provider that reports its code another way leaves it `null`. The vocabulary is each provider's own.
 
 ```csharp
@@ -10178,6 +10179,43 @@ never closed this way.
 A value outside `1` to `MaxConcurrentRuns`, or one that is not a number, stops the host
 at startup. The limit is read once, when the process starts.
 
+## Keep one tenant from filling a lane
+
+The worker leases the oldest ready job whichever tenant owns it. A tenant that queues a
+burst of jobs of one handler fills the slots of the lane, and another tenant's job waits
+behind the burst. A separate lane does not fix that: it splits the slots between kinds of
+work, not between tenants. Name the handler keys and the most jobs of them one tenant may
+hold leased at once:
+
+```json
+{
+  "Tracon": {
+    "Scheduling": {
+      "TenantCapHandlerKeys": [ "contoso.podcast" ],
+      "MaxLeasedPerTenant": 2
+    }
+  }
+}
+```
+
+With four slots, a tenant that queued six `contoso.podcast` jobs holds two of them; the other
+two slots go to the oldest eligible jobs of anyone else, so a second tenant's job starts at
+once. The six jobs run as the tenant's own jobs end: held-back jobs stay `Pending`.
+
+- **Off by default.** Leave `MaxLeasedPerTenant` out and the worker leases in age order.
+- **Soft, not a quota.** The count covers every process that shares the store, but it is read,
+  not locked. Workers that lease at the same moment can take a tenant past the ceiling by up
+  to their own number.
+- **One set of keys, one number.** Every key must belong to a registered handler, and the
+  number must be at least `1`; a key nobody registered, a ceiling without keys, or keys without
+  a ceiling stops the host at startup.
+- **Read once, when the process starts.** A change to the settings applies at the next start.
+- **Not together with the workflow ceiling.** `Tracon:Workflows:MaxConcurrentRunsPerTenant`
+  (above) uses the same mechanism for the workflow handler keys, and one lease request carries
+  one ceiling. A process that runs the job worker with both set stops at startup and the error
+  names both settings; turn one of them off. A process that only takes requests
+  (`Scheduling:RunWorker` set to `false`) builds no worker and never leases, so it does not stop.
+
 ## Create a recurring schedule
 
 The schedule name is part of the URL. The body selects the handler key, target,
@@ -10533,6 +10571,8 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
 | `Scheduling.LaneByHandlerKey` | empty | Maps a handler key to a lane when the caller left it unset |
 | `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default. `tracon.workflow-run` is never accepted, and `tracon.retention.fanout` is accepted only when named here, from the default tenant |
+| `Scheduling.TenantCapHandlerKeys` | empty | Handler keys the per-tenant ceiling below covers; every key must belong to a registered handler, and it is set together with `MaxLeasedPerTenant` |
+| `Scheduling.MaxLeasedPerTenant` | `null` | The most jobs of `TenantCapHandlerKeys` one tenant may hold leased at once, at least `1`; `null` sets no ceiling. Soft, and not combinable with `Workflows.MaxConcurrentRunsPerTenant` |
 | `AsyncRun.Enabled` | `true` | A queued run request returns `501` when disabled |
 | `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries, and queued workflow runs while workflow recovery is off |
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |
@@ -10576,6 +10616,17 @@ whose status is no longer `Pending`; see
   `HttpRequestException` with `404` while a resource is not there yet, keeps its
   retries. A `JobRetryException` keeps its retries too, and an attempt that reached its
   time limit counts like any failed attempt.
+- A host that stops while a job runs cancels the handler's token. A handler that returns normally
+  completes its job, even though the stop has fallen. A handler that had not begun its work throws
+  `JobInterruptedException` and the job goes back to the queue with its attempt given back, so a
+  job limited to one attempt still has it on the next host. Anything else leaves the job to its
+  lease, and a lease that runs out counts as an attempt. With `Drain` on, the stop first waits for
+  the running jobs while their tokens are live. See
+  [Stop with the host](/guides/write-your-own-job-handler/#stop-with-the-host).
+- A handler that knows another attempt cannot succeed says so: it throws
+  `JobPermanentFailureException` with a stable code, and the job ends `Failed` on that
+  attempt with the code as its `errorMessage`. See
+  [Write your own job handler](/guides/write-your-own-job-handler/#end-the-job-for-good-when-another-attempt-cannot-succeed).
 - A store error while a handler records a failed attempt (a webhook delivery's
   failed send, an eval run closed as `Failed`) is tried again the same way and never
   replaces the attempt's own failure: a failed webhook send keeps its retry delay.
@@ -14311,6 +14362,61 @@ a speaker label` means a turn of a `TextLabels` dialogue would change the voice;
 
 ---
 
+# Google settings
+
+Source: https://tracon.dev/guides/google-settings/
+
+Google is a provider like the others: [register it and bind an agent](/guides/model-providers/), and the agent
+reads its credential from the host. This page covers what is specific to Gemini and set through
+`ModelBinding.ProviderSettings`, the portable `ReasoningEffort`, or read from a run.
+
+Google supports five `google.safety.*` thresholds plus
+`google.thinking.budgetTokens`, `google.thinking.level` and `google.thinking.includeThoughts`.
+
+| Key | Values | Sent as |
+|---|---|---|
+| `google.thinking.level` | `minimal`, `low`, `medium`, `high` (any case) | `thinkingConfig.thinkingLevel` |
+| `google.thinking.budgetTokens` | integer `-1..65535`; `-1` lets the model decide and `0` disables thinking | `thinkingConfig.thinkingBudget` |
+| `google.thinking.includeThoughts` | `true`, `false` | `thinkingConfig.includeThoughts` |
+
+- **Level or budget, not both.** They are two controls for the depth of thinking. Google
+  recommends the level for the Gemini 3 models and the budget is what earlier models take.
+  Setting both is an error when the agent is built, and so is a level outside the four.
+  A model that does not offer a level can reject the request.
+- **`ReasoningEffort` on Gemini.** `ModelBinding.ReasoningEffort` becomes a thinking level:
+  `Low` is `LOW`, `Medium` is `MEDIUM`, and `High` and `ExtraHigh` are both `HIGH`; `None` becomes a thinking
+  budget of zero. When `google.thinking.level` or `google.thinking.budgetTokens` is set, the provider
+  setting wins and `ReasoningEffort` is not sent, so a request never carries a level next to a budget.
+  `google.thinking.includeThoughts` does not choose a depth and leaves the effort in place.
+- **Thinking tokens count as output.** Gemini reports the answer and the thinking as two
+  separate counts and bills both at the output price. A run records `outputTokens` as the sum, as it does for
+  OpenAI and Anthropic, and `reasoningTokens` as the thinking part of it, so the output cost is the output
+  tokens times the output price and `reasoningTokens` never exceeds `outputTokens`.
+
+The `google.safety.*` thresholds take `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
+`BLOCK_ONLY_HIGH`, `BLOCK_NONE` or `OFF`. A safety-filtered empty response becomes a
+failed run with error type `content_filtered`; one whose final turn already has text completes with a
+`tracon.output.filtered` run event.
+Gemini answers a non-streamed call that its filter stops with no text at all, so on that path a filtered
+answer is always the empty case and a run fails with `content_filtered`; only a streamed call can send text
+before the filter stops it and complete with the event. A turn that Gemini ends because the model wrote a
+function call it could not use (finish reason `MALFORMED_FUNCTION_CALL`, or `UNEXPECTED_TOOL_CALL` when the
+request declared no such tool) and that holds no call fails the run as a provider error
+(`upstream_error`); it does not complete with an empty answer, and a fallback chain goes on to the next model.
+An error answer from Gemini to a chat call or an image generation carries its HTTP status like every other
+provider's: a `503` or a `429` is transient and moves a call to the next model of a `Fallbacks` chain, and a
+`400` is neither retried nor counted against the circuit of a shared key. Speech synthesis is not translated: its
+failure is a `TraconException` that names the status in its message. See
+[Decide a retry from the failure](/concepts/run-errors/#decide-a-retry-from-the-failure-not-from-its-text).
+
+## Read next
+
+- [Model providers](/guides/model-providers/) — register a provider, bind an agent and set the portable fields.
+- [Gemini speech and dialogue](/guides/gemini-speech/) — the Gemini speech synthesizer.
+- [Run errors](/concepts/run-errors/) — how a failure is classified and which ones move a call to the next model.
+
+---
+
 # Hosted tools - web search, code interpreter, file search
 
 Source: https://tracon.dev/guides/hosted-tools/
@@ -15598,6 +15704,10 @@ key alike, and it is bound from `Tracon:Providers:OpenAI:MaxRetries` as well. Th
 provider has an option of the same name. Azure OpenAI uses the OpenAI default and has no
 option for it yet.
 
+Image generation shares this client, so a billed image call is sent again by the same count. To send images fewer
+times than chat, set `Tracon:Images:Providers:openai:MaxRetries` (or `azure-openai`): it is a ceiling for image calls
+alone and leaves chat as it is. See [Send a failed image call fewer times](/guides/multimodal/#send-a-failed-image-call-fewer-times).
+
 :::caution[Compatibility is measured per server and model]
 A successful health check proves reachability. It does not prove tool calling,
 structured output, streaming usage, or Responses API compatibility. Some compatible
@@ -15851,19 +15961,10 @@ When `anthropic.thinking.mode` or `budgetTokens` is set, the provider setting wi
 Provider settings do not reach a `Fallbacks` link: a link gets the binding's
 portable fields only.
 
-Google supports five `google.safety.*` thresholds plus
-`google.thinking.budgetTokens` and `google.thinking.includeThoughts`. The thinking
-budget range is `-1..65535`; `-1` lets the model decide and `0` disables thinking.
-Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
-`BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
-failed run with error type `content_filtered`; one whose final turn already has text completes with a
-`tracon.output.filtered` run event.
-Gemini answers a non-streamed call that its filter stops with no text at all, so on that path a filtered
-answer is always the empty case and a run fails with `content_filtered`; only a streamed call can send text
-before the filter stops it and complete with the event. A turn that Gemini ends because the model wrote a
-function call it could not use (finish reason `MALFORMED_FUNCTION_CALL`, or `UNEXPECTED_TOOL_CALL` when the
-request declared no such tool) and that holds no call fails the run as a provider error
-(`upstream_error`); it does not complete with an empty answer, and a fallback chain goes on to the next model.
+Google supports five `google.safety.*` thresholds plus `google.thinking.budgetTokens`,
+`google.thinking.level` and `google.thinking.includeThoughts`. The depth of thinking, how
+`ModelBinding.ReasoningEffort` maps to it, how thinking tokens are counted, the safety thresholds and
+how a Gemini error reaches your code are on [Google settings](/guides/google-settings/).
 
 OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
 other key:
@@ -16272,7 +16373,7 @@ as a rejection, since there is nothing to compare the prompt against.
 | Health cache | 60 seconds |
 | Background health checks | Off; checks run on request unless an interval is configured |
 | Circuit breaker | On; 5 consecutive failures; one half-open attempt after 30 seconds |
-| OpenAI client retries | Three, before Tracon sees the failure; `MaxRetries` changes it |
+| OpenAI client retries | Three, before Tracon sees the failure; `MaxRetries` changes it, and `Tracon:Images:Providers:{name}:MaxRetries` lowers it for image calls alone |
 | Model catalog | Empty until the host supplies entries |
 | Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
 | Fallback chain | Empty; an unavailable primary throws |
@@ -16894,6 +16995,59 @@ the tenant's, so Tracon does not generate the tenant's images on the host's acco
 When the provider names a configuration key for its key and address, the image generator
 sends the pair that is current when it generates; see
 [change the provider key without a restart](/guides/model-providers/#change-the-provider-key-without-a-restart).
+
+### Change the quality of one call
+
+The settings you register with `UseOpenAIImages` apply to every call. Code that calls `IImageGenerationService` can lay
+its own over them for one call, in `TraconImageRequest.ProviderSettings`:
+
+```csharp
+var result = await images.GenerateAsync(
+    new TraconImageRequest
+    {
+        Prompt = "A lighthouse at dawn",
+        ProviderSettings = { ["openai.quality"] = JsonSerializer.SerializeToElement("high") },
+    },
+    cancellationToken);
+```
+
+The call's value wins for that call. The next call starts from the registered value again, and the registered settings
+are never changed. A key the provider does not support, a key of another provider, and a value that is not text throw a
+`TraconException` before anything is sent; the message names the key and never the value.
+
+The `generate_image` tool and `POST /api/images/generate` take no such setting. The quality changes what a call costs,
+so a model or a client does not choose it: it is set in code.
+
+The cost Tracon records does not follow the quality. A flat `PerImage` rate in `Tracon:Pricing:Images` is one price for
+every quality, so a `high` call and a `low` call are recorded at the same cost. If you vary the quality per call, price a
+token-billed image model by tokens (`OutputCostPerMillionTokens`): the token count is the one the provider reports for
+that call.
+
+A `with` copy of a `TraconImageRequest` shares its `ProviderSettings` dictionary with the original, and request equality
+compares that dictionary by reference.
+
+### Send a failed image call fewer times
+
+An image call is billed. The OpenAI client sends a call again after a retryable failure (such as `429` or a `5xx`
+answer), so with its default of three retries one failing call reaches the server four times. That count is shared with chat, and a count that suits chat can
+be too high for a call that is priced per image. `Tracon:Images:Providers:{name}:MaxRetries` lowers the count for image
+calls alone, from `0` (send once) to `10`:
+
+```json
+{
+  "Tracon": {
+    "Images": {
+      "Providers": { "openai": { "MaxRetries": 0 } }
+    }
+  }
+}
+```
+
+It is a ceiling: a value above the client's own count changes nothing, and chat calls on the same client keep the
+client's count. The OpenAI and Azure OpenAI image providers take it, and so does the matching `MaxRetries` property of
+`TraconImageProviderOptions` in code. Azure OpenAI has no retry option of its own, so this is the one way to ask its
+client for fewer than three. Tracon does not retry Google image calls and offers no ceiling for them: a value on `google`
+stops the host at start instead of being ignored.
 
 ## Troubleshooting
 
@@ -17539,9 +17693,36 @@ models do resolve to a price. A catalog with no prices at all records every run 
 empty cost columns and `PricingSource.Unknown`, which reads exactly like a cost
 report that is broken. Set the rate on the catalog entry
 (`InputCostPerMillionTokens` / `OutputCostPerMillionTokens`) or under
-`Tracon:Pricing:Providers`, then backfill the runs you already have with
+`Tracon:Pricing:{provider}:{model}:Input` and `:Output`, then backfill the runs you already have with
 `POST /api/stats/recalculate-costs`. Tracon ships no built-in price table on
 purpose: rates change far faster than a NuGet package is released.
+
+A speech, transcription or image model is never in a catalog, so the catalog list cannot name
+it. The models **you configure** for them (`Tracon:Voice:SynthesisModelId`,
+`Tracon:Voice:TranscriptionModelId`, and the `Model` of each entry under
+`Tracon:Images:Providers` while image generation is on) get a second `Warning`, and
+`GET /api/diagnostics` lists the ones no rate covers under `pricing.unpricedMediaModels`
+as `provider/model (kind)`. A synthesis is priced by `Tracon:Pricing:Voice:{provider}:{model}:PerMillionCharacters`,
+a transcription by `…:PerMinute`, an image by `Tracon:Pricing:Images:{provider}:{model}:PerImage`
+or `…:OutputCostPerMillionTokens`; a model that carries only the other unit's rate is still
+unpriced for the call. With no `SynthesisModelId` or `TranscriptionModelId`, the built-in speech
+client's own default model is the one named.
+
+Both lists read your configuration and nothing else. A model that only a **saved agent
+definition** names belongs to a tenant, and neither the report nor the startup check reads
+tenant data, so such a model is not in either list. It is named in the log instead, once for
+each model and process, the first time a run, a cost budget, a judge call or a recalculation
+finds no price for it. A speech, transcription, live voice or image call that finds no price
+for its model writes the same single line, including a model a tenant brings with its own
+provider credentials; the line names the provider and the model and never the tenant.
+
+A rate written under a key Tracon does not read is ignored without an error. Under a model,
+Tracon reads `Input`, `Output`, `CachedInput`, `CacheWrite` and `CacheWriteLong`, with any
+casing. A key such as `CacheRead` or `CachedInputCostPerMillionTokens` is not one of them: the
+host still starts and the rate the key carries is ignored (cached tokens, for example, are priced
+at the plain input rate), and one startup `Warning` names each unread key with the key it most
+likely meant. A model with neither `Input`
+nor `Output` still stops the start.
 
 A run's cost is a **price snapshot** ([concepts/runs](/concepts/runs/#what-a-run-carries)):
 computed once, from the unit price in effect when the run ended, and never
@@ -20175,9 +20356,9 @@ A hosted tool (a provider's web search or code interpreter) is not checked: it r
 Tracon cannot see it start. The file memory, todo and harness tools, an agent called as a tool and a tool that an
 agent extension adds are not checked either. The next model call is still refused.
 
-## Wait for in-flight runs before the process stops
+## Wait for in-flight runs and running jobs before the process stops
 
-By default a process that receives a stop signal exits immediately and any run in
+By default a process that receives a stop signal exits immediately and any run or job in
 flight is cut off — the same crash reconciliation and continuation exist to recover
 from. `Drain` makes a graceful stop wait instead:
 
@@ -20194,8 +20375,11 @@ from. `Drain` makes a graceful stop wait instead:
 
 Once a stop signal arrives, new runs are refused, and the background job worker stops
 leasing new jobs, while runs already in flight are given up to `Timeout` to finish
-before the process actually exits. Every surface that starts a run in the process
-refuses it:
+before the process actually exits. The wait covers the jobs the worker is running as well:
+a job of your own handler (a render, a call to an outside system) is in no run registry, and
+the drain still waits for it. The handler keeps a live cancellation token while the drain
+waits, so it finishes its work and the job completes. Every surface that starts a run in the
+process refuses it:
 
 - The agent and workflow run endpoints (with or without `Prefer: respond-async`),
   workflow resume and respond, and run replay return `503`.
@@ -20208,14 +20392,16 @@ A request that only writes a job (an inbound trigger, an eval run, a schedule tr
 an approval decision) is still accepted: its job waits in the queue until a worker
 that is not draining leases it.
 
-A run that is still going when the timeout elapses is cut off anyway; a stuck run
+A run or job that is still going when the timeout elapses is cut off anyway; a stuck one
 must not block a deployment forever. The host's own shutdown timeout still applies on
-top of this value, so raise both together for the full wait to take effect.
+top of this value, so raise both together for the full wait to take effect. What happens
+to a job that is cut off, and how a handler hands its attempt back, is in
+[Write your own job handler](/guides/write-your-own-job-handler/#stop-with-the-host).
 
 | Setting | Default | Effect |
 |---|---:|---|
 | `Drain.Enabled` | `false` | The process stops immediately, exactly as before |
-| `Drain.Timeout` | 30 seconds | The longest a stop waits for in-flight runs |
+| `Drain.Timeout` | 30 seconds | The longest a stop waits for in-flight runs and running jobs |
 
 ## Failure boundaries at a glance
 
@@ -20228,7 +20414,7 @@ top of this value, so raise both together for the full wait to take effect.
 | Process dies during a direct run | Reconcile a stale `Running` record when enabled, and continue it in the same session when safe | Make external tool effects idempotent, or declare a tool safe to repeat |
 | Process dies during a queued job | Release or expire the lease for another worker | Make item processing replay-safe |
 | Process dies during a queued workflow run or batch item | With `ResumeInterruptedRuns`, continue the run from its latest checkpoint on the next lease | Make the step in progress safe to run again |
-| Process receives a stop signal mid-run | Wait up to `Drain.Timeout` for in-flight runs, refuse new ones | Set a timeout that covers your slowest normal run |
+| Process receives a stop signal mid-run | Wait up to `Drain.Timeout` for in-flight runs and running jobs, refuse new ones | Set a timeout that covers your slowest normal run or job |
 | Live cancel reaches wrong node | Return `409` | Use sticky routing or a distributed cancellation registry |
 | Child-agent fan-out grows | Refuse new children at tree limits | Set budgets that match cost and latency objectives |
 
@@ -20487,6 +20673,241 @@ does not. Let waiting runs finish or expire before a structural change.
 
 ---
 
+# Speech cost, pools and retries
+
+Source: https://tracon.dev/guides/speech-cost-and-pools/
+
+A speech call is billed by the provider in a unit of its own, a host with live conversations and a batch
+of narration shares one account, and a request that failed can be worth sending again. This page covers
+the three. The [voice guide](/guides/voice/) installs the layer and the speech tools these examples
+use.
+
+## Voice cost has a different unit
+
+Synthesis cost uses characters and transcription cost uses duration. Tracon
+writes that measurement on the tool invocation, with the provider and model that did
+the work, and never adds it to the token cost: a character, a second and a token are
+different units, so a quantity is never added across them. The *amount* is a different
+matter. It joins the run's non-token total (`nonTokenCost` on the run), which the call-tree
+budget, the tenant's cost quota and the `run.completed` webhook count beside the token
+cost. See [Report what a tool spent beyond tokens](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)
+for the rule, and
+[Report what a node spent beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
+for a workflow function node that voices text itself, and
+[step runs](/guides/step-runs/#generate-images-and-speech-from-code) for code of your own.
+If pricing is not configured, cost stays `null`: the measurement is listed as unpriced
+and left out of the total, because zero would claim the call was free.
+If the provider omits billed characters, the text length is used and marked as an
+estimate; an estimated amount still adds, and the total says it rests on an estimate.
+
+### What `CharactersBilled` is
+
+`SpeechAudio.CharactersBilled` is the quantity the provider reported for **one request**, in
+the provider's own unit. The built-in client reads the `character-cost` response header
+(`x-character-cost` when that is missing). ElevenLabs' documentation does not say whether
+that unit is a character or a credit, and it is not a count of the characters you sent, so
+quote `PerMillionCharacters` in that unit.
+
+- **It is per request.** Tracon does not add or split values. Five requests are five audio
+  results and five usage items, each with its own value; a host that voices a text in parts
+  adds the values itself.
+- **It is not promised to match the provider's counter.** The sum of the values over a
+  month is not guaranteed to equal what the provider's subscription counter shows: the
+  provider keeps that counter by its own rules, and the header of one request cannot show
+  them. Do not reconcile a bill against it.
+- **The estimate is the text length.** With no header, `CharactersBilled` is the length of
+  the text sent and `UsageSource` is `Estimated`.
+- **`CharactersSent` is the count Tracon took.** It is the length of the text of a
+  single-voice request, or the sum of the turns of a dialogue (inline tags such as
+  `[laughs]` included), counted before the call and counted once when a failed request was
+  sent again. Compare it with `CharactersBilled` to see how far the provider's unit is from
+  the text: the two can differ, and neither is a measurement of the other. Only the built-in
+  ElevenLabs client reports it. The built-in OpenAI speech synthesizer and the built-in Gemini
+  synthesizer leave it `null`, as does a synthesizer of your own that does not set it.
+
+Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
+`ProviderName` of the implementation that did the work — `elevenlabs` for the built-in
+client — not the `Tracon:Voice:Provider` setting. `{model}` is the model the
+implementation reports on its result (`SpeechAudio.ModelId`,
+`SpeechTranscript.ModelId`), then the one the request named. Only when neither is
+known does the default provider fall back to `SynthesisModelId` or
+`TranscriptionModelId`, and only the built-in client to its own default model. The
+built-in client always reports the model it used.
+
+A model with no price does not fail the call and is never recorded as free. Tracon says so twice: the
+first time a synthesis, transcription or live voice session finds no price for a model, one `Warning`
+names the provider, the model and the key to set; and the `SynthesisModelId` and `TranscriptionModelId`
+you configure are listed under `pricing.unpricedMediaModels` in
+[`GET /api/diagnostics`](/guides/observability/#export-traces-and-metrics) and in a startup warning
+until a rate covers them. A synthesis needs `PerMillionCharacters`; a transcription and a live
+session need `PerMinute`.
+
+## Several speech providers in one host
+
+A host that picks the text-to-speech engine per pipeline or per customer — a hosted
+service for one, a model on its own GPU for another — registers each engine under a
+name, next to the default one:
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .AddSpeechSynthesizer("studio", provider => new StudioSpeechSynthesizer(
+        provider.GetRequiredService<IConfiguration>()["Studio:ApiKey"]))
+    .AddSpeechSynthesizer("gpu", _ => new LocalGpuSynthesizer(new Uri("http://gpu-01:9000/")))
+    .AddSpeechTranscriber("gpu", _ => new LocalGpuTranscriber(new Uri("http://gpu-01:9000/")));
+```
+
+A second **built-in** client is a name too, with a concurrency pool of its own, so a batch does not queue a live turn:
+[Keep a batch from queueing a live turn](/guides/voice-conversation-lifecycle/#keep-a-batch-from-queueing-a-live-turn).
+
+A name is 1 to 64 characters of `a-z`, `0-9`, `.`, `_` and `-`, compared in lower
+case; synthesizer and transcriber names are separate. Registering the same name twice
+throws at startup instead of letting the later call win. The call can come before or
+after `UseVoice()`, and it never changes which provider `UseVoice()` binds as the
+default. A factory that returns one instance for two names shares that instance — and
+its concurrency limit — between them.
+
+A caller selects an engine by name:
+
+| Caller | How it names the engine |
+|---|---|
+| `POST /api/voice/speak` | `"provider": "studio"` in the body |
+| `GET /api/voice/voices` | `?provider=studio` |
+| A workflow function node | `ISpeechProviderResolver.GetSynthesizerAsync(name)` with a name from the node's settings or a run parameter |
+| The `speak`, `transcribe` and `list_voices` tools, the conversation socket | Always the default provider |
+
+`GET /api/voice/providers` lists every registration — its name (`null` for the
+default), its kind, the provider name it reports, whether it accepts a tenant's own
+key, and `dialogue`: the limits of one dialogue request, or `null` when the provider cannot voice
+a dialogue. An unknown name answers `400` and names the registered ones; a request without a
+name when no default is registered answers `501`. A provider failure the speech
+adapter reports as a `TraconException` (the built-in adapters do) answers `502`, while
+it speaks or lists its voices; any other exception is a server error.
+
+A function node takes the resolver when it is built, because the service provider a
+node sees at call time is not the host's:
+
+```csharp
+builder.AddTracon()
+    .UseWorkflows()
+    .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, NarrationSettings>(
+        "narrate",
+        provider =>
+        {
+            var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+            var pricing = provider.GetRequiredService<IVoicePricingReader>();
+
+            return async (messages, settings, context, cancellationToken) =>
+            {
+                var synthesizer = await speech.GetSynthesizerAsync(settings.Provider, cancellationToken);
+                var audio = await synthesizer.SynthesizeAsync(
+                    new SpeechRequest { Text = messages[^1].Text },
+                    cancellationToken);
+
+                // The node called the engine itself, so Tracon did not see the spend.
+                var characters = audio.CharactersBilled ?? messages[^1].Text.Length;
+                await context.ReportUsageAsync(new ToolCallUsage
+                {
+                    Unit = ToolUsageUnits.Characters,
+                    Quantity = characters,
+                    Cost = pricing.ForSynthesis(synthesizer.ProviderName, audio.ModelId, characters),
+                    Currency = pricing.Currency,
+                    IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
+                    Provider = synthesizer.ProviderName,
+                    Model = audio.ModelId,
+                });
+
+                return [new ChatMessage(ChatRole.Assistant, $"{audio.Data.Length} bytes")];
+            };
+        });
+```
+
+A named engine never receives the default's `SynthesisModelId` or `OutputFormat`: a
+model identifier of one engine sent to another is a wrong request. Set them on the
+request when the engine needs them. `IVoicePricingReader.ForSynthesis` returns `null`
+when no price is configured; the item is then listed as unpriced instead of counting as
+zero.
+
+A second **built-in** client (`AddElevenLabsSynthesizer`) is always the built-in
+ElevenLabs client, whatever the default synthesizer is, and it needs a key of its own. A
+host that registered its own pair before `UseVoice()` has no key for the default, so give the
+named one `ApiKey` or `ApiKeyConfigurationName` in the callback. The key is checked at the first
+call for the name; a missing one is reported there, by the name of the configuration key that
+held none.
+
+## Repeat a failed request
+
+A request to ElevenLabs that fails is not sent again unless you ask. A batch that voices a
+podcast makes five requests; when the fifth fails with a `503`, the four finished parts are
+paid for, and the host that starts over pays for them again. `MaxRetries` is the number of
+times the built-in client sends a speech or dialogue request again, from `0` (the default) to
+`10`:
+
+```mermaid
+flowchart TD
+    accTitle: How one speech request is repeated
+    accDescr: A call takes a concurrency slot and sends its request. A success returns the audio as one usage item. A 429, a 5xx or a dropped connection waits for Retry-After or an increasing delay and sends again while repeats remain, and the call keeps its slot throughout. Another 4xx, the client's own timeout, or no repeats left end the call with the last failure.
+    S["take a slot"] --> R["send the request"]
+    R -->|"2xx"| OK["audio returned, one usage item"]
+    R -->|"429, 5xx or a dropped connection"| Q{"repeats left?"}
+    Q -->|"yes"| W["wait for Retry-After or 0.8 s doubled"]
+    W --> R
+    Q -->|"no"| F["the last failure is thrown"]
+    R -->|"another 4xx or the client's own timeout"| F
+```
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .AddElevenLabsSynthesizer("batch", options =>
+    {
+        options.MaxConcurrentRequests = 4;
+        options.MaxRetries = 3;
+    });
+```
+
+Put it on the batch's synthesizer, as above: the named client copies the options of
+`UseVoice()` and keeps its own values, so a live conversation on the default synthesizer
+does not start to wait for a repeat. `Tracon:Voice:MaxRetries` in configuration sets it for the
+default synthesizer and for every named one that does not set its own, since they copy the
+options of `UseVoice()`.
+
+| Outcome of a try | Repeated |
+|---|---|
+| `429` or any `5xx` answer | Yes |
+| A connection that failed or dropped before the answer was complete | Yes |
+| Any other `4xx` (a voice that does not exist, a key the provider refuses) | No: the answer is the same every time |
+| The client's own `Timeout` | No: the provider may have finished, and billed, a request the client gave up on |
+| A cancellation | No: it ends the call and the wait at once |
+| Streaming synthesis and transcription | No: a conversation's audio cannot wait, and the audio sent for transcription is a stream that cannot be read twice |
+
+The wait before a repeat is the provider's `Retry-After` when it is a delay of at most 60
+seconds, and a longer one is ignored. Without one the wait is 0.8 seconds, doubled for every
+repeat and never more than 60 seconds. The repeats run while the call still holds its place
+among `MaxConcurrentRequests`: a pool that is waiting to repeat a request is not free for
+another one. When every try fails, the last failure is thrown as a single try would throw it,
+a `ProviderInvocationException`. `Timeout` is the limit of one try, not of the whole call, which
+can last up to `MaxRetries + 1` times `Timeout` plus the waits between the tries.
+
+A repeated request is measured once. The retry lives below the service that records a call, so
+a synthesis that took two tries is one usage item, with the quantity of the answer that
+succeeded.
+
+:::caution[A repeat can be billed twice]
+Tracon has not measured whether ElevenLabs bills a request it answered with a `5xx` or cut
+off midway, and a repeat of a request it did bill is paid for again. The request ids that a request can name
+(`elevenlabs.previousRequestIds`) keep speech continuous across requests; they are not an
+idempotency key and do not make a repeat free. That is why the setting is off by default.
+:::
+
+## Read next
+
+- [Voice and live conversation](/guides/voice/) — enable the layer, add the speech tools and open a conversation.
+- [Gemini speech and dialogue](/guides/gemini-speech/) — the Gemini synthesizer and a dialogue with several speakers.
+- [Configuration reference](/reference/configuration/#pricing) — the `Tracon:Pricing` keys and `Tracon:Voice` options.
+
+---
+
 # Step runs and measured media
 
 Source: https://tracon.dev/guides/step-runs/
@@ -20550,7 +20971,7 @@ the delegate: when `RunAsync` returns, your code is outside the run again.
 |---|---|
 | `Name` | Required. It is the run's agent name in run lists, statistics and quota. At most 200 characters, with no surrounding whitespace |
 | `RunId` | The id of the run, when you want to know it before the step ends. Make it in your own code (`Guid.CreateVersion7()`), never from a client's request. An id a run of your tenant already has is refused. An id a run of another tenant holds is refused by the run store, which never gives a row to another tenant: that run is left as it was, the refusal is logged and the step runs without a record. Without it, Tracon makes one |
-| `ParentRunId` | A run of the **same tenant** to attach the step to. The step then belongs to that run's tree. A run of another tenant is refused the same way as a run that does not exist |
+| `ParentRunId` | A run of the **same tenant** to attach the step to. The step then belongs to that run's tree. A run of another tenant is refused the same way as a run that does not exist. The parent's state is not asked: a parent that has already ended, completed, failed or canceled, accepts the step, and the step's cost joins the tree's total without changing the parent's own status |
 
 ## What the run holds
 
@@ -20579,7 +21000,7 @@ the failure mask.
 
 | Service | Call | Result |
 |---|---|---|
-| `IImageGenerationService` | `GenerateAsync(TraconImageRequest)` — prompt, count, size, and optionally provider and model | The images as bytes with their media type, the measurement, and whether it was recorded |
+| `IImageGenerationService` | `GenerateAsync(TraconImageRequest)` — prompt, count, size, and optionally provider, model and provider settings for this call (`openai.quality`) | The images as bytes with their media type, the measurement, and whether it was recorded |
 | `ISpeechSynthesisService` | `SynthesizeAsync(SpeechRequest, provider)` | The audio, the measurement, and whether it was recorded |
 | `ISpeechSynthesisService` | `SynthesizeDialogueAsync(SpeechDialogueRequest, provider)` | The dialogue audio and its segments, the measurement, and whether it was recorded |
 
@@ -21937,14 +22358,14 @@ quiet line open sends any frame, a silent audio frame for instance, inside the l
 
 An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation
 after its answer. It takes no argument. Tell the agent when to use it in its instructions
-(the topic is done, the time is up, the caller said goodbye) and to say a short goodbye in
-the same answer:
+(the topic is done, the time is up, the caller said goodbye) and to **say a short goodbye first
+and call the tool after it**, in the same answer:
 
 ```csharp
 tracon.AddAgent(new AgentDefinition
 {
     Name = "coach",
-    Instructions = "Coach the student. When the exercise is done, say goodbye and call end_conversation.",
+    Instructions = "Coach the student. When the exercise is done, say a short goodbye first, then call end_conversation.",
     Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "your-model" },
     ToolNames = ["end_conversation"],
 });
@@ -21956,6 +22377,15 @@ If the user interrupts the goodbye (`cancel`), or the turn fails, the request is
 the conversation goes on. An agent that does not list the tool can never end a conversation,
 and the tool ends nothing when an agent runs outside a voice conversation. Every close has
 its own frame, description and end reason, [below](#how-a-conversation-closes).
+
+The order matters for the wait after the goodbye. When the model's answer already holds words
+before the call, the call ends the model's turn: there is no further model request, and `ended`
+follows the goodbye at once. When the model calls the tool **before it has said anything**, the
+tool's result asks it for the goodbye and the model is called once more to give it. The
+conversation still ends and the goodbye is still spoken, but the caller waits for that extra
+request. Words and a call that the model returns as two separate items of one answer count as
+one answer. A call that other tool calls of the same answer follow does not end the model's
+turn, so those calls still run and the model is asked once more.
 
 ## What the agent says before a tool call
 
@@ -21979,6 +22409,9 @@ builder.AddTracon()
 
 A failed call of the built-in client throws a `ProviderInvocationException`
 ([run errors](/concepts/run-errors/#decide-a-retry-from-the-failure-not-from-its-text)).
+Set `MaxRetries` on the batch's client alone to have it send a failed request again while a
+live conversation's requests are never held for a repeat:
+[Repeat a failed request](/guides/speech-cost-and-pools/#repeat-a-failed-request).
 
 ## How a conversation closes
 
@@ -22150,32 +22583,11 @@ The attachment guard trusts magic bytes, not a claimed media type. Raw `pcm_*` a
 `mp3_44100_128` is valid; choosing a non-storable provider format fails option
 validation at startup.
 
-### Voice cost has a different unit
+### Cost, several providers and retries
 
-Synthesis cost uses characters and transcription cost uses duration. Tracon
-writes that measurement on the tool invocation, with the provider and model that did
-the work, and never adds it to the token cost: a character, a second and a token are
-different units, so a quantity is never added across them. The *amount* is a different
-matter. It joins the run's non-token total (`nonTokenCost` on the run), which the call-tree
-budget, the tenant's cost quota and the `run.completed` webhook count beside the token
-cost. See [Report what a tool spent beyond tokens](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)
-for the rule, and
-[Report what a node spent beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
-for a workflow function node that voices text itself, and
-[step runs](/guides/step-runs/#generate-images-and-speech-from-code) for code of your own.
-If pricing is not configured, cost stays `null`: the measurement is listed as unpriced
-and left out of the total, because zero would claim the call was free.
-If the provider omits billed characters, the text length is used and marked as an
-estimate; an estimated amount still adds, and the total says it rests on an estimate.
-
-Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
-`ProviderName` of the implementation that did the work — `elevenlabs` for the built-in
-client — not the `Tracon:Voice:Provider` setting. `{model}` is the model the
-implementation reports on its result (`SpeechAudio.ModelId`,
-`SpeechTranscript.ModelId`), then the one the request named. Only when neither is
-known does the default provider fall back to `SynthesisModelId` or
-`TranscriptionModelId`, and only the built-in client to its own default model. The
-built-in client always reports the model it used.
+What a speech call costs and in which unit, how to register a second ElevenLabs client with a
+concurrency pool of its own for batch narration, and how to repeat a failed speech request are on
+[Speech cost, pools and retries](/guides/speech-cost-and-pools/).
 
 ### Character-level timing
 
@@ -22234,92 +22646,6 @@ borrow the built-in client's default model or its price.
 
 A provider that already ships a `Microsoft.Extensions.AI` speech client needs no
 hand-written adapter. See [Use any Microsoft.Extensions.AI speech client](#use-any-microsoftextensionsai-speech-client).
-
-### Several speech providers in one host
-
-A host that picks the text-to-speech engine per pipeline or per customer — a hosted
-service for one, a model on its own GPU for another — registers each engine under a
-name, next to the default one:
-
-```csharp
-builder.AddTracon()
-    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
-    .AddSpeechSynthesizer("studio", provider => new StudioSpeechSynthesizer(
-        provider.GetRequiredService<IConfiguration>()["Studio:ApiKey"]))
-    .AddSpeechSynthesizer("gpu", _ => new LocalGpuSynthesizer(new Uri("http://gpu-01:9000/")))
-    .AddSpeechTranscriber("gpu", _ => new LocalGpuTranscriber(new Uri("http://gpu-01:9000/")));
-```
-
-A second **built-in** client is a name too, with a concurrency pool of its own, so a batch does not queue a live turn:
-[Keep a batch from queueing a live turn](/guides/voice-conversation-lifecycle/#keep-a-batch-from-queueing-a-live-turn).
-
-A name is 1 to 64 characters of `a-z`, `0-9`, `.`, `_` and `-`, compared in lower
-case; synthesizer and transcriber names are separate. Registering the same name twice
-throws at startup instead of letting the later call win. The call can come before or
-after `UseVoice()`, and it never changes which provider `UseVoice()` binds as the
-default. A factory that returns one instance for two names shares that instance — and
-its concurrency limit — between them.
-
-A caller selects an engine by name:
-
-| Caller | How it names the engine |
-|---|---|
-| `POST /api/voice/speak` | `"provider": "studio"` in the body |
-| `GET /api/voice/voices` | `?provider=studio` |
-| A workflow function node | `ISpeechProviderResolver.GetSynthesizerAsync(name)` with a name from the node's settings or a run parameter |
-| The `speak`, `transcribe` and `list_voices` tools, the conversation socket | Always the default provider |
-
-`GET /api/voice/providers` lists every registration — its name (`null` for the
-default), its kind, the provider name it reports, whether it accepts a tenant's own
-key, and `dialogue`: the limits of one dialogue request, or `null` when the provider cannot voice
-a dialogue. An unknown name answers `400` and names the registered ones; a request without a
-name when no default is registered answers `501`. A provider failure the speech
-adapter reports as a `TraconException` (the built-in adapters do) answers `502`, while
-it speaks or lists its voices; any other exception is a server error.
-
-A function node takes the resolver when it is built, because the service provider a
-node sees at call time is not the host's:
-
-```csharp
-builder.AddTracon()
-    .UseWorkflows()
-    .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, NarrationSettings>(
-        "narrate",
-        provider =>
-        {
-            var speech = provider.GetRequiredService<ISpeechProviderResolver>();
-            var pricing = provider.GetRequiredService<IVoicePricingReader>();
-
-            return async (messages, settings, context, cancellationToken) =>
-            {
-                var synthesizer = await speech.GetSynthesizerAsync(settings.Provider, cancellationToken);
-                var audio = await synthesizer.SynthesizeAsync(
-                    new SpeechRequest { Text = messages[^1].Text },
-                    cancellationToken);
-
-                // The node called the engine itself, so Tracon did not see the spend.
-                var characters = audio.CharactersBilled ?? messages[^1].Text.Length;
-                await context.ReportUsageAsync(new ToolCallUsage
-                {
-                    Unit = ToolUsageUnits.Characters,
-                    Quantity = characters,
-                    Cost = pricing.ForSynthesis(synthesizer.ProviderName, audio.ModelId, characters),
-                    Currency = pricing.Currency,
-                    IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
-                    Provider = synthesizer.ProviderName,
-                    Model = audio.ModelId,
-                });
-
-                return [new ChatMessage(ChatRole.Assistant, $"{audio.Data.Length} bytes")];
-            };
-        });
-```
-
-A named engine never receives the default's `SynthesisModelId` or `OutputFormat`: a
-model identifier of one engine sent to another is a wrong request. Set them on the
-request when the engine needs them. `IVoicePricingReader.ForSynthesis` returns `null`
-when no price is configured; the item is then listed as unpriced instead of counting as
-zero.
 
 ### Use any Microsoft.Extensions.AI speech client
 
@@ -22480,7 +22806,7 @@ builder.AddTracon()
 | Splitting and joining | Yours. Split a long script where its content allows, voice each part, and join the audio. Raw `pcm_*` output has no file header: join the samples, then add the header |
 | Model | The request's `ModelId`, then `Tracon:Voice:DialogueModelId`, then the provider's default. The single-voice `SynthesisModelId` is never used. With the provider's default, the result names no model, so a price keyed by model is not found |
 | Timing | `IncludeTimestamps` returns `Segments` — the turn index, voice and start and end of each part — and character `Alignment` over the turns' texts joined in order. A report that names a turn or voice the request did not have, leaves a turn without a segment, or is out of order gives `Segments = null` and keeps the audio |
-| Usage | `Audio.CharactersBilled` comes from the provider when it reports a count (`UsageSource.Provider`), otherwise from the turns' text (`Estimated`). `Audio.ProviderRequestId` is the provider's id for the request |
+| Usage | `Audio.CharactersBilled` comes from the provider when it reports a count (`UsageSource.Provider`), otherwise from the turns' text (`Estimated`); it is the provider's value for the whole request, in its own unit. `Audio.CharactersSent` is the sum of the turns' lengths. `Audio.ProviderRequestId` is the provider's id for the request |
 | Tenant rules | The same as every other speech call (next section), applied to the dialogue capability's `ProviderName`. A synthesizer without the capability fails the call with a message that names it; the built-in client is not used in its place |
 
 There is no dialogue tool and no dialogue HTTP endpoint: a dialogue is a step written
@@ -22879,7 +23205,14 @@ The built-in ElevenLabs client serves at least one of the two speech contracts, 
 it has no key. The message names the contract it still serves. Set the key with
 `dotnet user-secrets set "Tracon:Voice:ApiKey" "..."`, or register your own
 `ISpeechSynthesizer` and `ISpeechTranscriber` **before** `UseVoice()`. A
-registration after `UseVoice()` is not seen, and the message is the same.
+registration after `UseVoice()` is not seen, and the message is the same. When
+`ApiKeyConfigurationName` is set, the message also names that configuration key as the one
+that holds no usable key.
+
+A named synthesizer (`AddElevenLabsSynthesizer`) fails differently, at the first call for
+its name: it is always the built-in client, so it asks for a key of its own even when you
+registered your own default pair first. Its message says so and names the configuration key
+that was empty; registering your own provider first is no remedy for it.
 
 ### A speech call returns `502` with `HTTP 403 (model_not_found)`
 
@@ -23596,7 +23929,7 @@ handler throws:
 
 | Reason | When | Outcome |
 |---|---|---|
-| The worker stops | Host shutdown | Nothing is written; the job is leased again when its lease runs out |
+| The worker stops | Host shutdown | The job is left to its lease and is leased again when the lease runs out, and that lease counts as an attempt. A handler that returns normally completes the job; one that throws `JobInterruptedException` hands its attempt back ([below](#stop-with-the-host)) |
 | The job is cancelled | `POST /api/jobs/{id}/cancel`, read every `PollInterval` (10 seconds by default) | The job stays `Cancelled`, with no error |
 | The worker loses the lease | The store refused a renewal because another worker leased the job after the lease lapsed, or renewals kept failing, or one renewal did not answer, until the worker could no longer prove it holds the lease | Nothing is written for this attempt, whatever the handler does next: the job belongs to the worker that took it over, and that worker completes it or returns it to the queue |
 | The time limit passes | The attempt ran longer than its limit | The attempt fails with `tracon.job.max-duration-exceeded`; the job is leased again while attempts are left |
@@ -23632,6 +23965,111 @@ item failed completes as `Failed`. Keep the `ReportItemAsync` call outside the
 `try` that guards the item's own work: inside it, a store error while reporting
 a finished item is caught as that item's failure, and work that succeeded is
 recorded as `Failed`.
+
+## Stop with the host
+
+A host that stops is not a crash, and the three things a handler can do when its token falls for that
+reason end three ways:
+
+| The handler | The job |
+|---|---|
+| Returns normally (it finished, or it ignored the token and ran to the end) | `Completed`. The worker writes the completion even though the stop already cancelled the token. Each store call of that write is given at most four seconds and is tried once (the worker makes at most five such calls), so a store that does not answer delays the stop by at most about twenty seconds, inside the host's default shutdown timeout of thirty. A write that fails leaves the job `Running` to its lease. **Returning claims the work is done**: a handler that catches `OperationCanceledException` and returns because it could not finish completes its job, where it used to leave the job to run again. If you could not finish, rethrow the cancellation or throw `JobInterruptedException` |
+| Throws `JobInterruptedException` | Back in the queue as `Pending`, with the attempt its lease counted given back: the next worker leases it with the same `attempt`. Use it when you know you had not begun the work, for example the token was already cancelled before your first call out |
+| Throws anything else, including `OperationCanceledException` | Left `Running` to its lease. The lease that runs out counts as an attempt, because you may have done work with a side effect |
+
+```csharp
+public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+{
+    if (cancellationToken.IsCancellationRequested)
+    {
+        // The host is stopping and this attempt has paid for nothing yet.
+        throw new JobInterruptedException();
+    }
+
+    await ChargeTheCustomerAsync(context.Job, cancellationToken);
+}
+```
+
+The worker never gives an attempt back on its own. A job limited to one attempt (a paid or side-effecting
+job: `MaxAttempts` of `1`) is never run twice after a crash, and the worker cannot tell a handler that had
+begun its work from one that had not. Only the handler knows, so only its `JobInterruptedException` gives
+the attempt back, and only while the worker is stopping: thrown at any other time it is an ordinary failed
+attempt and the worker writes a warning to the log. If the store cannot be reached when the worker tries to
+give the attempt back, the job stays `Running` and the old rule applies.
+
+A stop that lands between the lease and the call of your handler (while the worker marks the job
+running, reads its items, opens the tenant scope or builds your handler) is not covered: the handler
+never ran and had no chance to say so, and the attempt is kept.
+
+A stop that comes through `Tracon:Drain` is gentler still. The drain waits for the jobs the worker is
+running, yours included, while their tokens are live, so a handler that finishes in time completes its job
+without any of the above. See [Wait for in-flight runs and running jobs before the process stops](/guides/reliability/#wait-for-in-flight-runs-and-running-jobs-before-the-process-stops).
+
+## End the job for good when another attempt cannot succeed
+
+Whatever your handler throws counts as a failed attempt, and the worker leases the job again until its
+attempts are spent. That is right for a network error and wrong for a rule of your own that cannot
+change between attempts: the order the job is about does not exist, the input is malformed. Each repeat
+pays for the work in front of that check again. Throw `JobPermanentFailureException` there:
+
+```csharp
+public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+{
+    var order = await orders.FindAsync(context.Job.TargetName, cancellationToken);
+
+    if (order is null)
+    {
+        // The order will not exist on the next attempt either.
+        throw new JobPermanentFailureException(
+            "order.not-found",
+            reason: $"Order {context.Job.TargetName} is not in the database.");
+    }
+
+    // ...
+}
+```
+
+- **The job ends `Failed` on the attempt that threw.** `attempt` stays at that number, whatever
+  `MaxAttempts` is, and the `job.failed` event is published as for any other failure.
+- **The stored message is the code and a reference**, `order.not-found (ref: 1f3a9c2e)`. A job's
+  `errorMessage` is stored, returned over HTTP and shown in the console, so no free text enters it. The
+  code is 1 to 64 characters: lowercase ASCII letters, digits, `.`, `_` or `-`. Any other value throws
+  `ArgumentException` where you build the exception.
+- **`reason` and the inner exception go to the log**, once, under the same reference. Put the order
+  number or the customer there, not in the code.
+- **It ends this one job.** A workflow's node retry and an online evaluation read Tracon's own failure
+  identities and do not treat it as a failure that repeats. A job that was cancelled stays `Cancelled`.
+- **The time limit decides first.** A permanent failure thrown after the attempt hit its time limit does
+  not override the time limit: the attempt fails with `tracon.job.max-duration-exceeded`, the job is leased
+  again while attempts are left, and the log says the code was set aside. Do not wrap every exception into
+  a `JobPermanentFailureException`: a timeout caught that way is still a timeout.
+
+`JobRetryException` is the opposite request (try again, after a delay), and an ordinary exception stays
+what it was: retried until the attempt limit.
+
+## Keep one tenant from taking every slot
+
+The worker leases the oldest ready job. When one tenant queues a burst of your jobs, its first few fill
+every slot of the lane, and another tenant's job waits until one of them ends. To let a tenant hold at
+most a few slots of one handler, name the handler key and the ceiling:
+
+```json
+{
+  "Tracon": {
+    "Scheduling": {
+      "TenantCapHandlerKeys": [ "contoso.nightly-report" ],
+      "MaxLeasedPerTenant": 2
+    }
+  }
+}
+```
+
+A tenant at the ceiling has its jobs of those keys skipped, and the oldest job that is still eligible is
+leased instead. Its held-back jobs stay `Pending` and run as its other jobs end. The setting is off by
+default, and one ceiling covers one set of keys. Every key must belong to a registered handler, and the
+ceiling must be at least `1`: anything else stops the host at startup. The ceiling is soft and shared by
+every process that uses the same store; [Keep one tenant from filling a lane](/guides/background-work/#keep-one-tenant-from-filling-a-lane)
+says how exact it is and how it relates to the workflow engine's own limit.
 
 ## Verify your implementation
 
@@ -24491,16 +24929,29 @@ Two more rules carry the
   `JobStoreContract` and `RunStoreContract` check each of these with the same values, the two
   ends of the range included.
 - **`IJobStore` fences every write that needs the lease.** `RenewLeaseAsync`,
-  `MarkRunningAsync`, `CompleteAsync` and `ReleaseForRetryAsync` take a `JobLease`
-  (the job, the owner and the attempt that `LeaseAsync` returned) and change the job only
-  while its lease is exactly that one, in the `Leased` or `Running` status. Otherwise they
-  return `false` and change nothing. Check and write in **one** statement: a store that
-  reads the lease first and writes after leaves a window in which a worker that stalled
-  past its lease closes the attempt of the worker that took the job over. Compare the
-  attempt as well as the owner, because a worker keeps its owner when it leases a job
-  again. Cancelling a job clears its lease, so a cancelled job answers `false` to all four.
+  `MarkRunningAsync`, `CompleteAsync`, `ReleaseForRetryAsync` and `ReleaseInterruptedAsync`
+  take a `JobLease` (the job, the owner and the attempt that `LeaseAsync` returned) and
+  change the job only while its lease is exactly that one, in the `Leased` or `Running`
+  status. Otherwise they return `false` and change nothing. Check and write in **one**
+  statement: a store that reads the lease first and writes after leaves a window in which a
+  worker that stalled past its lease closes the attempt of the worker that took the job over.
+  Compare the attempt as well as the owner, because a worker keeps its owner when it leases a
+  job again. Cancelling a job clears its lease, so a cancelled job answers `false` to all five.
   `JobStoreContract` checks the owner, the attempt, the status and a cancelled job. It cannot prove
   that check and write are one step, so keep them in one statement.
+- **`IJobStore.ReleaseInterruptedAsync` gives an attempt back.** It returns the job to
+  `Pending` and clears its lease like `ReleaseForRetryAsync`, and it also lowers
+  `JobRecord.Attempt` by one, never below zero. It leaves `ScheduledFor` and the last
+  `ErrorMessage` as they are, so the job keeps its place in the queue and the next lease counts
+  the same attempt again. The worker calls it for one case only: the host is stopping and the
+  job's handler threw `JobInterruptedException` to say it had not begun its work. Every
+  other way a job comes back (a failed attempt, a lease that runs out) keeps the attempt it
+  counted: a job limited to one attempt is never run twice after a crash. The attempt number is
+  therefore no longer strictly increasing: a lease taken after the call carries the number the
+  one given back had, so tell two leases apart by owner and attempt together, never by "an older
+  attempt has a smaller number". No migration is
+  needed; the attempt is an existing column. Add the method to a store you wrote before this
+  member existed, and run `JobStoreContract` against it.
 - **`IRunStore` marks and closes a `Queued` row that has a heartbeat.**
   `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`
@@ -26538,6 +26989,7 @@ from one millisecond to about 49.7 days and fails at startup otherwise, while `E
 | `MaxCharactersPerRequest` | `5000` |
 | `MaxDialogueCharactersPerRequest` | `2000` |
 | `MaxConcurrentRequests` | `2` |
+| `MaxRetries` | `0`; how many times a failed speech or dialogue request is sent again, from `0` to `10` |
 | `RequireApproval` | `false` |
 | `Timeout` | `null`; implementation uses 100 seconds |
 
@@ -26555,6 +27007,12 @@ dialogue. `MaxDialogueCharactersPerRequest` must be greater than zero; a longer
 dialogue is refused, not split, and the built-in client reports the value through
 `ISpeechDialogueSynthesizer.DialogueCapabilities`. Synthesis, dialogue and
 transcription share the one `MaxConcurrentRequests` limit.
+
+`MaxRetries` applies to the built-in client's speech and dialogue requests only. A value
+outside `0` to `10` stops the host at start. It is off by default because a repeat can be
+billed twice; [Repeat a failed request](/guides/speech-cost-and-pools/#repeat-a-failed-request) says what
+is repeated, how long the client waits and why you may want it on a batch's synthesizer
+alone.
 
 ### Voice conversation
 
@@ -26988,6 +27446,15 @@ Tracon says so at startup for the models a provider's catalog lists. A definitio
 catalog does not list, so it also warns once for each such model, the first time a price is looked up
 for it (a run being recorded, a cost budget, a judge call or a recalculation of past runs): the line
 names the model and the provider, and the model's price goes under `Tracon:Pricing`.
+The speech, transcription and image models you configure are never in a catalog, so a second startup
+warning and `pricing.unpricedMediaModels` in `GET /api/diagnostics` name the ones no rate covers; a model
+that only a saved definition names belongs to a tenant and is in neither, only in the once-per-model
+line. See [Observability](/guides/observability/#export-traces-and-metrics) for the rule and the keys to set.
+
+A model's rates are read from the five short keys above, written with any casing. Any other key under
+a model, such as `CacheRead` or `CachedInputCostPerMillionTokens`, is ignored: the host starts and one
+startup warning names the key and the one it most likely meant. A model with neither `Input` nor
+`Output` stops the start.
 
 Values label and calculate reports only. Tracon performs no currency conversion, so
 `Currency` also decides which reported amounts add up: an amount that a workflow function node or a
@@ -27042,7 +27509,9 @@ An image model uses either `PerImage` or `OutputCostPerMillionTokens`, never bot
 `SizeMultipliers` applies only to a per-image price and uses the exact provider size
 string, for example `1024x1024`. An image response with no matching configured price
 records its real quantity but leaves `cost` as `null`; Tracon does not estimate
-image prices.
+image prices. A flat `PerImage` rate is one price for every quality, so a call that
+asks for another `openai.quality` is recorded at the same cost; price a token-billed
+image model by tokens when you vary the quality per call.
 
 ### Images
 
@@ -27093,6 +27562,13 @@ that provider is the default. Set it explicitly when the host registers more tha
 without it) or a custom generator that no extension registered. `ProviderSettings` (`openai.quality`, `azure-openai.quality`)
 are code only and are not bound from configuration.
 
+`Providers:{name}:MaxRetries` is a ceiling on how often the provider's client sends one failing image call again, from
+`0` (send once) to `10`. Left out, the client's own count applies: three, or `OpenAIProviderOptions.MaxRetries` for OpenAI.
+It only lowers the count, it does not change chat calls on the same client, and a value above the client's count changes
+nothing. Only `openai` and `azure-openai` take it; a value on any other provider, `google` included (Tracon does not retry
+Google image calls and offers no ceiling for them), or one outside the range stops the host at start. You can set the model
+in code and this key in configuration for the same provider.
+
 ## Operational sections
 
 <p class="reads-this">Read by <code>Tracon.Core</code>. The lease-backed entries coordinate more than one process only with a SQL persistence package.</p>
@@ -27113,6 +27589,8 @@ are code only and are not bound from configuration.
 | `Scheduling:MaxConcurrentJobsPerLane` | empty; a lane not listed shares `MaxConcurrentJobs`. A value that is not a number fails at startup |
 | `Scheduling:LaneByHandlerKey` | empty; maps a handler key to a lane when the caller left it unset |
 | `Scheduling:HttpSchedulableHandlerKeys` | empty; the handler keys `PUT /api/schedules/{name}` accepts. Empty means the built-in keys; a non-empty list replaces that default rather than extending it |
+| `Scheduling:TenantCapHandlerKeys` | empty; the handler keys the per-tenant lease ceiling covers. Each must belong to a registered handler, and the list is set together with `Scheduling:MaxLeasedPerTenant`; any other combination fails at startup |
+| `Scheduling:MaxLeasedPerTenant` | `null`; no ceiling. Otherwise the most jobs of `Scheduling:TenantCapHandlerKeys` one tenant may hold leased at once, at least `1`. Soft, and it cannot be set together with `Workflows:MaxConcurrentRunsPerTenant`: a process that runs the job worker with both set fails at startup |
 | `AsyncRun:Enabled` | `true` |
 | `AsyncRun:MaxAttempts` | `1` |
 | `SingletonExecution:Enabled` | `false` |
@@ -34806,7 +35284,10 @@ An agent can still use an unlisted model name.
 
 Tracon never guesses prices. Add input and output prices to the model catalog or
 `Tracon:Pricing`. Runs from models with no price remain counted as unknown-price
-runs instead of receiving a false zero.
+runs instead of receiving a false zero. The startup log and `GET /api/diagnostics` name the
+models that have none, speech and image models you configure included, and a rate written
+under a key Tracon does not read (`CacheRead`, for example) is named in a startup warning.
+See [Observability](/guides/observability/#export-traces-and-metrics).
 
 ### Azure returns `404` for a known model
 

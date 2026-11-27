@@ -233,7 +233,7 @@ transcription share the one `MaxConcurrentRequests` limit.
 
 `MaxRetries` applies to the built-in client's speech and dialogue requests only. A value
 outside `0` to `10` stops the host at start. It is off by default because a repeat can be
-billed twice; [Repeat a failed request](/guides/voice/#repeat-a-failed-request) says what
+billed twice; [Repeat a failed request](/guides/speech-cost-and-pools/#repeat-a-failed-request) says what
 is repeated, how long the client waits and why you may want it on a batch's synthesizer
 alone.
 
