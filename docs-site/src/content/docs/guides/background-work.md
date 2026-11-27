@@ -358,10 +358,12 @@ once. The six jobs run as the tenant's own jobs end: held-back jobs stay `Pendin
 - **One set of keys, one number.** Every key must belong to a registered handler, and the
   number must be at least `1`; a key nobody registered, a ceiling without keys, or keys without
   a ceiling stops the host at startup.
+- **Read once, when the process starts.** A change to the settings applies at the next start.
 - **Not together with the workflow ceiling.** `Tracon:Workflows:MaxConcurrentRunsPerTenant`
   (above) uses the same mechanism for the workflow handler keys, and one lease request carries
-  one ceiling. A host that sets both stops at startup and the error names both settings; turn
-  one of them off.
+  one ceiling. A process that runs the job worker with both set stops at startup and the error
+  names both settings; turn one of them off. A process that only takes requests
+  (`Scheduling:RunWorker` set to `false`) builds no worker and never leases, so it does not stop.
 
 ## Create a recurring schedule
 

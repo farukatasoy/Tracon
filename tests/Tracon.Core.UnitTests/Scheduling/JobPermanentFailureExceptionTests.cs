@@ -54,6 +54,34 @@ public sealed class JobPermanentFailureExceptionTests
     }
 
     [Fact]
+    public void The_code_alone_carries_no_reason_and_no_inner_exception()
+    {
+        var exception = new JobPermanentFailureException("order.not-found");
+
+        exception.Reason.ShouldBeNull();
+        exception.InnerException.ShouldBeNull();
+    }
+
+    [Fact]
+    public void The_code_and_a_reason_carry_no_inner_exception()
+    {
+        var exception = new JobPermanentFailureException("order.not-found", "Order 42 is not there.");
+
+        exception.Reason.ShouldBe("Order 42 is not there.");
+        exception.InnerException.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_reason_that_is_null_in_the_full_form_is_a_missing_reason()
+    {
+        var cause = new TimeoutException("the database did not answer");
+        var exception = new JobPermanentFailureException("order.not-found", null, cause);
+
+        exception.Reason.ShouldBeNull();
+        exception.InnerException.ShouldBeSameAs(cause);
+    }
+
+    [Fact]
     public void The_error_type_is_the_cataloged_value()
     {
         new JobPermanentFailureException("order.not-found").ErrorType.ShouldBe("job_permanent_failure");

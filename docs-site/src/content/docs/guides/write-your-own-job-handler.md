@@ -268,6 +268,10 @@ public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancel
   number or the customer there, not in the code.
 - **It ends this one job.** A workflow's node retry and an online evaluation read Tracon's own failure
   identities and do not treat it as a failure that repeats. A job that was cancelled stays `Cancelled`.
+- **The time limit decides first.** A permanent failure thrown after the attempt hit its time limit does
+  not override the time limit: the attempt fails with `tracon.job.max-duration-exceeded`, the job is leased
+  again while attempts are left, and the log says the code was set aside. Do not wrap every exception into
+  a `JobPermanentFailureException`: a timeout caught that way is still a timeout.
 
 `JobRetryException` is the opposite request (try again, after a delay), and an ordinary exception stays
 what it was: retried until the attempt limit.

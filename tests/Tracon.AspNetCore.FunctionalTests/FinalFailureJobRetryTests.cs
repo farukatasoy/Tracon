@@ -311,7 +311,7 @@ public sealed class FinalFailureJobRetryTests
 
     }
 
-    /// <summary>A consumer handler that waits for a resource that is not there yet.</summary>
+    /// <summary>A consumer handler that decides the order it is asked about will never exist.</summary>
     private sealed class FailsForGoodHandler : IJobHandler
     {
         public const string Key = "contoso.fail-for-good";
@@ -320,6 +320,7 @@ public sealed class FinalFailureJobRetryTests
             => throw new JobPermanentFailureException("order.not-found", "Order 42 of Jane Doe is not in the database.");
     }
 
+    /// <summary>A consumer handler that waits for a resource that is not there yet.</summary>
     private sealed class NotFoundYetHandler : IJobHandler
     {
         public const string Key = "contoso.wait-for-resource";

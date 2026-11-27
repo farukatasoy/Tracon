@@ -1636,7 +1636,9 @@ Tracon.JobLeaseRequest.TenantCap.get -> Tracon.JobTenantCap?
 Tracon.JobLeaseRequest.TenantCap.init -> void
 Tracon.JobPermanentFailureException
 Tracon.JobPermanentFailureException.Code.get -> string!
-Tracon.JobPermanentFailureException.JobPermanentFailureException(string! code, string? reason = null, System.Exception? innerException = null) -> void
+Tracon.JobPermanentFailureException.JobPermanentFailureException(string! code) -> void
+Tracon.JobPermanentFailureException.JobPermanentFailureException(string! code, string? reason) -> void
+Tracon.JobPermanentFailureException.JobPermanentFailureException(string! code, string? reason, System.Exception? innerException) -> void
 Tracon.JobPermanentFailureException.Reason.get -> string?
 Tracon.JobQuery
 Tracon.JobQuery.<Clone>$() -> Tracon.JobQuery!

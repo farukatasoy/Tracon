@@ -23,6 +23,12 @@ namespace Tracon;
 /// as a failure that repeats the same answer. Cancellation wins over it: a job that was cancelled stays
 /// <see cref="JobStatus.Cancelled"/>.
 /// </para>
+/// <para>
+/// The attempt's time limit wins over it too. A handler that throws this exception after its attempt reached its
+/// time limit (<see cref="JobRecord.MaxDuration"/>) fails the attempt with <see cref="JobErrorCodes.MaxDurationExceeded"/>
+/// and the job is leased again while attempts are left, whatever the code. Do not wrap every exception into this one:
+/// a timeout caught that way would be read as the time limit and not as your decision.
+/// </para>
 /// <example>
 /// <code>
 /// public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
@@ -56,13 +62,40 @@ public sealed class JobPermanentFailureException : TraconException
     /// The stable code the job's error message starts with: 1 to 64 characters, lowercase ASCII letters, digits,
     /// <c>.</c>, <c>_</c> or <c>-</c> (<c>order.not-found</c>). A caller that matches on a job's error matches on this.
     /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="code"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="code"/> is not a valid code.</exception>
+    public JobPermanentFailureException(string code)
+        : this(code, reason: null, innerException: null)
+    {
+    }
+
+    /// <summary>Creates the exception.</summary>
+    /// <param name="code">
+    /// The stable code the job's error message starts with: 1 to 64 characters, lowercase ASCII letters, digits,
+    /// <c>.</c>, <c>_</c> or <c>-</c> (<c>order.not-found</c>). A caller that matches on a job's error matches on this.
+    /// </param>
+    /// <param name="reason">
+    /// Free text for the log only (it may name an order or a customer). It is never written to the job's error message.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="code"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="code"/> is not a valid code.</exception>
+    public JobPermanentFailureException(string code, string? reason)
+        : this(code, reason, innerException: null)
+    {
+    }
+
+    /// <summary>Creates the exception.</summary>
+    /// <param name="code">
+    /// The stable code the job's error message starts with: 1 to 64 characters, lowercase ASCII letters, digits,
+    /// <c>.</c>, <c>_</c> or <c>-</c> (<c>order.not-found</c>). A caller that matches on a job's error matches on this.
+    /// </param>
     /// <param name="reason">
     /// Free text for the log only (it may name an order or a customer). It is never written to the job's error message.
     /// </param>
     /// <param name="innerException">The error that led to the decision, for the log; <see langword="null"/> when there is none.</param>
     /// <exception cref="ArgumentNullException"><paramref name="code"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="code"/> is not a valid code.</exception>
-    public JobPermanentFailureException(string code, string? reason = null, Exception? innerException = null)
+    public JobPermanentFailureException(string code, string? reason, Exception? innerException)
         : base(DescribeCode(code), innerException)
     {
         Code = code;

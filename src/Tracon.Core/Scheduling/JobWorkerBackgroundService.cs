@@ -1209,9 +1209,9 @@ internal sealed class JobWorkerBackgroundService(
     /// </para>
     /// <para>
     /// A <see cref="JobPermanentFailureException"/> fails the job on this attempt as well: the handler decided
-    /// another attempt cannot succeed. Its code is what is persisted (with a reference), its free text and its
-    /// inner exception go to the log under that reference, and it is not judged by the time limit the attempt may
-    /// also have reached.
+    /// another attempt cannot succeed. Its code is what is persisted (with a reference), and its free text and its
+    /// inner exception go to the log under that reference once the job is known not to be cancelled. An attempt that
+    /// reached its time limit is judged by the limit instead (below), and the log says the code was set aside.
     /// </para>
     /// <para>
     /// A failure <see cref="FinalFailure.IsFinal"/> calls final fails the job on
@@ -1238,7 +1238,11 @@ internal sealed class JobWorkerBackgroundService(
         CancellationToken stoppingToken)
     {
         var nonRetryable = exception is NonRetryableJobException;
-        var permanent = exception as JobPermanentFailureException;
+
+        // An attempt that reached its time limit is judged by the limit, whatever the handler threw on its way out: the
+        // exception is the handler noticing its token. That holds for a permanent failure too, or a handler that wraps
+        // every exception into one would turn a timeout into a failure that is never tried again.
+        var permanent = maxDurationExceeded is null ? exception as JobPermanentFailureException : null;
 
         // Only a handler that is stopping with the worker may hand its attempt back (see GiveAttemptBackAsync). Thrown at any
         // other time it is an ordinary failed attempt, and the log says so: a handler has no way to run its own job again for
@@ -1254,8 +1258,7 @@ internal sealed class JobWorkerBackgroundService(
 
         // Read from the failure's stable identity, never its text. An attempt
         // that reached its time limit is not judged by what the handler threw on its
-        // way out (see the remarks): a handler that decided the work cannot succeed
-        // is the exception to that, its decision is the cause.
+        // way out (see the remarks).
         var final = nonRetryable
             || permanent is not null
             || (maxDurationExceeded is null && exception is not JobRetryException && FinalFailure.IsFinal(exception));
@@ -1264,24 +1267,23 @@ internal sealed class JobWorkerBackgroundService(
 
         if (permanent is not null)
         {
-            // The handler is no logger: it throws, and the free text it gave goes to the log here, once, under the
-            // reference the stored message carries. The stored message is the code and the reference and nothing else.
-            if (logger is not null && logger.IsEnabled(LogLevel.Error))
-            {
-                logger.LogError(
-                    exception,
-                    "Job {JobId} failed for good on attempt {Attempt} with code {Code}: {Reason} (ref: {CorrelationId})",
-                    job.Id,
-                    job.Attempt,
-                    permanent.Code,
-                    permanent.Reason ?? "no reason given",
-                    correlationId);
-            }
-
+            // The stored message is the code and the reference and nothing else. The handler is no logger: its free text
+            // goes to the log under that reference, once, after the cancel check below.
             safeMessage = JobErrorCodes.Format(permanent.Code, correlationId);
         }
         else if (!nonRetryable && maxDurationExceeded is { } limit)
         {
+            if (exception is JobPermanentFailureException setAside && logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    "Job {JobId} attempt {Attempt}: the handler threw JobPermanentFailureException with code {Code} after the attempt reached its time limit of {MaxDuration}. The time limit decides: the code is set aside, and the job is leased again while attempts are left. (ref: {CorrelationId})",
+                    job.Id,
+                    job.Attempt,
+                    setAside.Code,
+                    limit,
+                    correlationId);
+            }
+
             if (logger is not null && logger.IsEnabled(LogLevel.Error))
             {
                 logger.LogError(
@@ -1318,6 +1320,20 @@ internal sealed class JobWorkerBackgroundService(
             RecordJobMetric(job, JobStatus.Cancelled, startedAt);
 
             return;
+        }
+
+        // The record of a failure that was decided for good is written only for a job that did fail: a cancelled job above
+        // is not one, and an error entry for it would be misleading.
+        if (permanent is not null && logger is not null && logger.IsEnabled(LogLevel.Error))
+        {
+            logger.LogError(
+                exception,
+                "Job {JobId} failed for good on attempt {Attempt} with code {Code}: {Reason} (ref: {CorrelationId})",
+                job.Id,
+                job.Attempt,
+                permanent.Code,
+                permanent.Reason ?? "no reason given",
+                correlationId);
         }
 
         if (final || job.Attempt >= maxAttempts)

@@ -185,7 +185,8 @@ public sealed class TraconSchedulingOptions
 
     /// <summary>
     /// The handler keys <see cref="MaxLeasedPerTenant"/> applies to. Empty — the default — means no tenant ceiling.
-    /// Every key must belong to a handler registered with <c>AddJobHandler</c>.
+    /// Every key must belong to a registered handler: one added with <c>AddJobHandler</c>, or one of
+    /// <see cref="JobHandlerKeys.BuiltIn"/>.
     /// </summary>
     /// <remarks>
     /// Set it together with <see cref="MaxLeasedPerTenant"/>: one without the other is a startup error, so a
@@ -212,8 +213,9 @@ public sealed class TraconSchedulingOptions
     /// </para>
     /// <para>
     /// One ceiling covers one set of keys. It cannot be combined with the workflow engine's
-    /// <c>Tracon:Workflows:MaxConcurrentRunsPerTenant</c>, which uses the same mechanism for its own keys: a host that
-    /// sets both fails at startup.
+    /// <c>Tracon:Workflows:MaxConcurrentRunsPerTenant</c>, which uses the same mechanism for its own keys: a process that
+    /// runs the job worker with both set fails at startup (a process with <see cref="RunWorker"/> set to
+    /// <see langword="false"/> builds no worker and never leases). The ceiling is read once, when the process starts.
     /// </para>
     /// <example>
     /// <code language="json">

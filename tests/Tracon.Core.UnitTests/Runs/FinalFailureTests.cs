@@ -66,11 +66,6 @@ public sealed class FinalFailureTests
         FinalFailure.IsFinal(failure).ShouldBeFalse();
     }
 
-    /// <summary>
-    /// A compilation failure is not final: it wraps a loop criterion factory that
-    /// threw and any error the model registry raised while it built a client, and
-    /// either can clear on the next attempt.
-    /// </summary>
     [Fact]
     public void A_job_handlers_permanent_failure_is_not_a_same_answer_identity()
     {
@@ -82,6 +77,11 @@ public sealed class FinalFailureTests
         FinalFailure.IsFinal(new InvalidOperationException("outer", failure)).ShouldBeFalse();
     }
 
+    /// <summary>
+    /// A compilation failure is not final: it wraps a loop criterion factory that
+    /// threw and any error the model registry raised while it built a client, and
+    /// either can clear on the next attempt.
+    /// </summary>
     [Fact]
     public void A_compilation_failure_is_not_final()
     {
