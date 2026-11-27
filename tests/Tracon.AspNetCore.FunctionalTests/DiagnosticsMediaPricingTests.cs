@@ -9,9 +9,9 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// when no price covers them.
 /// </summary>
 /// <remarks>
-/// 🚨 What this closes: the report listed catalog models only, and a voice or image model is never in a catalog. A consumer
-/// measured two voice models unpriced while every one of 27 voice sessions recorded no cost, and neither the report nor the
-/// startup log said so. The cases run the real host: the option sources, the price table and the report meet only there.
+/// 🚨 What this closes: the report listed catalog models only, and a voice or image model is never in a catalog, so a model
+/// with no price recorded every call without a cost and neither the report nor the startup log said so. The cases run the
+/// real host: the option sources, the price table and the report meet only there.
 /// </remarks>
 #pragma warning disable MEAI001
 public sealed class DiagnosticsMediaPricingTests

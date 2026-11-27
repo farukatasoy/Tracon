@@ -10,8 +10,8 @@ namespace Tracon.Core.UnitTests.Models;
 /// </summary>
 /// <remarks>
 /// 🚨 What this closes: the lookups behind these four calls returned <see langword="null"/> without a word, and the models
-/// are never in a provider's catalog, so the startup warning could not name them either. A consumer's measurement: two voice
-/// models unpriced while 27 of 27 sessions recorded no cost, and nothing in the log said why.
+/// are never in a provider's catalog, so the startup warning could not name them either. A voice or image model with no
+/// price recorded every call without a cost, and nothing in the log said why.
 /// </remarks>
 public sealed class UnpricedMediaWarningsTests
 {
@@ -94,8 +94,160 @@ public sealed class UnpricedMediaWarningsTests
             harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", $"model-{index}");
         }
 
-        harness.Logs.Warnings.Count.ShouldBe(256);
+        NamedLines(harness).Count.ShouldBe(256);
     }
+
+    [Fact]
+    public void The_first_model_beyond_the_bound_writes_one_line_that_says_naming_has_stopped()
+    {
+        // Going silent at the bound hides the next real unpriced model without a trace: the operator is told once.
+        using var harness = new Harness();
+
+        for (var index = 0; index < 256; index++)
+        {
+            harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", $"model-{index}");
+        }
+
+        harness.Logs.Warnings.Count.ShouldBe(256, "the bound is not passed yet, so nothing but the model lines is written");
+
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", "model-256");
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", "model-257");
+        harness.Warnings.WarnOnce(MediaPriceKind.Transcription, "studio", "model-258");
+
+        var line = harness.Logs.Warnings.Skip(256).ShouldHaveSingleItem();
+
+        line.ShouldContain("No further");
+        line.ShouldContain("256 already were");
+    }
+
+    [Fact]
+    public void A_model_named_before_the_bound_stays_silent_after_it_and_does_not_repeat_the_stop_line()
+    {
+        using var harness = new Harness();
+
+        for (var index = 0; index < 256; index++)
+        {
+            harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", $"model-{index}");
+        }
+
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", "model-0");
+
+        harness.Logs.Warnings.Count.ShouldBe(256, "a model that was already named is not a new model and must not trip the bound");
+    }
+
+    [Fact]
+    public async Task Callers_that_add_distinct_models_at_the_same_moment_never_pass_the_bound()
+    {
+        // 🚨 A count read and a separate add let every caller of a crowd see room: the set grew past its bound. Hold every
+        // caller at a barrier, so each one reaches the check while the others are about to add.
+        const int Callers = 32;
+        const int ModelsEach = 40;
+
+        using var harness = new Harness();
+        using var barrier = new Barrier(Callers);
+
+        var tasks = Enumerable.Range(0, Callers).Select(caller => Task.Factory.StartNew(
+            () =>
+            {
+                barrier.SignalAndWait(TestContext.Current.CancellationToken);
+
+                for (var index = 0; index < ModelsEach; index++)
+                {
+                    harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", $"model-{caller}-{index}");
+                }
+            },
+            TestContext.Current.CancellationToken,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default));
+
+        await Task.WhenAll(tasks);
+
+        NamedLines(harness).Count.ShouldBe(256);
+        harness.Logs.Warnings.Count(static line => line.Contains("No further", StringComparison.Ordinal)).ShouldBe(1);
+    }
+
+    [Fact]
+    public void A_model_name_beyond_the_length_a_usage_record_holds_is_neither_stored_nor_logged()
+    {
+        // The operator image endpoint passes the caller's model string to the lookup. A generator that does not check it lets a
+        // caller send names of any length, and the set lives as long as the process.
+        using var harness = new Harness();
+        var tooLong = new string('m', NonTokenCostAccumulator.MaxModelLength + 1);
+
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", tooLong);
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", tooLong + "-again");
+
+        var line = harness.Logs.Warnings.ShouldHaveSingleItem("both names are refused with one shared line, not one line each");
+
+        line.ShouldNotContain(tooLong, customMessage: "the name must not reach the log");
+        line.Length.ShouldBeLessThan(1000);
+
+        // The refused names took no room: a model with a usable name is still named, all 256 of it.
+        for (var index = 0; index < 256; index++)
+        {
+            harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", $"model-{index}");
+        }
+
+        NamedLines(harness).Count.ShouldBe(256);
+    }
+
+    [Fact]
+    public void A_provider_name_beyond_the_length_a_usage_record_holds_is_neither_stored_nor_logged()
+    {
+        using var harness = new Harness();
+        var tooLong = new string('p', NonTokenCostAccumulator.MaxProviderLength + 1);
+
+        harness.Warnings.WarnOnce(MediaPriceKind.Transcription, tooLong, "scribe");
+
+        harness.Logs.Warnings.ShouldHaveSingleItem().ShouldNotContain(tooLong);
+    }
+
+    [Fact]
+    public void A_name_at_the_length_limit_is_still_named()
+    {
+        using var harness = new Harness();
+        var longest = new string('m', NonTokenCostAccumulator.MaxModelLength);
+
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", longest);
+
+        harness.Logs.Warnings.ShouldHaveSingleItem().ShouldContain(longest);
+    }
+
+    [Theory]
+    [InlineData("gpt-image-1\nWarning: forged line")]
+    [InlineData("gpt-image-1\r\nWarning: forged line")]
+    [InlineData("gpt-image-1\u2028Warning: forged line")]
+    [InlineData("gpt\u001b[31m-image-1")]
+    [InlineData("gpt-image-1\0")]
+    public void A_model_name_with_a_control_character_cannot_forge_a_log_line(string model)
+    {
+        using var harness = new Harness();
+
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", model);
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio", model + "-more");
+
+        var line = harness.Logs.Warnings.ShouldHaveSingleItem();
+
+        line.ShouldNotContain("forged");
+        line.Any(static character => char.IsControl(character) || character is '\u2028' or '\u2029').ShouldBeFalse("a control character reached the log");
+    }
+
+    [Fact]
+    public void A_provider_name_with_a_line_break_cannot_forge_a_log_line()
+    {
+        using var harness = new Harness();
+
+        harness.Warnings.WarnOnce(MediaPriceKind.Image, "studio\nWarning: forged line", "gpt-image-1");
+
+        var line = harness.Logs.Warnings.ShouldHaveSingleItem();
+
+        line.ShouldNotContain("forged");
+        line.Any(static character => char.IsControl(character)).ShouldBeFalse();
+    }
+
+    /// <summary>The lines that name one model, as against the single line that says naming has stopped or a name was refused.</summary>
+    private static List<string> NamedLines(Harness harness)
+        => [.. harness.Logs.Warnings.Where(static line => line.Contains("has no price in Tracon:Pricing", StringComparison.Ordinal))];
 
     [Fact]
     public void A_logger_that_drops_warnings_costs_the_lookup_nothing()

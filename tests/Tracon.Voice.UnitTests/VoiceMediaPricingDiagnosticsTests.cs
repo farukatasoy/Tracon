@@ -11,8 +11,8 @@ namespace Tracon.Voice.UnitTests;
 /// price for its model says so once.
 /// </summary>
 /// <remarks>
-/// 🚨 What this closes: a consumer measured two voice models unpriced (<c>scribe_v2</c>, <c>eleven_v4_turbo</c>) while 27 of 27
-/// voice sessions recorded no cost. The report listed only catalog models, and a voice model is never in a catalog.
+/// 🚨 What this closes: the report listed only catalog models, and a voice model is never in a catalog, so a voice model with
+/// no price recorded every session without a cost and neither the report nor the log said why.
 /// </remarks>
 public sealed class VoiceMediaPricingDiagnosticsTests
 {
