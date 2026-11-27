@@ -17002,13 +17002,18 @@ The settings you register with `UseOpenAIImages` apply to every call. Code that 
 its own over them for one call, in `TraconImageRequest.ProviderSettings`:
 
 ```csharp
-var result = await images.GenerateAsync(
-    new TraconImageRequest
-    {
-        Prompt = "A lighthouse at dawn",
-        ProviderSettings = { ["openai.quality"] = JsonSerializer.SerializeToElement("high") },
-    },
-    cancellationToken);
+app.MapPost("/cover", async (IImageGenerationService images, CancellationToken cancellationToken) =>
+{
+    var result = await images.GenerateAsync(
+        new TraconImageRequest
+        {
+            Prompt = "A lighthouse at dawn",
+            ProviderSettings = { ["openai.quality"] = JsonSerializer.SerializeToElement("high") },
+        },
+        cancellationToken);
+
+    return Results.Bytes(result.Images[0].Data.ToArray(), result.Images[0].MediaType);
+});
 ```
 
 The call's value wins for that call. The next call starts from the registered value again, and the registered settings
@@ -23978,15 +23983,24 @@ reason end three ways:
 | Throws anything else, including `OperationCanceledException` | Left `Running` to its lease. The lease that runs out counts as an attempt, because you may have done work with a side effect |
 
 ```csharp
-public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+public sealed class ChargeJobHandler(IPaymentGateway payments) : IJobHandler
 {
-    if (cancellationToken.IsCancellationRequested)
+    public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {
-        // The host is stopping and this attempt has paid for nothing yet.
-        throw new JobInterruptedException();
-    }
+        if (cancellationToken.IsCancellationRequested)
+        {
+            // The host is stopping and this attempt has paid for nothing yet.
+            throw new JobInterruptedException();
+        }
 
-    await ChargeTheCustomerAsync(context.Job, cancellationToken);
+        await payments.ChargeAsync(context.Job.TargetName, cancellationToken);
+    }
+}
+
+// Your own service: the call out that cannot be taken back.
+public interface IPaymentGateway
+{
+    ValueTask ChargeAsync(string orderId, CancellationToken cancellationToken);
 }
 ```
 
@@ -24013,19 +24027,26 @@ change between attempts: the order the job is about does not exist, the input is
 pays for the work in front of that check again. Throw `JobPermanentFailureException` there:
 
 ```csharp
-public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+public sealed class OrderJobHandler(IOrderLookup orders) : IJobHandler
 {
-    var order = await orders.FindAsync(context.Job.TargetName, cancellationToken);
-
-    if (order is null)
+    public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {
-        // The order will not exist on the next attempt either.
-        throw new JobPermanentFailureException(
-            "order.not-found",
-            reason: $"Order {context.Job.TargetName} is not in the database.");
-    }
+        if (!await orders.ExistsAsync(context.Job.TargetName, cancellationToken))
+        {
+            // The order will not exist on the next attempt either.
+            throw new JobPermanentFailureException(
+                "order.not-found",
+                reason: $"Order {context.Job.TargetName} is not in the database.");
+        }
 
-    // ...
+        // ...
+    }
+}
+
+// Your own service: the lookup the handler's rule rests on.
+public interface IOrderLookup
+{
+    ValueTask<bool> ExistsAsync(string orderId, CancellationToken cancellationToken);
 }
 ```
 

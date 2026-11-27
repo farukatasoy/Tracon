@@ -79,14 +79,14 @@ guides/openai-api.md#811b9f54 | CS0103: The name 'client' does not exist in the 
 guides/reliability.md#4dca4172 | CS0103: The name 'StoreAsync' does not exist in the current context
 guides/review-and-revise-workflow.md#4dfd990e | CS0103: The name 'schema' does not exist in the current context
 guides/review-and-revise-workflow.md#4f952e91 | CS0246: The type or namespace name 'ScriptCheck' could not be found (are you missing a using directive or an assembly reference?)
+guides/speech-cost-and-pools.md#bed32067 | CS0246: The type or namespace name 'StudioSpeechSynthesizer' could not be found (are you missing a using directive or an assembly reference?)
+guides/speech-cost-and-pools.md#46da86f5 | CS0246: The type or namespace name 'NarrationSettings' could not be found (are you missing a using directive or an assembly reference?)
 guides/structured-output.md#c0ef91fd | CS1002: ; expected
 guides/structured-output.md#c3981a2f | CS0103: The name 'ResponseFormat' does not exist in the current context
 guides/testing.md#4a21b1d6 | CS0103: The name 'run' does not exist in the current context
 guides/testing.md#93baa906 | CS1519: Invalid token 'using' in a member declaration
 guides/voice.md#3941af06 | CS0103: The name 'synthesizer' does not exist in the current context
 guides/voice.md#44d12346 | CS0246: The type or namespace name 'ContosoSpeechProvider' could not be found (are you missing a using directive or an assembly reference?)
-guides/voice.md#bed32067 | CS0246: The type or namespace name 'StudioSpeechSynthesizer' could not be found (are you missing a using directive or an assembly reference?)
-guides/voice.md#46da86f5 | CS0246: The type or namespace name 'NarrationSettings' could not be found (are you missing a using directive or an assembly reference?)
 guides/voice.md#71e8cbb5 | CS0246: The type or namespace name 'StudioTextToSpeechClient' could not be found (are you missing a using directive or an assembly reference?)
 guides/voice.md#d8e6782f | CS0246: The type or namespace name 'NarrationSettings' could not be found (are you missing a using directive or an assembly reference?)
 guides/voice.md#86464bb5 | CS0103: The name 'request' does not exist in the current context

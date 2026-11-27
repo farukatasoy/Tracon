@@ -31,19 +31,26 @@ namespace Tracon;
 /// </para>
 /// <example>
 /// <code>
-/// public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+/// public sealed class OrderJobHandler(IOrderLookup orders) : IJobHandler
 /// {
-///     var order = await orders.FindAsync(context.Job.TargetName, cancellationToken);
-///
-///     if (order is null)
+///     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
 ///     {
-///         // The order will not exist on the next attempt either.
-///         throw new JobPermanentFailureException(
-///             "order.not-found",
-///             reason: $"Order {context.Job.TargetName} is not in the database.");
-///     }
+///         if (!await orders.ExistsAsync(context.Job.TargetName, cancellationToken))
+///         {
+///             // The order will not exist on the next attempt either.
+///             throw new JobPermanentFailureException(
+///                 "order.not-found",
+///                 reason: $"Order {context.Job.TargetName} is not in the database.");
+///         }
 ///
-///     // ...
+///         // ...
+///     }
+/// }
+///
+/// // Your own service: the lookup the handler's rule rests on.
+/// public interface IOrderLookup
+/// {
+///     ValueTask&lt;bool&gt; ExistsAsync(string orderId, CancellationToken cancellationToken);
 /// }
 /// </code>
 /// </example>

@@ -24,15 +24,24 @@ namespace Tracon;
 /// </para>
 /// <example>
 /// <code>
-/// public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+/// public sealed class ChargeJobHandler(IPaymentGateway payments) : IJobHandler
 /// {
-///     if (cancellationToken.IsCancellationRequested)
+///     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
 ///     {
-///         // The host is stopping and this attempt has paid for nothing yet.
-///         throw new JobInterruptedException();
-///     }
+///         if (cancellationToken.IsCancellationRequested)
+///         {
+///             // The host is stopping and this attempt has paid for nothing yet.
+///             throw new JobInterruptedException();
+///         }
 ///
-///     await ChargeTheCustomerAsync(context.Job, cancellationToken);
+///         await payments.ChargeAsync(context.Job.TargetName, cancellationToken);
+///     }
+/// }
+///
+/// // Your own service: the call out that cannot be taken back.
+/// public interface IPaymentGateway
+/// {
+///     ValueTask ChargeAsync(string orderId, CancellationToken cancellationToken);
 /// }
 /// </code>
 /// </example>

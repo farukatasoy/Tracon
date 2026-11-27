@@ -254,13 +254,18 @@ The settings you register with `UseOpenAIImages` apply to every call. Code that 
 its own over them for one call, in `TraconImageRequest.ProviderSettings`:
 
 ```csharp
-var result = await images.GenerateAsync(
-    new TraconImageRequest
-    {
-        Prompt = "A lighthouse at dawn",
-        ProviderSettings = { ["openai.quality"] = JsonSerializer.SerializeToElement("high") },
-    },
-    cancellationToken);
+app.MapPost("/cover", async (IImageGenerationService images, CancellationToken cancellationToken) =>
+{
+    var result = await images.GenerateAsync(
+        new TraconImageRequest
+        {
+            Prompt = "A lighthouse at dawn",
+            ProviderSettings = { ["openai.quality"] = JsonSerializer.SerializeToElement("high") },
+        },
+        cancellationToken);
+
+    return Results.Bytes(result.Images[0].Data.ToArray(), result.Images[0].MediaType);
+});
 ```
 
 The call's value wins for that call. The next call starts from the registered value again, and the registered settings
