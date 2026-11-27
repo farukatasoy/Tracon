@@ -123,11 +123,25 @@ lists the supported keys.
 | `google.safety.dangerousContent` | string | Dangerous content threshold |
 | `google.safety.civicIntegrity` | string | Civic integrity threshold |
 | `google.thinking.budgetTokens` | integer | Thinking budget, `[-1, 65535]` |
+| `google.thinking.level` | string | Thinking level: `minimal`, `low`, `medium` or `high` (any case) |
 | `google.thinking.includeThoughts` | boolean | Whether a thinking summary is returned in the response |
 
 Valid threshold values: `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, `OFF`. An unrecognized value produces a build error
 and lists the valid values.
+
+### Thinking depth
+
+The depth of thinking has two controls and a request carries one of them. Google recommends
+`google.thinking.level` for the Gemini 3 models; `google.thinking.budgetTokens` is the control of the
+earlier models. Setting both is a build error, and so is a level outside the four above.
+
+`ModelBinding.ReasoningEffort` also reaches Gemini. The adapter maps `Low` to the `LOW` level, `Medium` to
+`MEDIUM`, and `High` and `ExtraHigh` to `HIGH`; `None` becomes a thinking budget of zero. **A thinking
+setting wins:** when `google.thinking.level` or `google.thinking.budgetTokens` is present, the request
+carries that setting only and `ReasoningEffort` is not sent, so the two never reach the service as a
+level next to a budget. `google.thinking.includeThoughts` does not choose a depth, so it does not hide
+the effort.
 
 ```csharp
 ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
@@ -161,6 +175,16 @@ so the record says why the answer ends where it does.
 - **The system message is a separate field** (`systemInstruction`); the SDK handles
   the conversion.
 - **Usage counters arrive at the end when streaming.**
+- **Thinking tokens are counted inside the output tokens.** Gemini reports the answer
+  (`candidatesTokenCount`) and the thinking (`thoughtsTokenCount`) as two separate counts and bills both at
+  the output price. Tracon adds the thinking to the output count, as OpenAI and Anthropic report it: a run
+  records `outputTokens` = answer + thinking, `reasoningTokens` = thinking, and prices the output count at
+  the output rate. The total is the one Gemini reported.
+- **An error answer carries its HTTP status.** A `429`, a `5xx` or a `400` from Gemini reaches
+  `ProviderInvocationException.StatusCode`, so `IsTransient` is `true` for a `429` or a `5xx` and `false`
+  for a `400`, a `ModelBinding.Fallbacks` chain moves to the next model on a `429` or a `5xx`, and a `400`
+  does not count against the circuit of a shared key. The status name Gemini gives (`UNAVAILABLE`, `RESOURCE_EXHAUSTED`) is the
+  `ProviderErrorCode`. Chat and image generation do this alike.
 
 ## Health check
 

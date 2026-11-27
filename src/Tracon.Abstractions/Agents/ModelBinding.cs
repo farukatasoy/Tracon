@@ -34,10 +34,21 @@ public sealed record ModelBinding
     /// providers ignore it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The valid values are the <c>Microsoft.Extensions.AI.ReasoningEffort</c> names:
     /// <c>None</c>, <c>Low</c>, <c>Medium</c>, <c>High</c>, <c>ExtraHigh</c>. The
     /// comparison is case insensitive. An unrecognized value is rejected while the agent
     /// is built, with <c>TraconCompilationException</c>; it is not ignored silently.
+    /// </para>
+    /// <para>
+    /// Each provider maps the value to its own control, and a provider setting for that control
+    /// wins over it. Anthropic sends adaptive thinking with the matching <c>output_config.effort</c>
+    /// (<c>anthropic.thinking.mode</c> and <c>anthropic.thinking.budgetTokens</c> replace it).
+    /// Google sends a thinking level: <c>Low</c> becomes <c>LOW</c>, <c>Medium</c> becomes <c>MEDIUM</c>,
+    /// and <c>High</c> and <c>ExtraHigh</c> both become <c>HIGH</c>; <c>None</c> becomes a thinking
+    /// budget of zero. The Google settings <c>google.thinking.level</c> and
+    /// <c>google.thinking.budgetTokens</c> replace it, so the request never carries two depths.
+    /// </para>
     /// </remarks>
     public string? ReasoningEffort { get; init; }
 

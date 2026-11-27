@@ -63,7 +63,8 @@ the request was never sent. `IsTransient` tells the last from the other two.
 put none: a short token such as `insufficient_quota` or `content_policy_violation` (letters, digits,
 `_`, `.` and `-`, at most 64 characters), never the provider's sentence. It tells a spent quota from a
 rate limit when both are a `429`. It is read from the OpenAI and Azure OpenAI client library's
-message, from the body the OpenAI image generator and the speech client read, and from nowhere else:
+message, from the body the OpenAI image generator and the speech client read, from the status name
+Gemini puts in its error body (`UNAVAILABLE`, `RESOURCE_EXHAUSTED`), and from nowhere else:
 a provider that reports its code another way leaves it `null`. The vocabulary is each provider's own.
 
 ```csharp

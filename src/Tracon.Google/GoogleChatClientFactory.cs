@@ -123,6 +123,8 @@ internal sealed class GoogleChatClientFactory : IDisposable
             binding,
             GoogleProviderNames.ThinkingBudgetTokensSetting);
 
+        var thinkingLevel = ReadThinkingLevel(binding);
+
         var includeThoughts = ModelProviderSettings.ReadBoolean(
             binding,
             GoogleProviderNames.ThinkingIncludeThoughtsSetting);
@@ -137,17 +139,54 @@ internal sealed class GoogleChatClientFactory : IDisposable
                 "(-1 leaves it to the model, 0 turns thinking off).");
         }
 
-        // A turn that Gemini ended on a function call it could not use is a failure, not a finished answer.
-        IChatClient inner = new GoogleFunctionCallChatClient(Client.AsIChatClient(model));
+        // The level and the budget are two controls for the depth of thinking, and a request carries one.
+        if (thinkingLevel is not null && thinkingBudget is not null)
+        {
+            throw new ProviderSettingsValidationException(
+                $"'{GoogleProviderNames.ThinkingLevelSetting}' and '{GoogleProviderNames.ThinkingBudgetTokensSetting}' " +
+                "both set how deeply the model thinks and cannot be used together. Set the level (Gemini 3 models) " +
+                "or the budget (earlier models), not both.");
+        }
+
+        // From the adapter outward: the usage counts the thinking inside the output (the tool loop and the cost read
+        // the count above this ring, so it is corrected once per call of the model); a turn that Gemini ended on a
+        // function call it could not use is a failure, not a finished answer; an HTTP error answer carries its status.
+        IChatClient inner = new GoogleStatusChatClient(
+            new GoogleFunctionCallChatClient(
+                new GoogleUsageChatClient(Client.AsIChatClient(model))));
 
         // The decorator is skipped entirely when there is no setting: the plain path
         // must not produce a ChatOptions copy and a settings object on every request.
-        if (GoogleProviderSettingsChatClient.HasSettings(safetySettings, thinkingBudget, includeThoughts))
+        if (GoogleProviderSettingsChatClient.HasSettings(safetySettings, thinkingBudget, thinkingLevel, includeThoughts))
         {
-            inner = new GoogleProviderSettingsChatClient(inner, safetySettings, thinkingBudget, includeThoughts);
+            inner = new GoogleProviderSettingsChatClient(inner, safetySettings, thinkingBudget, thinkingLevel, includeThoughts);
         }
 
         return inner;
+    }
+
+    /// <summary>The levels the setting accepts: the SDK's own, without the one that means "not given".</summary>
+    private static readonly string[] ThinkingLevels =
+    [
+        .. ThinkingLevel.AllValues
+            .Where(static level => level != ThinkingLevel.ThinkingLevelUnspecified)
+            .Select(static level => level.Value),
+    ];
+
+    /// <summary>Reads <see cref="GoogleProviderNames.ThinkingLevelSetting"/>.</summary>
+    /// <param name="binding">Model binding.</param>
+    /// <returns>The level, or <see langword="null"/> when the setting is not given.</returns>
+    /// <exception cref="TraconException">The value is not text, or is not one of the levels.</exception>
+    private static ThinkingLevel? ReadThinkingLevel(ModelBinding binding)
+    {
+        var level = ModelProviderSettings.ReadChoice(binding, GoogleProviderNames.ThinkingLevelSetting, ThinkingLevels);
+
+        if (level is null)
+        {
+            return null;
+        }
+
+        return ThinkingLevel.FromString(level);
     }
 
     /// <summary>Creates an image generator that shares this factory's Google client.</summary>

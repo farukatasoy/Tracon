@@ -99,9 +99,19 @@ internal sealed class GoogleImageGenerator : IImageGenerator
             CandidateCount = options.Count,
         };
 
-        var response = await client.Models
-            .GenerateContentAsync(options.ModelId, request.Prompt, config, cancellationToken)
-            .ConfigureAwait(false);
+        GenerateContentResponse response;
+
+        try
+        {
+            response = await client.Models
+                .GenerateContentAsync(options.ModelId, request.Prompt, config, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (ApiException exception) when (GoogleApiFailure.HasStatus(exception))
+        {
+            // The chat client gives an error answer its status the same way: the retry decision reads it.
+            throw GoogleApiFailure.Translate(exception);
+        }
 
         var contents = new List<AIContent>();
 

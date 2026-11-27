@@ -43,7 +43,9 @@ public static class GoogleProviderNames
     /// <remarks>
     /// The valid range is <c>[-1, 65535]</c>; <c>-1</c> means "leave it to the
     /// model" and <c>0</c> turns thinking off. An out-of-range value causes the
-    /// request to be rejected — measured against the live API.
+    /// request to be rejected — measured against the live API. Google recommends
+    /// <see cref="ThinkingLevelSetting"/> for the Gemini 3 models; the two cannot be set together, and
+    /// when this setting is present <c>ModelBinding.ReasoningEffort</c> is not sent as well.
     /// </remarks>
     public const string ThinkingBudgetTokensSetting = "google.thinking.budgetTokens";
 
@@ -52,6 +54,24 @@ public static class GoogleProviderNames
     /// <c>google.thinking.includeThoughts</c> (boolean).
     /// </summary>
     public const string ThinkingIncludeThoughtsSetting = "google.thinking.includeThoughts";
+
+    /// <summary>
+    /// Thinking level: <c>google.thinking.level</c> (text).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One of <c>minimal</c>, <c>low</c>, <c>medium</c> or <c>high</c>, in any case; an unknown value is rejected
+    /// while the agent is built. This is the control Google recommends for the depth of thinking of the Gemini 3
+    /// models, and the earlier models take <see cref="ThinkingBudgetTokensSetting"/> instead. A model that does
+    /// not offer a level can reject the request.
+    /// </para>
+    /// <para>
+    /// The level and the budget are two controls for one thing, so setting both is an error. When this setting
+    /// (or the budget) is present it is the only thinking depth the request carries:
+    /// <c>ModelBinding.ReasoningEffort</c> is not sent as well.
+    /// </para>
+    /// </remarks>
+    public const string ThinkingLevelSetting = "google.thinking.level";
 
     /// <summary>All setting keys this provider supports.</summary>
     /// <remarks>
@@ -66,6 +86,7 @@ public static class GoogleProviderNames
         SafetyDangerousContentSetting,
         SafetyCivicIntegritySetting,
         ThinkingBudgetTokensSetting,
+        ThinkingLevelSetting,
         ThinkingIncludeThoughtsSetting,
     ];
 }

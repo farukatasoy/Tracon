@@ -1,9 +1,15 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+// Tracon.Testing's fake, not the one of the infrastructure folder.
+using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -24,6 +30,14 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The real SDK clients are driven against a local server, so the message each
 /// one actually writes is what is read — a hand-written message would only prove
 /// the reader matches what the test author guessed.
+/// </para>
+/// <para>
+/// The empty body is the easy case for Gemini: the SDK then writes
+/// "Request failed with status code 404", which the text reader finds. A Gemini
+/// service answers with a JSON body, and the SDK then writes the service's own
+/// sentence as the message, with no status in it; its exception also hides the
+/// status the base class reads. The tests with a Google body below are the ones
+/// that carry the status of a real answer.
 /// </para>
 /// </remarks>
 public sealed class ProviderErrorStatusTests
@@ -62,6 +76,204 @@ public sealed class ProviderErrorStatusTests
         FallbackRetryClassifier.IsRetryable(failure).ShouldBeFalse($"a permanent {status} must not switch provider: {described}");
         CircuitBreakingChatClient.CountsAgainstProvider(new ForeignProviderInvocationException(failure, ProviderSecretMask.Empty))
             .ShouldBe(status is 401 or 403, $"only an auth failure counts against the shared credential: {described}");
+    }
+
+    public static TheoryData<int, string> GoogleAnswers() => new()
+    {
+        { 400, "INVALID_ARGUMENT" },
+        { 401, "UNAUTHENTICATED" },
+        { 403, "PERMISSION_DENIED" },
+        { 404, "NOT_FOUND" },
+        { 429, "RESOURCE_EXHAUSTED" },
+        { 500, "INTERNAL" },
+        { 503, "UNAVAILABLE" },
+    };
+
+    [Theory]
+    [MemberData(nameof(GoogleAnswers))]
+    public async Task A_gemini_json_error_body_is_read_with_its_status_and_decides_the_retry(int status, string name)
+    {
+        await using var server = await FakeGeminiServer.StartAsync();
+        server.Status = status;
+        server.ErrorName = name;
+
+        await using var services = BuildServices(GoogleProviderNames.Google, server.BaseAddress);
+
+        var provider = services.GetServices<IModelProvider>().Single(candidate => string.Equals(candidate.Name, GoogleProviderNames.Google, StringComparison.Ordinal));
+        using var client = provider.CreateChatClient(new ModelBinding { Provider = GoogleProviderNames.Google, Model = "test-model" });
+
+        var buffered = await Should.ThrowAsync<Exception>(async () =>
+            await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hello")], cancellationToken: TestContext.Current.CancellationToken));
+
+        var streamed = await Should.ThrowAsync<Exception>(async () =>
+        {
+            await foreach (var update in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "hello")], cancellationToken: TestContext.Current.CancellationToken))
+            {
+                _ = update;
+            }
+        });
+
+        var transient = status is 429 or >= 500;
+
+        foreach (var failure in new[] { buffered, streamed })
+        {
+            var described = $"{failure.GetType().FullName}: {failure.Message}";
+
+            ProviderHttpStatus.Read(failure).ShouldBe(status, described);
+            FallbackRetryClassifier.IsRetryable(failure).ShouldBe(transient, described);
+
+            // 401 and 403 count: the shared credential gets the same answer for every caller.
+            CircuitBreakingChatClient.CountsAgainstProvider(new ForeignProviderInvocationException(failure, ProviderSecretMask.Empty))
+                .ShouldBe(transient || status is 401 or 403, described);
+
+            var invocation = ProviderInvocationException.UpstreamFailure(failure, GoogleProviderNames.Google, ProviderSecretMask.Empty);
+
+            invocation.StatusCode.ShouldBe(status, described);
+            invocation.IsTransient.ShouldBe(transient, described);
+            invocation.ProviderErrorCode.ShouldBe(name, described);
+        }
+
+        server.Calls.ShouldBe(2, "the client does not retry on its own");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_gemini_503_moves_the_call_to_the_fallback_model(bool streamed)
+    {
+        await using var server = await FakeGeminiServer.StartAsync();
+        server.Status = StatusCodes.Status503ServiceUnavailable;
+        server.ErrorName = "UNAVAILABLE";
+
+        var fallback = new FakeModelProvider("gemini-fallback").ForModel("fallback-1", static model => model.RespondsWith("from the fallback"));
+
+        await using var host = await TraconTestHost.StartAsync(builder => builder
+            .UseGoogle("test-gemini-key", options => options.Endpoint = server.BaseAddress)
+            .AddModelProvider(fallback)
+            .AddAgent(GeminiAgent(new ModelBinding
+            {
+                Provider = GoogleProviderNames.Google,
+                Model = "gemini-test",
+                Fallbacks = [new ModelFallback { Provider = "gemini-fallback", Model = "fallback-1" }],
+            })));
+
+        // Without an idempotency key the run streams; with one it is buffered.
+        using var request = new HttpRequestMessage(HttpMethod.Post, GeminiRun)
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hello" }),
+        };
+
+        if (!streamed)
+        {
+            request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+        }
+
+        using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("from the fallback");
+        server.Calls.ShouldBe(1, "the client does not retry on its own, the chain moves on");
+
+        var store = host.Services.GetRequiredService<IRunStore>();
+        var run = (await store.QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        var fallbackEvents = new List<RunEvent>();
+
+        await foreach (var runEvent in store.ReadEventsAsync(run.Id, cancellationToken: TestContext.Current.CancellationToken))
+        {
+            if (runEvent.Type == RunEventType.ModelFallbackUsed)
+            {
+                fallbackEvents.Add(runEvent);
+            }
+        }
+
+        using var payload = JsonDocument.Parse(fallbackEvents.ShouldHaveSingleItem().Payload.ShouldNotBeNull());
+
+        payload.RootElement.GetProperty("reason").GetString().ShouldBe("http_error");
+    }
+
+    [Fact]
+    public async Task A_gemini_400_does_not_count_against_the_circuit_of_the_shared_credential()
+    {
+        // The circuit of the setup-time key is shared by every tenant: a request the service rejects as malformed gets
+        // the same answer on a healthy provider and says nothing about it. Without the status the 400 counted.
+        await using var server = await FakeGeminiServer.StartAsync();
+        server.Status = StatusCodes.Status400BadRequest;
+        server.ErrorName = "INVALID_ARGUMENT";
+
+        await using var host = await StartCircuitHostAsync(server);
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var rejected = await PostBufferedAsync(host);
+            rejected.IsSuccessStatusCode.ShouldBeFalse();
+        }
+
+        server.Status = StatusCodes.Status200OK;
+
+        using var response = await PostBufferedAsync(host);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        server.Calls.ShouldBe(3, "a circuit that stayed closed lets the third request reach the provider");
+    }
+
+    [Fact]
+    public async Task A_gemini_503_counts_against_the_circuit_of_the_shared_credential()
+    {
+        await using var server = await FakeGeminiServer.StartAsync();
+        server.Status = StatusCodes.Status503ServiceUnavailable;
+        server.ErrorName = "UNAVAILABLE";
+
+        await using var host = await StartCircuitHostAsync(server);
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var rejected = await PostBufferedAsync(host);
+            rejected.IsSuccessStatusCode.ShouldBeFalse();
+        }
+
+        server.Status = StatusCodes.Status200OK;
+
+        using var response = await PostBufferedAsync(host);
+
+        response.IsSuccessStatusCode.ShouldBeFalse();
+        server.Calls.ShouldBe(2, "the open circuit stops the third request before the provider");
+    }
+
+    private const string GeminiAgentName = "gemini-status-agent";
+
+    private static readonly Uri GeminiRun = new($"/tracon/api/agents/{GeminiAgentName}/run", UriKind.Relative);
+
+    private static AgentDefinition GeminiAgent(ModelBinding model)
+        => new()
+        {
+            Name = GeminiAgentName,
+            Instructions = "Answer briefly.",
+            Model = model,
+            Origin = AgentDefinitionOrigin.Code,
+        };
+
+    private static Task<TraconTestHost> StartCircuitHostAsync(FakeGeminiServer server)
+        => TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseGoogle("test-gemini-key", options => options.Endpoint = server.BaseAddress)
+                .AddAgent(GeminiAgent(new ModelBinding { Provider = GoogleProviderNames.Google, Model = "gemini-test" })),
+            configureServices: static services => services.Configure<TraconOptions>(options =>
+            {
+                options.CircuitBreaker.FailureThreshold = 2;
+                options.CircuitBreaker.BreakDuration = TimeSpan.FromMinutes(5);
+            }));
+
+    private static async Task<HttpResponseMessage> PostBufferedAsync(TraconTestHost host)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, GeminiRun)
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hello", SessionId = Guid.NewGuid().ToString("N") }),
+        };
+
+        // The Idempotency-Key header selects the single JSON response.
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+
+        return await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     private static ServiceProvider BuildServices(string providerName, Uri endpoint)

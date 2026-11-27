@@ -136,6 +136,75 @@ public sealed class GoogleChatClientFactoryTests
         chatClient.ShouldNotBeNull();
     }
 
+    [Theory]
+    [InlineData("minimal")]
+    [InlineData("low")]
+    [InlineData("medium")]
+    [InlineData("high")]
+    [InlineData("HIGH")]
+    [InlineData(" Medium ")]
+    public void Each_thinking_level_is_accepted_whatever_its_case(string level)
+    {
+        using var factory = Factory();
+        using var chatClient = factory.CreateChatClient(TestData.Binding(
+            providerSettings: TestData.Settings((GoogleProviderNames.ThinkingLevelSetting, level))));
+
+        chatClient.ShouldNotBeNull();
+    }
+
+    [Theory]
+    [InlineData("extreme")]
+    [InlineData("THINKING_LEVEL_UNSPECIFIED")]
+    [InlineData("1024")]
+    public void An_unknown_thinking_level_is_rejected_and_the_valid_levels_are_listed_without_repeating_the_value(string level)
+    {
+        using var factory = Factory();
+
+        var exception = Should.Throw<TraconException>(() => factory.CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings((GoogleProviderNames.ThinkingLevelSetting, level)))));
+
+        exception.Message.ShouldContain(GoogleProviderNames.ThinkingLevelSetting);
+
+        foreach (var valid in new[] { "MINIMAL", "LOW", "MEDIUM", "HIGH" })
+        {
+            exception.Message.ShouldContain(valid, Case.Sensitive);
+        }
+
+        exception.Message.ShouldNotContain(level, Case.Insensitive, "the value is not repeated: it can be a credential pasted into the wrong field");
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(512)]
+    public void A_thinking_level_together_with_a_thinking_budget_is_rejected_whatever_the_budget(int budget)
+    {
+        using var factory = Factory();
+
+        var exception = Should.Throw<TraconException>(() => factory.CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings(
+                (GoogleProviderNames.ThinkingLevelSetting, "low"),
+                (GoogleProviderNames.ThinkingBudgetTokensSetting, budget)))));
+
+        exception.Message.ShouldContain(GoogleProviderNames.ThinkingLevelSetting);
+        exception.Message.ShouldContain(GoogleProviderNames.ThinkingBudgetTokensSetting);
+    }
+
+    [Fact]
+    public void A_thinking_level_together_with_include_thoughts_is_accepted()
+    {
+        using var factory = Factory();
+        using var chatClient = factory.CreateChatClient(TestData.Binding(providerSettings: TestData.Settings(
+            (GoogleProviderNames.ThinkingLevelSetting, "low"),
+            (GoogleProviderNames.ThinkingIncludeThoughtsSetting, true))));
+
+        chatClient.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void The_thinking_level_is_a_supported_setting()
+        => GoogleProviderNames.SupportedSettings.Contains(GoogleProviderNames.ThinkingLevelSetting, StringComparer.Ordinal).ShouldBeTrue();
+
     [Fact]
     public void Wrong_typed_setting_value_is_rejected()
     {
