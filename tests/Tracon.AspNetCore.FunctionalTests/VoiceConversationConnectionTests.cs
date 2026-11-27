@@ -463,6 +463,11 @@ public sealed class VoiceConversationConnectionTests
         // The model was offered the tool because the agent names it.
         ToolNames(model.Requests[0]).ShouldContain(EndConversationTool.ToolName, StringComparer.Ordinal);
 
+        // The model called the tool before it said anything, so the goodbye is still to come: the loop asks it once more and
+        // the answer to that request is what is spoken.
+        model.Requests.Count.ShouldBe(2, "a call with no words before it is answered by a second request");
+        string.Join(" ", voice.Spoken).ShouldBe(EndConversationTool.EndingText);
+
         ended.Text("reason").ShouldBe("agent");
         voice.Spoken.ShouldNotBeEmpty("the goodbye is spoken before the connection closes");
         frames.FindIndex(static frame => string.Equals(frame.Type, "audioEnd", StringComparison.Ordinal))
@@ -511,12 +516,220 @@ public sealed class VoiceConversationConnectionTests
         frames.ShouldNotContain(static frame => frame.Type == "ended");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_goodbye_said_before_the_call_ends_the_conversation_without_another_model_request(bool callInItsOwnMessage)
+    {
+        var voice = new StubVoiceProvider();
+        var model = new SpokenToolCallModelProvider(Provider)
+            .SaysThenCalls("Goodbye, take care.", EndConversationTool.ToolName, callInItsOwnMessage);
+
+        await using var host = await StartAsync(voice, model, resolve: null, toolNames: [EndConversationTool.ToolName]);
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+
+        await client.SendAudioAsync(new byte[3200]);
+        await client.SendControlAsync(new { type = "commit" });
+
+        var frames = new List<VoiceEvent>();
+
+        await client.WaitForAsync("done", frames);
+        var ended = await client.WaitForAsync("ended", frames);
+
+        model.Requests.ShouldBe(1, "the words were said before the call, so the loop has nothing left to ask the model");
+        ended.Text("reason").ShouldBe("agent");
+
+        // What was spoken is what the model said, and the tool's own text (which the model reads, in the other order) is not.
+        string.Join(" ", voice.Spoken).ShouldBe("Goodbye, take care.");
+
+        // The caller hears the goodbye, then `done`, then `ended`.
+        var order = frames.Select(static frame => frame.Type).Where(static type => type is not null).ToList();
+
+        order.IndexOf("text").ShouldBeLessThan(order.IndexOf("audioStart"));
+        order.IndexOf("audioEnd").ShouldBeLessThan(order.IndexOf("done"));
+        order.IndexOf("done").ShouldBeLessThan(order.IndexOf("ended"));
+
+        (await client.ReceiveAsync()).ShouldBeNull("the server closes the socket after `ended`");
+        client.CloseDescription.ShouldBe("The conversation was ended by the agent.");
+
+        (await WaitForRecordsAsync(host)).EnumerateArray().Single().GetProperty("endReason").GetString().ShouldBe("Agent");
+        host.Services.GetRequiredService<VoiceConversationEndRegistry>().Count.ShouldBe(0, "a closed connection leaves no turn behind");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_harness_agent_that_said_goodbye_before_the_call_ends_the_conversation_without_another_model_request(bool withLoop)
+    {
+        // A harness agent has a loop of its own above the one that runs the tools, and a loop agent runs the turn whole and
+        // hands the answer over afterwards: the stop has to hold through both.
+#pragma warning disable MAAI001 // The loop settings are marked "evaluation purposes only"
+        var harness = new HarnessSettings
+        {
+            Loop = withLoop
+                ? new LoopSettings { Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "Goodbye" }], MaxIterations = 3 }
+                : null,
+        };
+#pragma warning restore MAAI001
+
+        var voice = new StubVoiceProvider();
+        var model = new SpokenToolCallModelProvider(Provider)
+            .SaysThenCalls("Goodbye, take care.", EndConversationTool.ToolName);
+
+        await using var host = await StartAsync(voice, model, resolve: null, toolNames: [EndConversationTool.ToolName], harness: harness);
+
+        // The case is only worth anything for the agent it names: a harness agent, with a loop above it or without.
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(Agent, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
+#pragma warning disable MAAI001 // The harness and loop agents are marked "evaluation purposes only"
+        agent.GetService<Microsoft.Agents.AI.HarnessAgent>().ShouldNotBeNull();
+        (agent.GetService<Microsoft.Agents.AI.LoopAgent>() is not null).ShouldBe(withLoop);
+#pragma warning restore MAAI001
+
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+
+        await client.SendAudioAsync(new byte[3200]);
+        await client.SendControlAsync(new { type = "commit" });
+
+        var frames = new List<VoiceEvent>();
+
+        await client.WaitForAsync("done", frames);
+        (await client.WaitForAsync("ended", frames)).Text("reason").ShouldBe("agent");
+
+        model.Requests.ShouldBe(1, "the words were said before the call, so no loop above the tool loop asks the model again");
+        string.Join(" ", voice.Spoken).ShouldBe("Goodbye, take care.");
+    }
+
+    [Fact]
+    public async Task The_session_of_a_conversation_that_ended_without_a_second_request_holds_no_call_without_a_result()
+    {
+        // The loop stopped at the call, so the last request of that turn is the one that carried the call: the next
+        // conversation of the session starts from a history that must still be one a provider accepts.
+        var voice = new StubVoiceProvider();
+        var model = new SpokenToolCallModelProvider(Provider)
+            .SaysThenCalls("Goodbye, take care.", EndConversationTool.ToolName)
+            .Says("Welcome back.");
+
+        await using var host = await StartAsync(voice, model, resolve: null, toolNames: [EndConversationTool.ToolName]);
+
+        await using (var first = await ConnectAsync(host))
+        {
+            await first.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+            await first.WaitForAsync("ready");
+            await first.SendAudioAsync(new byte[3200]);
+            await first.SendControlAsync(new { type = "commit" });
+            await first.WaitForAsync("ended");
+        }
+
+        await using var second = await ConnectAsync(host);
+
+        await second.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await second.WaitForAsync("ready");
+        await TalkAsync(second);
+
+        model.Requests.ShouldBe(2);
+
+        var history = model.Histories[1];
+        var calls = history.SelectMany(static message => message.Contents).OfType<Microsoft.Extensions.AI.FunctionCallContent>().Select(static call => call.CallId).ToList();
+        var results = history.SelectMany(static message => message.Contents).OfType<Microsoft.Extensions.AI.FunctionResultContent>().Select(static result => result.CallId).ToList();
+
+        calls.ShouldHaveSingleItem();
+        results.ShouldBe(calls, "the call the conversation ended with got its result, so the next request is a valid history");
+        history[^1].Role.ShouldBe(Microsoft.Extensions.AI.ChatRole.User);
+    }
+
+    [Fact]
+    public async Task A_call_made_before_any_words_still_gets_its_goodbye_from_the_next_request()
+    {
+        var voice = new StubVoiceProvider();
+        var model = new SpokenToolCallModelProvider(Provider)
+            .SaysThenCalls(string.Empty, EndConversationTool.ToolName)
+            .Says("Goodbye, then.");
+
+        await using var host = await StartAsync(voice, model, resolve: null, toolNames: [EndConversationTool.ToolName]);
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+
+        await client.SendAudioAsync(new byte[3200]);
+        await client.SendControlAsync(new { type = "commit" });
+
+        var frames = new List<VoiceEvent>();
+
+        await client.WaitForAsync("done", frames);
+        (await client.WaitForAsync("ended", frames)).Text("reason").ShouldBe("agent");
+
+        model.Requests.ShouldBe(2, "nothing was said before the call, so the goodbye comes from the next request");
+        string.Join(" ", voice.Spoken).ShouldBe("Goodbye, then.");
+    }
+
+    [Fact]
+    public async Task A_barge_in_on_a_goodbye_said_before_the_call_keeps_the_conversation_going()
+    {
+        var voice = new StubVoiceProvider { HoldSynthesis = true };
+        var model = new SpokenToolCallModelProvider(Provider)
+            .SaysThenCalls("Goodbye, take care.", EndConversationTool.ToolName);
+
+        await using var host = await StartAsync(voice, model, resolve: null, toolNames: [EndConversationTool.ToolName]);
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+
+        await client.SendAudioAsync(new byte[3200]);
+        await client.SendControlAsync(new { type = "commit" });
+
+        // The caption is sent before the sentence is synthesized, and the synthesis holds the goodbye in progress: the tool
+        // runs after the goodbye was spoken, so it has not run yet.
+        await client.WaitForAsync("text");
+
+        await client.SendControlAsync(new { type = "cancel" });
+
+        var frames = new List<VoiceEvent>();
+
+        (await client.WaitForAsync("done", frames)).Flag("cancelled").ShouldBe(true);
+
+        await client.SendControlAsync(new { type = "commit" });
+        await client.WaitForAsync("idle", frames).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        frames.ShouldNotContain(static frame => frame.Type == "ended");
+        client.CloseStatus.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_run_that_is_not_a_voice_conversation_goes_on_after_the_tool_even_when_the_model_spoke_first()
+    {
+        var model = new SpokenToolCallModelProvider(Provider)
+            .SaysThenCalls("Goodbye, take care.", EndConversationTool.ToolName)
+            .Says("Still here.");
+
+        await using var host = await StartAsync(new StubVoiceProvider(), model, resolve: null, toolNames: [EndConversationTool.ToolName]);
+
+        using var response = await host.Client.PostAsync(
+            new Uri($"/tracon/api/agents/{Agent}/run", UriKind.Relative),
+            new StringContent("""{"message":"bye"}""", System.Text.Encoding.UTF8, "application/json"),
+            TestContext.Current.CancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        model.Requests.ShouldBe(2, "nothing was ended, so the model gets its next request like after any tool");
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("Still here.");
+    }
+
     [Fact]
     public async Task The_tool_ends_nothing_in_a_run_that_is_not_a_voice_conversation()
     {
+        var model = Model().CallsTool(EndConversationTool.ToolName, new { }).EchoesLastToolResult();
+
         await using var host = await StartAsync(
             new StubVoiceProvider(),
-            Model().CallsTool(EndConversationTool.ToolName, new { }).EchoesLastToolResult(),
+            model,
             resolve: null,
             toolNames: [EndConversationTool.ToolName]);
 
@@ -528,6 +741,7 @@ public sealed class VoiceConversationConnectionTests
         response.EnsureSuccessStatusCode();
         (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
             .ShouldContain(EndConversationTool.NotAConversationText);
+        model.Requests.Count.ShouldBe(2, "the model answered from the tool's result, so the loop was not stopped");
     }
 
     [Fact]
@@ -721,11 +935,12 @@ public sealed class VoiceConversationConnectionTests
 
     private static Task<TraconTestHost> StartAsync(
         StubVoiceProvider voice,
-        FakeModelProvider model,
+        IModelProvider model,
         Func<VoiceConnectionRequest, CancellationToken, ValueTask<VoiceConnectionSettings?>>? resolve,
         ScopeProbe? probe = null,
         string[]? toolNames = null,
-        IVoicePricingReader? pricing = null)
+        IVoicePricingReader? pricing = null,
+        HarnessSettings? harness = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -743,6 +958,7 @@ public sealed class VoiceConversationConnectionTests
                         ],
                         Model = new ModelBinding { Provider = Provider, Model = "voice-1" },
                         ToolNames = toolNames ?? [],
+                        Harness = harness,
                         Origin = AgentDefinitionOrigin.Code,
                     })
                     .UseVoiceConversation(options =>

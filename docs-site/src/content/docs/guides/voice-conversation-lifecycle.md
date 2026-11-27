@@ -204,14 +204,14 @@ quiet line open sends any frame, a silent audio frame for instance, inside the l
 
 An agent that lists the tool `end_conversation` in its `ToolNames` can end the conversation
 after its answer. It takes no argument. Tell the agent when to use it in its instructions
-(the topic is done, the time is up, the caller said goodbye) and to say a short goodbye in
-the same answer:
+(the topic is done, the time is up, the caller said goodbye) and to **say a short goodbye first
+and call the tool after it**, in the same answer:
 
 ```csharp
 tracon.AddAgent(new AgentDefinition
 {
     Name = "coach",
-    Instructions = "Coach the student. When the exercise is done, say goodbye and call end_conversation.",
+    Instructions = "Coach the student. When the exercise is done, say a short goodbye first, then call end_conversation.",
     Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "your-model" },
     ToolNames = ["end_conversation"],
 });
@@ -223,6 +223,15 @@ If the user interrupts the goodbye (`cancel`), or the turn fails, the request is
 the conversation goes on. An agent that does not list the tool can never end a conversation,
 and the tool ends nothing when an agent runs outside a voice conversation. Every close has
 its own frame, description and end reason, [below](#how-a-conversation-closes).
+
+The order matters for the wait after the goodbye. When the model's answer already holds words
+before the call, the call ends the model's turn: there is no further model request, and `ended`
+follows the goodbye at once. When the model calls the tool **before it has said anything**, the
+tool's result asks it for the goodbye and the model is called once more to give it. The
+conversation still ends and the goodbye is still spoken, but the caller waits for that extra
+request. Words and a call that the model returns as two separate items of one answer count as
+one answer. A call that other tool calls of the same answer follow does not end the model's
+turn, so those calls still run and the model is asked once more.
 
 ## What the agent says before a tool call
 

@@ -65,8 +65,16 @@ internal sealed class VoiceConversationEndRegistry
 /// words.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The tool is registered by <c>UseVoiceConversation</c> and the agent has to name it in its <c>ToolNames</c>; an agent that
 /// does not can never end a conversation. It takes no argument and ends nothing outside a voice conversation.
+/// </para>
+/// <para>
+/// A model that says goodbye in the answer that carries the call has nothing left to say, and asking it again would cost the
+/// caller a second model request for an empty answer. The tool therefore stops the function-invocation loop when the
+/// response that carried its call already holds words, and lets the loop go on when it holds none: the model then says its
+/// goodbye in the next request, as the text of the tool's result asks.
+/// </para>
 /// </remarks>
 internal sealed class EndConversationTool(VoiceConversationEndRegistry registry) : AIFunction
 {
@@ -91,7 +99,9 @@ internal sealed class EndConversationTool(VoiceConversationEndRegistry registry)
     /// <inheritdoc />
     public override string Description =>
         "Ends the voice conversation after your answer has been spoken. Call it when the conversation is over " +
-        "(the topic is done, the time is up, or the caller said goodbye) and say a short goodbye in the same answer.";
+        "(the topic is done, the time is up, or the caller said goodbye). Say a short goodbye first and call this tool " +
+        "after it, in the same answer: if you call the tool before you have said anything, you are asked again for the " +
+        "goodbye and the caller waits for it.";
 
     /// <inheritdoc />
     public override JsonElement JsonSchema { get; } = JsonSerializer.Deserialize(Schema, VoiceConversationToolJsonContext.Default.JsonElement);
@@ -103,8 +113,80 @@ internal sealed class EndConversationTool(VoiceConversationEndRegistry registry)
 
         var rootRunId = TraconRunContext.Current?.RootRunId;
 
-        return ValueTask.FromResult<object?>(
-            rootRunId is { } run && registry.TryRequestEnd(run) ? EndingText : NotAConversationText);
+        if (rootRunId is not { } run || !registry.TryRequestEnd(run))
+        {
+            return ValueTask.FromResult<object?>(NotAConversationText);
+        }
+
+        // The loop is read here, in the tool's own body: it is ambient state of the loop that runs this call, and it is absent
+        // when something other than the loop calls the tool.
+        if (FunctionInvokingChatClient.CurrentContext is { } loop && GoodbyeWasSaidBeforeTheCall(loop))
+        {
+            loop.Terminate = true;
+        }
+
+        return ValueTask.FromResult<object?>(EndingText);
+    }
+
+    /// <summary>
+    /// Whether the response that carried this call already holds words, and nothing is left for the loop to ask the model.
+    /// </summary>
+    /// <param name="loop">The loop's view of the call.</param>
+    /// <returns><see langword="true"/> when the loop can stop without a request that would only repeat a goodbye.</returns>
+    /// <remarks>
+    /// <para>
+    /// The words of a response are part of the turn's answer, and the answer is spoken in full whatever the loop does next, so
+    /// a response that holds words has said them. The response is read from the history the loop shows the call, streamed or
+    /// not: it ends with the assistant messages of the response, and a provider may return the words and the call as one
+    /// message or as two.
+    /// </para>
+    /// <para>
+    /// A call with other calls behind it never stops the loop: the loop drops the calls that follow a call that stops it, and
+    /// they would never run.
+    /// </para>
+    /// </remarks>
+    private static bool GoodbyeWasSaidBeforeTheCall(FunctionInvocationContext loop)
+    {
+        if (loop.FunctionCallIndex < loop.FunctionCount - 1)
+        {
+            return false;
+        }
+
+        var messages = loop.Messages;
+        var callId = loop.CallContent?.CallId;
+        var carrier = -1;
+
+        for (var index = messages.Count - 1; index >= 0 && carrier < 0; index--)
+        {
+            if (messages[index].Contents.Any(content => content is FunctionCallContent call && string.Equals(call.CallId, callId, StringComparison.Ordinal)))
+            {
+                carrier = index;
+            }
+        }
+
+        if (carrier < 0)
+        {
+            return false;
+        }
+
+        // The response is the run of assistant messages around the one that carries the call; whatever came before that run
+        // (a tool's result, the caller's words) belongs to an earlier request.
+        var first = carrier;
+
+        while (first > 0 && messages[first - 1].Role == ChatRole.Assistant)
+        {
+            first--;
+        }
+
+        for (var index = first; index < messages.Count && messages[index].Role == ChatRole.Assistant; index++)
+        {
+            if (!string.IsNullOrWhiteSpace(messages[index].Text))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
