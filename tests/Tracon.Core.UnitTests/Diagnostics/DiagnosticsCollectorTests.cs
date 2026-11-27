@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Diagnostics;
@@ -306,6 +307,117 @@ public sealed class DiagnosticsCollectorTests
     {
         public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default) => default;
     }
+
+    [Fact]
+    public async Task A_model_only_a_saved_definition_names_is_not_in_the_report_but_warns_once_when_a_run_prices_it()
+    {
+        // 🚨 The report names the models the HOST configured. A saved definition belongs to a tenant: reading every tenant's
+        // definitions to fill a report has an unknown cost and crosses the tenant boundary. The line a run writes when it finds
+        // no price is what covers them, and it names the model and the provider only.
+        var logs = new WarningLogProvider();
+        var services = new ServiceCollection();
+        services.AddLogging(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Trace);
+            builder.AddProvider(logs);
+        });
+        services.AddTracon().AddModelProvider(new FakeModelProvider());
+
+        await using var provider = services.BuildServiceProvider();
+
+        await provider.GetRequiredService<IAgentDefinitionStore>().SaveAsync(
+            new AgentDefinition
+            {
+                Name = "ghost-agent",
+                Model = new ModelBinding { Provider = "fake", Model = "ghost-model-1" },
+            },
+            TestContext.Current.CancellationToken);
+
+        var resolver = provider.GetRequiredService<IRunPricingResolver>();
+        var usage = new RunUsage { InputTokens = 10, OutputTokens = 5 };
+
+        resolver.Resolve("fake", "ghost-model-1", usage).ShouldNotBeNull().Source.ShouldBe(PricingSource.Unknown);
+        resolver.Resolve("fake", "ghost-model-1", usage).ShouldNotBeNull().Source.ShouldBe(PricingSource.Unknown);
+
+        var report = await provider.GetRequiredService<TraconDiagnosticsCollector>().CollectAsync(TestContext.Current.CancellationToken);
+
+        report.Pricing.UnpricedModels.ShouldNotContain(static model => model.Contains("ghost", StringComparison.Ordinal));
+        report.Pricing.UnpricedMediaModels.ShouldNotContain(static model => model.Contains("ghost", StringComparison.Ordinal));
+
+        var warning = logs.Warnings.Where(static line => line.Contains("ghost-model-1", StringComparison.Ordinal)).ShouldHaveSingleItem();
+        warning.ShouldContain("fake");
+    }
+
+    [Fact]
+    public async Task The_report_names_no_media_model_when_the_host_configured_none()
+    {
+        var services = new ServiceCollection();
+        services.AddTracon();
+
+        await using var provider = services.BuildServiceProvider();
+
+        var report = await provider.GetRequiredService<TraconDiagnosticsCollector>().CollectAsync(TestContext.Current.CancellationToken);
+
+        report.Pricing.UnpricedMediaModels.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task An_image_model_the_host_configured_is_named_until_it_has_a_price()
+    {
+        var unpriced = await ReportedImageModelsAsync(static _ => { });
+        var priced = await ReportedImageModelsAsync(static options =>
+            options.Pricing.Images["studio"] = new Dictionary<string, ImagePriceOverride>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["studio-img-1"] = new() { PerImage = 0.04m },
+            });
+
+        unpriced.ShouldBe(["studio/studio-img-1 (image generation)"]);
+        priced.ShouldBeEmpty();
+    }
+
+    private static async Task<IReadOnlyList<string>> ReportedImageModelsAsync(Action<TraconOptions> configure)
+    {
+        var services = new ServiceCollection();
+        services.AddTracon();
+        services.Configure(configure);
+
+        // The tool registry resolves the generator while image generation is on, so the host must have registered one.
+        StudioImageGenerator.Register(services, "studio");
+        services.Configure<TraconImageOptions>(static options =>
+        {
+            options.Enabled = true;
+            options.Provider = "studio";
+            options.Providers["studio"] = new TraconImageProviderOptions { Model = "studio-img-1" };
+        });
+
+        await using var provider = services.BuildServiceProvider();
+
+        var report = await provider.GetRequiredService<TraconDiagnosticsCollector>().CollectAsync(TestContext.Current.CancellationToken);
+
+        return report.Pricing.UnpricedMediaModels;
+    }
+
+#pragma warning disable MEAI001 // The image generator contract is experimental.
+    private sealed class StudioImageGenerator : Microsoft.Extensions.AI.IImageGenerator
+    {
+        public static void Register(IServiceCollection services, string name)
+            => services.AddKeyedSingleton<Microsoft.Extensions.AI.IImageGenerator>(name, new StudioImageGenerator());
+
+        public Task<Microsoft.Extensions.AI.ImageGenerationResponse> GenerateAsync(
+            Microsoft.Extensions.AI.ImageGenerationRequest request,
+            Microsoft.Extensions.AI.ImageGenerationOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new Microsoft.Extensions.AI.ImageGenerationResponse());
+
+        public object? GetService(Type serviceType, object? serviceKey = null)
+            => serviceKey is null && serviceType.IsInstanceOfType(this) ? this : null;
+
+        public void Dispose()
+        {
+            // Nothing to release.
+        }
+    }
+#pragma warning restore MEAI001
 
     private sealed class AnotherRunEventSink : IRunEventSink
     {

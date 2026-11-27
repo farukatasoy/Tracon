@@ -15798,6 +15798,13 @@
             },
             "description": "Gets the \u0060provider/model\u0060 pairs no price source covers, in catalog\norder. Empty when every model is priced."
           },
+          "unpricedMediaModels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the speech synthesis, transcription and image models the host configured that no price covers, as\n\u0060provider/model (kind)\u0060, ordered by kind, provider and model. Empty when every configured model is priced."
+          },
           "currency": {
             "type": [
               "null",

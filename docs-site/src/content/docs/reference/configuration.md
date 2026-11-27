@@ -407,6 +407,15 @@ Tracon says so at startup for the models a provider's catalog lists. A definitio
 catalog does not list, so it also warns once for each such model, the first time a price is looked up
 for it (a run being recorded, a cost budget, a judge call or a recalculation of past runs): the line
 names the model and the provider, and the model's price goes under `Tracon:Pricing`.
+The speech, transcription and image models you configure are never in a catalog, so a second startup
+warning and `pricing.unpricedMediaModels` in `GET /api/diagnostics` name the ones no rate covers; a model
+that only a saved definition names belongs to a tenant and is in neither, only in the once-per-model
+line. See [Observability](/guides/observability/#export-traces-and-metrics) for the rule and the keys to set.
+
+A model's rates are read from the five short keys above, written with any casing. Any other key under
+a model, such as `CacheRead` or `CachedInputCostPerMillionTokens`, is ignored: the host starts and one
+startup warning names the key and the one it most likely meant. A model with neither `Input` nor
+`Output` stops the start.
 
 Values label and calculate reports only. Tracon performs no currency conversion, so
 `Currency` also decides which reported amounts add up: an amount that a workflow function node or a

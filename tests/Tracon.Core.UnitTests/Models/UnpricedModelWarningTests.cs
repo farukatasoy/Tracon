@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Tracon.Core.UnitTests.Configuration;
 
 namespace Tracon.Core.UnitTests.Models;
 
@@ -28,14 +29,16 @@ public sealed class UnpricedModelWarningTests
 
     private static async Task<IReadOnlyList<string>> WarningsAsync(
         IEnumerable<IModelProvider> providers,
-        TraconPricingOptions? pricing = null)
+        TraconPricingOptions? pricing = null,
+        IEnumerable<IConfiguredMediaModelSource>? mediaSources = null)
     {
         var logger = new CollectingLogger();
 
         var service = new UnpricedModelWarningService(
             providers,
             Options.Create(new TraconOptions { Pricing = pricing ?? new TraconPricingOptions() }),
-            logger);
+            logger,
+            mediaSources);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -54,8 +57,32 @@ public sealed class UnpricedModelWarningTests
         warning.ShouldContain("openai/gpt-5.4-mini");
         warning.ShouldContain("openai/gpt-5.6-luna");
 
-        // The operator needs the FIX in the message, not only the symptom.
-        warning.ShouldContain("Tracon:Pricing:Providers");
+        // The operator needs the FIX in the message, not only the symptom, and the path must be one the binder reads.
+        warning.ShouldContain("Tracon:Pricing:<provider>:<model>:Input");
+        warning.ShouldNotContain("Tracon:Pricing:Providers");
+    }
+
+    [Fact]
+    public async Task The_path_the_warning_names_is_the_path_the_binder_reads()
+    {
+        // 🚨 The warning once named a path no binder read, and a host that followed it was stopped at startup by the
+        // validator. Substitute a provider and a model into the path the warning prints and give the result to the real binder:
+        // the model must then be priced, and the same warning must fall silent.
+        var provider = new CatalogProvider("openai", Model("gpt-5.4-mini"));
+
+        var warning = (await WarningsAsync([provider])).ShouldHaveSingleItem();
+
+        const string Template = "Tracon:Pricing:<provider>:<model>:Input";
+
+        warning.ShouldContain(Template);
+
+        var path = Template
+            .Replace("<provider>", "openai", StringComparison.Ordinal)
+            .Replace("<model>", "gpt-5.4-mini", StringComparison.Ordinal);
+
+        var options = SectionBinding.Bind<TraconOptions>(new Dictionary<string, string?>(StringComparer.Ordinal) { [path] = "0.25" });
+
+        (await WarningsAsync([provider], options.Pricing)).ShouldBeEmpty();
     }
 
     [Fact]
@@ -114,6 +141,90 @@ public sealed class UnpricedModelWarningTests
         var warning = (await WarningsAsync([first, second])).ShouldHaveSingleItem();
 
         warning.ShouldContain("1 catalog model(s)");
+    }
+
+    [Fact]
+    public async Task A_configured_media_model_with_no_price_is_named_in_its_own_warning()
+    {
+        // The catalog line cannot name these: a speech or image model is never in a provider's catalog.
+        var warnings = await WarningsAsync(
+            [],
+            mediaSources:
+            [
+                new FixedSource(
+                    new ConfiguredMediaModel(MediaPriceKind.SpeechSynthesis, "elevenlabs", "eleven_v4_turbo"),
+                    new ConfiguredMediaModel(MediaPriceKind.Transcription, "elevenlabs", "scribe_v2"),
+                    new ConfiguredMediaModel(MediaPriceKind.Image, "openai", "gpt-image-1")),
+            ]);
+
+        var warning = warnings.ShouldHaveSingleItem();
+
+        warning.ShouldContain("3 configured");
+        warning.ShouldContain("elevenlabs/eleven_v4_turbo (speech synthesis)");
+        warning.ShouldContain("elevenlabs/scribe_v2 (transcription)");
+        warning.ShouldContain("openai/gpt-image-1 (image generation)");
+        warning.ShouldContain("Tracon:Pricing:Voice:<provider>:<model>:PerMillionCharacters");
+        warning.ShouldContain("Tracon:Pricing:Images:<provider>:<model>:PerImage");
+    }
+
+    [Fact]
+    public async Task A_priced_media_model_is_not_named_and_an_unpriced_one_beside_it_is()
+    {
+        var pricing = new TraconPricingOptions();
+        pricing.Voice["elevenlabs"] = new Dictionary<string, VoicePriceOverride>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["eleven_v4_turbo"] = new() { PerMillionCharacters = 30m },
+        };
+
+        var warnings = await WarningsAsync(
+            [],
+            pricing,
+            [
+                new FixedSource(
+                    new ConfiguredMediaModel(MediaPriceKind.SpeechSynthesis, "elevenlabs", "eleven_v4_turbo"),
+                    new ConfiguredMediaModel(MediaPriceKind.Transcription, "elevenlabs", "scribe_v2")),
+            ]);
+
+        var warning = warnings.ShouldHaveSingleItem();
+
+        warning.ShouldContain("1 configured");
+        warning.ShouldContain("scribe_v2");
+        warning.ShouldNotContain("eleven_v4_turbo");
+    }
+
+    [Fact]
+    public async Task A_catalog_and_a_media_model_with_no_price_are_two_separate_warnings()
+    {
+        var provider = new CatalogProvider("openai", Model("gpt-5.4-mini"));
+
+        var warnings = await WarningsAsync(
+            [provider],
+            mediaSources: [new FixedSource(new ConfiguredMediaModel(MediaPriceKind.Transcription, "elevenlabs", "scribe_v2"))]);
+
+        warnings.Count.ShouldBe(2);
+        warnings.ShouldContain(static warning => warning.Contains("catalog model(s)", StringComparison.Ordinal));
+        warnings.ShouldContain(static warning => warning.Contains("configured speech", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_fully_priced_media_configuration_says_nothing()
+    {
+        var pricing = new TraconPricingOptions();
+        pricing.Voice["elevenlabs"] = new Dictionary<string, VoicePriceOverride>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["scribe_v2"] = new() { PerMinute = 0.4m },
+        };
+
+        (await WarningsAsync(
+            [],
+            pricing,
+            [new FixedSource(new ConfiguredMediaModel(MediaPriceKind.Transcription, "elevenlabs", "scribe_v2"))])).ShouldBeEmpty();
+    }
+
+    /// <summary>A source that names the models it was given.</summary>
+    private sealed class FixedSource(params ConfiguredMediaModel[] models) : IConfiguredMediaModelSource
+    {
+        public IReadOnlyList<ConfiguredMediaModel> ConfiguredModels() => models;
     }
 
     /// <summary>A provider that exists only to carry a catalog.</summary>

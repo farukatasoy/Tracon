@@ -27,7 +27,8 @@ public sealed class PricingResolverUnpricedModelTests
         var warning = logger.Warnings.ShouldHaveSingleItem();
         warning.ShouldContain("gpt-unlisted");
         warning.ShouldContain("openai");
-        warning.ShouldContain("Tracon:Pricing");
+        warning.ShouldContain("Tracon:Pricing:<provider>:<model>:Input");
+        warning.ShouldNotContain("Tracon:Pricing:Providers", customMessage: "no binder reads that path");
     }
 
     [Fact]

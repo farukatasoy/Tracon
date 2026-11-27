@@ -143,7 +143,10 @@ An agent can still use an unlisted model name.
 
 Tracon never guesses prices. Add input and output prices to the model catalog or
 `Tracon:Pricing`. Runs from models with no price remain counted as unknown-price
-runs instead of receiving a false zero.
+runs instead of receiving a false zero. The startup log and `GET /api/diagnostics` name the
+models that have none, speech and image models you configure included, and a rate written
+under a key Tracon does not read (`CacheRead`, for example) is named in a startup warning.
+See [Observability](/guides/observability/#export-traces-and-metrics).
 
 ### Azure returns `404` for a known model
 

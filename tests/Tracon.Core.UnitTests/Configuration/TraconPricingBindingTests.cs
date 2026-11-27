@@ -334,6 +334,68 @@ public sealed class TraconPricingBindingTests
         options.Pricing.Providers["echo"]["echo-1"].CacheWriteLongCostPerMillionTokens.ShouldBeNull();
     }
 
+    [Fact]
+    public void A_key_the_binder_does_not_read_is_recorded_and_the_rates_around_it_are_kept()
+    {
+        var options = BindOnly(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Pricing:echo:echo-1:Input"] = "1",
+            ["Pricing:echo:echo-1:Output"] = "2",
+            ["Pricing:echo:echo-1:CacheRead"] = "0.1",
+        });
+
+        var price = options.Pricing.Providers["echo"]["echo-1"];
+
+        price.InputCostPerMillionTokens.ShouldBe(1m);
+        price.OutputCostPerMillionTokens.ShouldBe(2m);
+        price.CachedInputCostPerMillionTokens.ShouldBeNull("the unread key must not be guessed into a rate");
+
+        var key = options.Pricing.UnrecognizedKeys.ShouldHaveSingleItem();
+
+        key.Key.ShouldBe("CacheRead");
+        key.Path.ShouldBe("Pricing:echo:echo-1:CacheRead");
+    }
+
+    [Fact]
+    public void Each_key_the_binder_reads_is_known_to_the_check_whatever_its_case()
+    {
+        foreach (var key in PricingKeys.Known)
+        {
+            var options = BindOnly(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                [$"Pricing:echo:echo-1:{key.ToUpperInvariant()}"] = "1",
+                [$"Pricing:echo:echo-2:{key.ToLowerInvariant()}"] = "1",
+            });
+
+            options.Pricing.UnrecognizedKeys.ShouldBeEmpty(key);
+        }
+    }
+
+    [Fact]
+    public void The_known_keys_are_exactly_the_rates_a_model_can_carry_and_each_one_is_read()
+    {
+        // 🚨 The list the check compares with and the rates the binder reads are written apart. A rate added to the price
+        // record without a key would never be read; a key added to the binder without a place here would be named as unread on
+        // every host that sets it. Pin both directions: one decimal property per key, and each key sets exactly one.
+        var rates = typeof(ModelPriceOverride).GetProperties()
+            .Where(static property => property.PropertyType == typeof(decimal?))
+            .ToList();
+
+        rates.Count.ShouldBe(PricingKeys.Known.Count);
+
+        foreach (var key in PricingKeys.Known)
+        {
+            var options = BindOnly(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                [$"Pricing:echo:echo-1:{key}"] = "1",
+            });
+
+            var price = options.Pricing.Providers["echo"]["echo-1"];
+
+            rates.Count(property => property.GetValue(price) is not null).ShouldBe(1, key);
+        }
+    }
+
     /// <summary>
     /// Calls <c>TraconServiceCollectionExtensions.Bind</c> (the private,
     /// manually written binder) directly, without DI or the validator

@@ -6175,6 +6175,11 @@ export interface components {
              *     order. Empty when every model is priced.
              */
             unpricedModels: string[];
+            /**
+             * @description Gets the speech synthesis, transcription and image models the host configured that no price covers, as
+             *     `provider/model (kind)`, ordered by kind, provider and model. Empty when every configured model is priced.
+             */
+            unpricedMediaModels?: string[];
             /** @description Gets the currency every computed cost is expressed in. */
             currency: null | string;
         };

@@ -96,6 +96,12 @@ public sealed record TraconDiagnosticsReport
 /// before anyone read the <c>pricing_source</c> value on a row to find out why.
 /// </para>
 /// <para>
+/// The report covers two groups of models and no third. <see cref="UnpricedModels"/> lists the models a provider's catalog
+/// names; <see cref="UnpricedMediaModels"/> lists the speech, transcription and image models the host configured in its own
+/// options. A model that lives only in a saved agent definition is a tenant's and is in neither list: it is named once in the
+/// log, the first time a run finds no price for it.
+/// </para>
+/// <para>
 /// Carries no <c>secret</c>: a model name and a count.
 /// </para>
 /// </remarks>
@@ -111,9 +117,31 @@ public sealed record PricingDiagnostic
     /// <remarks>
     /// The same list the startup warning names. A run answered by one of these
     /// carries no cost that a report can use; set the rate on the catalog entry
-    /// or under <c>Tracon:Pricing:Providers</c>, then recalculate past runs.
+    /// or under <c>Tracon:Pricing:{provider}:{model}:Input</c> and <c>:Output</c>,
+    /// then recalculate past runs.
     /// </remarks>
     public required IReadOnlyList<string> UnpricedModels { get; init; }
+
+    /// <summary>
+    /// Gets the speech synthesis, transcription and image models the host configured that no price covers, as
+    /// <c>provider/model (kind)</c>, ordered by kind, provider and model. Empty when every configured model is priced.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// These models are never in a provider's catalog, so <see cref="UnpricedModels"/> cannot list them. The list reads the
+    /// host's options only: the speech models of <c>Tracon:Voice</c> (the configured model, or the built-in client's own
+    /// default when none is set) and the models of <c>Tracon:Images:Providers</c> while image generation is on. A call that
+    /// finds no price for one is recorded without a cost; set the rate under
+    /// <c>Tracon:Pricing:Voice:{provider}:{model}</c> (<c>PerMillionCharacters</c> for synthesis, <c>PerMinute</c> for
+    /// transcription) or <c>Tracon:Pricing:Images:{provider}:{model}</c> (<c>PerImage</c> or
+    /// <c>OutputCostPerMillionTokens</c>).
+    /// </para>
+    /// <para>
+    /// A live voice session, a model a tenant brought with its own credentials and a model only a saved definition names are
+    /// not in this list. Each is written to the log once, the first time a call finds no price for it.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<string> UnpricedMediaModels { get; init; } = [];
 
     /// <summary>Gets the currency every computed cost is expressed in.</summary>
     public required string? Currency { get; init; }

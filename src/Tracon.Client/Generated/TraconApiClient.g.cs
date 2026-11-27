@@ -25299,6 +25299,13 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> UnpricedModels { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
+        /// Gets the speech synthesis, transcription and image models the host configured that no price covers, as
+        /// <br/>`provider/model (kind)`, ordered by kind, provider and model. Empty when every configured model is priced.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("unpricedMediaModels")]
+        public System.Collections.Generic.ICollection<string> UnpricedMediaModels { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
         /// Gets the currency every computed cost is expressed in.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("currency")]

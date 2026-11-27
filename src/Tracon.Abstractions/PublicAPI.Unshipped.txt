@@ -2146,6 +2146,8 @@ Tracon.PricingDiagnostic.Equals(Tracon.PricingDiagnostic? other) -> bool
 Tracon.PricingDiagnostic.PricedModels.get -> int
 Tracon.PricingDiagnostic.PricedModels.init -> void
 Tracon.PricingDiagnostic.PricingDiagnostic() -> void
+Tracon.PricingDiagnostic.UnpricedMediaModels.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.PricingDiagnostic.UnpricedMediaModels.init -> void
 Tracon.PricingDiagnostic.UnpricedModels.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.PricingDiagnostic.UnpricedModels.init -> void
 Tracon.PricingSource

@@ -8,11 +8,13 @@ internal sealed class SpeechSynthesisService : ISpeechSynthesisService
     private readonly ISpeechProviderResolver _providers;
     private readonly IOptionsMonitor<TraconOptions> _options;
     private readonly IVoicePricingReader? _pricing;
+    private readonly UnpricedMediaWarnings? _warnings;
 
     public SpeechSynthesisService(
         ISpeechProviderResolver providers,
         IOptionsMonitor<TraconOptions> options,
-        IVoicePricingReader? pricing = null)
+        IVoicePricingReader? pricing = null,
+        UnpricedMediaWarnings? warnings = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
         ArgumentNullException.ThrowIfNull(options);
@@ -20,6 +22,7 @@ internal sealed class SpeechSynthesisService : ISpeechSynthesisService
         _providers = providers;
         _options = options;
         _pricing = pricing;
+        _warnings = warnings;
     }
 
     /// <inheritdoc />
@@ -95,7 +98,7 @@ internal sealed class SpeechSynthesisService : ISpeechSynthesisService
         // A registered reader (the speech package's, or the host's own) knows the default synthesizer's configured model; without
         // one, the price table is read with the model the call reported.
         var cost = _pricing is null
-            ? VoiceCharacterPricing.Price(_options.CurrentValue.Pricing, providerName, model, characters)
+            ? VoiceCharacterPricing.Price(_options.CurrentValue.Pricing, providerName, model, characters, _warnings)
             : _pricing.ForSynthesis(providerName, model, characters);
 
         return new ToolCallUsage

@@ -10,11 +10,13 @@ namespace Tracon;
 internal sealed class ImagePricing
 {
     private readonly IOptions<TraconOptions> _options;
+    private readonly UnpricedMediaWarnings? _warnings;
 
-    public ImagePricing(IOptions<TraconOptions> options)
+    public ImagePricing(IOptions<TraconOptions> options, UnpricedMediaWarnings? warnings = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
+        _warnings = warnings;
     }
 
     /// <summary>Gets the configured currency label.</summary>
@@ -33,6 +35,13 @@ internal sealed class ImagePricing
         ArgumentOutOfRangeException.ThrowIfNegative(imageCount);
 
         var price = Find(provider, model);
+
+        // A model with no entry, or an entry with neither rate, is recorded without a cost; say so once. A model that has a
+        // rate but no usable measure for this call (a token rate and no token count) is priced and says nothing.
+        if (!MediaPriceLookup.IsPriced(MediaPriceKind.Image, _options.Value.Pricing, provider, model))
+        {
+            _warnings?.WarnOnce(MediaPriceKind.Image, provider, model);
+        }
 
         if (price?.OutputCostPerMillionTokens is { } tokenRate && outputTokens is { } tokens)
         {
@@ -72,10 +81,7 @@ internal sealed class ImagePricing
     }
 
     private ImagePriceOverride? Find(string provider, string model)
-        => _options.Value.Pricing.Images.TryGetValue(provider, out var models) &&
-           models.TryGetValue(model, out var price)
-            ? price
-            : null;
+        => MediaPriceLookup.Image(_options.Value.Pricing, provider, model);
 }
 
 /// <summary>One image-generation quantity and its configured cost.</summary>

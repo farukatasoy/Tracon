@@ -41,6 +41,7 @@ public sealed class TraconDiagnosticsCollector
     private readonly IToolApprovalPresenter _approvalPresenter;
     private readonly TraconRunRecordingOptions _runRecording;
     private readonly TraconPricingOptions _pricing;
+    private readonly IReadOnlyList<IConfiguredMediaModelSource> _mediaModelSources;
     private readonly ILogger<TraconDiagnosticsCollector>? _logger;
 
     /// <summary>Initializes a diagnostics collector.</summary>
@@ -67,6 +68,9 @@ public sealed class TraconDiagnosticsCollector
     /// The logger. When absent, a catalog read failure is ignored and the report
     /// leaves <see cref="TraconDiagnosticsReport.AgentCount"/> empty.
     /// </param>
+    /// <param name="mediaModelSources">
+    /// The sources of the speech and image models the host configured. When absent, the report names no unpriced media model.
+    /// </param>
     /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     internal TraconDiagnosticsCollector(
         IEnumerable<IModelProvider> providers,
@@ -85,7 +89,8 @@ public sealed class TraconDiagnosticsCollector
         IAttachmentStorage? attachmentStorage = null,
         ModelProviderCircuitBreaker? circuitBreaker = null,
         IOptions<TraconOptions>? options = null,
-        ILogger<TraconDiagnosticsCollector>? logger = null)
+        ILogger<TraconDiagnosticsCollector>? logger = null,
+        IEnumerable<IConfiguredMediaModelSource>? mediaModelSources = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
         ArgumentNullException.ThrowIfNull(healthCache);
@@ -118,6 +123,7 @@ public sealed class TraconDiagnosticsCollector
         _runRecording = options?.Value.RunRecording ?? new TraconRunRecordingOptions();
         _pricing = options?.Value.Pricing ?? new TraconPricingOptions();
         _circuitBreaker = circuitBreaker;
+        _mediaModelSources = [.. mediaModelSources ?? []];
         _logger = logger;
     }
 
@@ -240,9 +246,11 @@ public sealed class TraconDiagnosticsCollector
     /// Reports whether the catalog can actually put a price on a run.
     /// </summary>
     /// <remarks>
-    /// Shares <see cref="UnpricedModels.Find"/> with the startup warning on
+    /// Shares <see cref="UnpricedModels.Find"/> and <see cref="UnpricedMediaModels.Find"/> with the startup warning on
     /// purpose: an operator who opens this report to check that warning must
-    /// see the same list, and two copies of the rule would drift.
+    /// see the same list, and two copies of the rule would drift. Neither reads a
+    /// saved definition: those belong to a tenant, and the warning a call writes
+    /// when it finds no price covers them.
     /// </remarks>
     private PricingDiagnostic CollectPricing()
     {
@@ -260,6 +268,7 @@ public sealed class TraconDiagnosticsCollector
         {
             PricedModels = total - unpriced.Count,
             UnpricedModels = unpriced,
+            UnpricedMediaModels = UnpricedMediaModels.Find(_mediaModelSources, _pricing),
             Currency = _pricing.Currency,
         };
     }

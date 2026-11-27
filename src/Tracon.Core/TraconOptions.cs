@@ -1111,7 +1111,7 @@ public sealed class TraconRunRecordingOptions
 /// values supplied by the consumer in configuration. Configuration paths:
 /// <list type="bullet">
 ///   <item><c>Tracon:Pricing:Currency</c></item>
-///   <item><c>Tracon:Pricing:{provider}:{model}:Input|Output</c></item>
+///   <item><c>Tracon:Pricing:{provider}:{model}:Input|Output|CachedInput|CacheWrite|CacheWriteLong</c></item>
 ///   <item><c>Tracon:Pricing:Voice:{provider}:{model}:PerMillionCharacters|PerMinute</c></item>
 ///   <item><c>Tracon:Pricing:Images:{provider}:{model}:PerImage|OutputCostPerMillionTokens</c></item>
 ///   <item><c>Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall</c> (kind: <c>WebSearch</c>, <c>CodeInterpreter</c>, <c>FileSearch</c>)</item>
@@ -1122,6 +1122,12 @@ public sealed class TraconRunRecordingOptions
 /// treated as a provider name, so the <c>Currency</c>, <c>Voice</c>, <c>Images</c> and
 /// <c>HostedTools</c> keys are reserved and cannot be provider names. When adding a reserved key, also update
 /// the skip list in <c>BindPricing</c>.
+/// </para>
+/// <para>
+/// A model's rates are the five short keys above, written without case. A key under a model that is none of them (a
+/// <c>CacheRead</c>, or the code property name <c>CachedInputCostPerMillionTokens</c>) is not read: the host still starts
+/// and a startup warning names the key and the one it most likely meant. A model with neither <c>Input</c> nor
+/// <c>Output</c> stops the start.
 /// </para>
 /// </remarks>
 public sealed class TraconPricingOptions
@@ -1168,6 +1174,12 @@ public sealed class TraconPricingOptions
     /// </remarks>
     public IDictionary<string, IDictionary<string, HostedToolPriceOverride>> HostedTools { get; }
         = new Dictionary<string, IDictionary<string, HostedToolPriceOverride>>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the keys under a model of <c>Tracon:Pricing:{provider}:{model}</c> that the binder does not read, as the binder
+    /// found them. Filled by the configuration binder only; the startup check names them.
+    /// </summary>
+    internal IList<UnrecognizedPricingKey> UnrecognizedKeys { get; } = [];
 }
 
 /// <summary>Defines the configured price of one hosted tool kind at one provider.</summary>
@@ -1225,17 +1237,18 @@ public sealed class ImagePriceOverride
 /// <summary>Defines a configured price override for one model.</summary>
 public sealed class ModelPriceOverride
 {
-    /// <summary>Gets or sets cost per million input tokens.</summary>
+    /// <summary>Gets or sets cost per million input tokens. Configuration key: <c>Input</c>.</summary>
     public decimal? InputCostPerMillionTokens { get; set; }
 
-    /// <summary>Gets or sets cost per million output tokens.</summary>
+    /// <summary>Gets or sets cost per million output tokens. Configuration key: <c>Output</c>.</summary>
     public decimal? OutputCostPerMillionTokens { get; set; }
 
     /// <summary>
-    /// Gets or sets cost per million input tokens served from the prompt cache.
+    /// Gets or sets cost per million input tokens served from the prompt cache. Configuration key: <c>CachedInput</c>.
     /// </summary>
     /// <remarks>
-    /// Leaving it unset prices cached tokens at
+    /// Configuration reads the short key <c>CachedInput</c>; a key named after this property or after the provider's
+    /// "cache read" is not read, and a startup warning names it. Leaving it unset prices cached tokens at
     /// <see cref="InputCostPerMillionTokens"/>; it never makes the price
     /// unknown. See <see cref="ModelDescriptor.CachedInputCostPerMillionTokens"/>.
     /// </remarks>
@@ -1243,7 +1256,7 @@ public sealed class ModelPriceOverride
 
     /// <summary>
     /// Gets or sets cost per million input tokens written into the prompt cache with the
-    /// SHORT time to live.
+    /// SHORT time to live. Configuration key: <c>CacheWrite</c>.
     /// </summary>
     /// <remarks>
     /// Leaving it unset keeps the written tokens at <see cref="InputCostPerMillionTokens"/>;
@@ -1254,7 +1267,7 @@ public sealed class ModelPriceOverride
 
     /// <summary>
     /// Gets or sets cost per million input tokens written into the prompt cache with the
-    /// LONG time to live.
+    /// LONG time to live. Configuration key: <c>CacheWriteLong</c>.
     /// </summary>
     /// <remarks>
     /// Independent of <see cref="CacheWriteCostPerMillionTokens"/>. See

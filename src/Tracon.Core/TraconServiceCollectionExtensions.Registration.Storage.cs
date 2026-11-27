@@ -129,6 +129,10 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddSingleton<ImagePricing>();
         services.TryAddSingleton<ImageProviderSelection>();
         services.TryAddSingleton<ImageAttachmentWriter>();
+
+        // The image models the host configured, for the pricing diagnostics. Options only: never a saved definition.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IConfiguredMediaModelSource, ConfiguredImageModels>());
+
         // Explicit factory, so the tenant's provider checks reach the
         // resolver by construction rather than by optional-parameter activation.
         services.TryAddSingleton(static provider => new ImageGeneratorResolver(

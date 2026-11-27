@@ -14,20 +14,26 @@ internal static class VoiceCharacterPricing
     /// <param name="provider">The provider name of the synthesizer that did the work.</param>
     /// <param name="model">The model that produced the audio, or <see langword="null"/> when unknown.</param>
     /// <param name="characters">The quantity of the request, in the provider's unit (<see cref="SpeechAudio.CharactersBilled"/>).</param>
+    /// <param name="warnings">
+    /// Says once for the model that it has no price. Optional: a lookup with none prices exactly the same and says nothing.
+    /// </param>
     /// <returns>The amount, or <see langword="null"/> when the provider and model have no price; never zero for an unknown one.</returns>
-    public static decimal? Price(TraconPricingOptions pricing, string? provider, string? model, decimal characters)
+    public static decimal? Price(
+        TraconPricingOptions pricing,
+        string? provider,
+        string? model,
+        decimal characters,
+        UnpricedMediaWarnings? warnings = null)
     {
         ArgumentNullException.ThrowIfNull(pricing);
 
-        if (provider is not { Length: > 0 } || model is not { Length: > 0 })
+        if (MediaPriceLookup.Voice(pricing, provider, model)?.PerMillionCharacters is { } rate)
         {
-            return null;
+            return rate * characters / 1_000_000m;
         }
 
-        return pricing.Voice.TryGetValue(provider, out var models)
-               && models.TryGetValue(model, out var price)
-               && price.PerMillionCharacters is { } rate
-            ? rate * characters / 1_000_000m
-            : null;
+        warnings?.WarnOnce(MediaPriceKind.SpeechSynthesis, provider, model);
+
+        return null;
     }
 }

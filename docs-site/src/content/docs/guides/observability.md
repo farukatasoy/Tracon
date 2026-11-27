@@ -327,9 +327,36 @@ models do resolve to a price. A catalog with no prices at all records every run 
 empty cost columns and `PricingSource.Unknown`, which reads exactly like a cost
 report that is broken. Set the rate on the catalog entry
 (`InputCostPerMillionTokens` / `OutputCostPerMillionTokens`) or under
-`Tracon:Pricing:Providers`, then backfill the runs you already have with
+`Tracon:Pricing:{provider}:{model}:Input` and `:Output`, then backfill the runs you already have with
 `POST /api/stats/recalculate-costs`. Tracon ships no built-in price table on
 purpose: rates change far faster than a NuGet package is released.
+
+A speech, transcription or image model is never in a catalog, so the catalog list cannot name
+it. The models **you configure** for them (`Tracon:Voice:SynthesisModelId`,
+`Tracon:Voice:TranscriptionModelId`, and the `Model` of each entry under
+`Tracon:Images:Providers` while image generation is on) get a second `Warning`, and
+`GET /api/diagnostics` lists the ones no rate covers under `pricing.unpricedMediaModels`
+as `provider/model (kind)`. A synthesis is priced by `Tracon:Pricing:Voice:{provider}:{model}:PerMillionCharacters`,
+a transcription by `…:PerMinute`, an image by `Tracon:Pricing:Images:{provider}:{model}:PerImage`
+or `…:OutputCostPerMillionTokens`; a model that carries only the other unit's rate is still
+unpriced for the call. With no `SynthesisModelId` or `TranscriptionModelId`, the built-in speech
+client's own default model is the one named.
+
+Both lists read your configuration and nothing else. A model that only a **saved agent
+definition** names belongs to a tenant, and neither the report nor the startup check reads
+tenant data, so such a model is not in either list. It is named in the log instead, once for
+each model and process, the first time a run, a cost budget, a judge call or a recalculation
+finds no price for it. A speech, transcription, live voice or image call that finds no price
+for its model writes the same single line, including a model a tenant brings with its own
+provider credentials; the line names the provider and the model and never the tenant.
+
+A rate written under a key Tracon does not read is ignored without an error. Under a model,
+Tracon reads `Input`, `Output`, `CachedInput`, `CacheWrite` and `CacheWriteLong`, with any
+casing. A key such as `CacheRead` or `CachedInputCostPerMillionTokens` is not one of them: the
+host still starts and the rate the key carries is ignored (cached tokens, for example, are priced
+at the plain input rate), and one startup `Warning` names each unread key with the key it most
+likely meant. A model with neither `Input`
+nor `Output` still stops the start.
 
 A run's cost is a **price snapshot** ([concepts/runs](/concepts/runs/#what-a-run-carries)):
 computed once, from the unit price in effect when the run ended, and never

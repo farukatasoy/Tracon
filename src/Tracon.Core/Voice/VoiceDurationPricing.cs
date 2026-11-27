@@ -20,14 +20,17 @@ namespace Tracon;
 internal sealed class VoiceDurationPricing
 {
     private readonly IOptionsMonitor<TraconOptions> _options;
+    private readonly UnpricedMediaWarnings? _warnings;
 
     /// <summary>Creates a pricer.</summary>
     /// <param name="options">The Tracon options, which carry the price table.</param>
-    public VoiceDurationPricing(IOptionsMonitor<TraconOptions> options)
+    /// <param name="warnings">Says once for a model that has no price. Optional: the price is the same without it.</param>
+    public VoiceDurationPricing(IOptionsMonitor<TraconOptions> options, UnpricedMediaWarnings? warnings = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         _options = options;
+        _warnings = warnings;
     }
 
     /// <summary>Prices a live session's duration.</summary>
@@ -47,10 +50,10 @@ internal sealed class VoiceDurationPricing
 
         var pricing = _options.CurrentValue.Pricing;
 
-        if (!pricing.Voice.TryGetValue(provider, out var models)
-            || !models.TryGetValue(model, out var price)
-            || price.PerMinute is not { } perMinute)
+        if (MediaPriceLookup.Voice(pricing, provider, model)?.PerMinute is not { } perMinute)
         {
+            _warnings?.WarnOnce(MediaPriceKind.LiveVoice, provider, model);
+
             return null;
         }
 

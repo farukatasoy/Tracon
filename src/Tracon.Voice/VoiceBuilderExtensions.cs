@@ -123,6 +123,11 @@ public static class VoiceBuilderExtensions
         services.TryAddSingleton<IVoicePricingReader>(static provider =>
             provider.GetRequiredService<VoicePricing>());
 
+        // The speech models the host configured, for the pricing diagnostics. The same instance that prices them, so the
+        // report and a call read the model through one rule.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IConfiguredMediaModelSource, VoicePricing>(static provider =>
+            provider.GetRequiredService<VoicePricing>()));
+
         var requireApproval = ReadApprovalSetting(configure);
 
         // 🚨 Tools are registered with a FACTORY, not a ready instance: they

@@ -66,6 +66,7 @@ public sealed class HostedServiceInventoryTests
         ["Tracon.MigrationHostedService"] = (Kind.StartupGate, null),
 
         ["Tracon.UnpricedModelWarningService"] = (Kind.StartupAdvisory, null),
+        ["Tracon.UnrecognizedPricingKeyWarningService"] = (Kind.StartupAdvisory, null),
         ["Tracon.NonPersistentStorageWarningService"] = (Kind.StartupAdvisory, null),
         ["Tracon.SilentGapWarningService"] = (Kind.StartupAdvisory, null),
         ["Tracon.PreservedStoreRegistrationWarningService"] = (Kind.StartupAdvisory, null),

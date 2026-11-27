@@ -54,21 +54,33 @@ public static partial class TraconServiceCollectionExtensions
             foreach (var modelSection in providerSection.GetChildren())
             {
                 var batch = ConfigurationValueReader.For(modelSection, options, root).Batch();
-                var input = batch.Decimal(modelSection, "Input");
-                var output = batch.Decimal(modelSection, "Output");
+                var input = batch.Decimal(modelSection, PricingKeys.Input);
+                var output = batch.Decimal(modelSection, PricingKeys.Output);
 
                 // "CachedInput" is OPTIONAL and, unlike Input/Output, its absence
                 // is NOT a configuration fault: a model without a cache rate keeps
                 // pricing its cached tokens at the plain input rate. It therefore
                 // does NOT take part in the "at least one value" check below.
-                var cachedInput = batch.Decimal(modelSection, "CachedInput");
+                var cachedInput = batch.Decimal(modelSection, PricingKeys.CachedInput);
 
                 // "CacheWrite" and "CacheWriteLong" are optional the same way: the
                 // provider bills a cache write by how long the entry lives, so each
                 // time-to-live class has its own rate, and a class with no rate keeps
                 // its tokens at the plain input rate.
-                var cacheWrite = batch.Decimal(modelSection, "CacheWrite");
-                var cacheWriteLong = batch.Decimal(modelSection, "CacheWriteLong");
+                var cacheWrite = batch.Decimal(modelSection, PricingKeys.CacheWrite);
+                var cacheWriteLong = batch.Decimal(modelSection, PricingKeys.CacheWriteLong);
+
+                // 🚨 A child this binder does not read is recorded, never rejected: a model that has Input and Output stays
+                // valid, and its "CacheRead" (or the code property name "CachedInputCostPerMillionTokens") used to be
+                // dropped without a word, which priced the cached tokens at the plain input rate. The startup check names
+                // each key. Rejecting would stop a host whose configuration has always started.
+                foreach (var child in modelSection.GetChildren())
+                {
+                    if (!PricingKeys.IsKnown(child.Key))
+                    {
+                        options.UnrecognizedKeys.Add(new UnrecognizedPricingKey(child.Path, child.Key));
+                    }
+                }
 
                 // 🚨 The record is ADDED even when both are null: a
                 // price entry written with a key name other than

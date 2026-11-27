@@ -80,6 +80,15 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<ITraconStartupCheck, UnpricedModelWarningService>());
 
+        // Reports the keys under a model of Tracon:Pricing that the hand-written binder does not read. A "CacheRead" beside
+        // Input and Output was dropped silently and its tokens were priced at the plain input rate; the host still starts.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<ITraconStartupCheck, UnrecognizedPricingKeyWarningService>());
+
+        // Says once for each speech, transcription, live voice or image model that a call found no price for. The catalog
+        // warning cannot: these models are never in a provider's catalog. Shared by every media price lookup.
+        services.TryAddSingleton<UnpricedMediaWarnings>();
+
         // Composition gate for the production decisions.
         // Its sibling above covers the BINDING half of the same argument; this
         // one covers the OPTIONS half. Registered here for the same reason and
@@ -206,7 +215,8 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddSingleton<ISpeechSynthesisService>(static provider => new SpeechSynthesisService(
             provider.GetRequiredService<ISpeechProviderResolver>(),
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
-            provider.GetService<IVoicePricingReader>()));
+            provider.GetService<IVoicePricingReader>(),
+            provider.GetService<UnpricedMediaWarnings>()));
 
         // Provider retry classifier. Registered BEFORE
         // IModelProviderRegistry so its constructor can resolve it. The
@@ -323,7 +333,10 @@ public static partial class TraconServiceCollectionExtensions
             // a line anywhere. Neither shows up as an error; the report simply
             // describes an installation that is not the one running.
             provider.GetRequiredService<IOptions<TraconOptions>>(),
-            provider.GetService<Microsoft.Extensions.Logging.ILogger<TraconDiagnosticsCollector>>()));
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<TraconDiagnosticsCollector>>(),
+            // 🚨 Optional on the constructor like the two above: leaving it off compiles, and the report then never names a
+            // configured speech or image model that has no price.
+            provider.GetServices<IConfiguredMediaModelSource>()));
 
         // Chat history provider. Without registration, MAF would set up its own
         // in-memory provider for each agent and that instance would not be

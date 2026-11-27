@@ -123,7 +123,8 @@ internal sealed class RunPricingResolver : IRunPricingResolver
         _logger.LogWarning(
             "Model {Model} of provider {Provider} has no price in the model catalog or in Tracon:Pricing, so its runs are " +
             "recorded with empty cost columns and PricingSource.Unknown: no cost budget or cost report can use them. Set the " +
-            "price in the model catalog or under Tracon:Pricing:Providers. This is said once for each model.",
+            "price in the model catalog or under Tracon:Pricing:<provider>:<model>:Input and :Output. This is said once for each " +
+            "model.",
             model,
             provider);
     }

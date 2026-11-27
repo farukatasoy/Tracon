@@ -26,18 +26,20 @@ namespace Tracon;
 /// other provider with no known model has no price: it never borrows the default's.
 /// </para>
 /// </remarks>
-internal sealed class VoicePricing : IVoicePricingReader
+internal sealed class VoicePricing : IVoicePricingReader, IConfiguredMediaModelSource
 {
     private readonly IOptions<TraconOptions> _options;
     private readonly IOptions<VoiceOptions> _voiceOptions;
     private readonly ISpeechSynthesizer _synthesizer;
     private readonly ISpeechTranscriber _transcriber;
+    private readonly UnpricedMediaWarnings? _warnings;
 
     public VoicePricing(
         IOptions<TraconOptions> options,
         IOptions<VoiceOptions> voiceOptions,
         ISpeechSynthesizer synthesizer,
-        ISpeechTranscriber transcriber)
+        ISpeechTranscriber transcriber,
+        UnpricedMediaWarnings? warnings = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(voiceOptions);
@@ -48,6 +50,7 @@ internal sealed class VoicePricing : IVoicePricingReader
         _voiceOptions = voiceOptions;
         _synthesizer = synthesizer;
         _transcriber = transcriber;
+        _warnings = warnings;
     }
 
     /// <inheritdoc />
@@ -68,7 +71,7 @@ internal sealed class VoicePricing : IVoicePricingReader
 
         var model = modelId ?? DefaultSynthesisModel(providerName);
 
-        return VoiceCharacterPricing.Price(_options.Value.Pricing, providerName, model, characters);
+        return VoiceCharacterPricing.Price(_options.Value.Pricing, providerName, model, characters, _warnings);
     }
 
     /// <inheritdoc />
@@ -78,9 +81,37 @@ internal sealed class VoicePricing : IVoicePricingReader
 
         var model = modelId ?? DefaultTranscriptionModel(providerName);
 
-        return Find(providerName, model)?.PerMinute is { } rate
-            ? rate * (decimal)duration.TotalMinutes
-            : null;
+        if (MediaPriceLookup.Voice(_options.Value.Pricing, providerName, model)?.PerMinute is { } rate)
+        {
+            return rate * (decimal)duration.TotalMinutes;
+        }
+
+        _warnings?.WarnOnce(MediaPriceKind.Transcription, providerName, model);
+
+        return null;
+    }
+
+    /// <summary>Names the speech models the host configured: what the default synthesizer and transcriber will run.</summary>
+    /// <remarks>
+    /// Reads the options and the two bound clients only, never a saved definition or a tenant's own provider: the models a
+    /// tenant brought are named once in the log, the first time a call finds no price for them. A model is listed under the
+    /// name the pricing lookup uses, the provider name of the client that does the work, not the <c>Provider</c> setting.
+    /// </remarks>
+    public IReadOnlyList<ConfiguredMediaModel> ConfiguredModels()
+    {
+        var models = new List<ConfiguredMediaModel>(2);
+
+        if (DefaultSynthesisModel(_synthesizer.ProviderName) is { Length: > 0 } synthesis)
+        {
+            models.Add(new ConfiguredMediaModel(MediaPriceKind.SpeechSynthesis, _synthesizer.ProviderName, synthesis));
+        }
+
+        if (DefaultTranscriptionModel(_transcriber.ProviderName) is { Length: > 0 } transcription)
+        {
+            models.Add(new ConfiguredMediaModel(MediaPriceKind.Transcription, _transcriber.ProviderName, transcription));
+        }
+
+        return models;
     }
 
     /// <summary>The configured model of the default synthesizer, for its own provider only.</summary>
@@ -99,17 +130,4 @@ internal sealed class VoicePricing : IVoicePricingReader
 
     private static bool IsSameProvider(string left, string right)
         => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
-
-    private VoicePriceOverride? Find(string provider, string? model)
-    {
-        if (provider is not { Length: > 0 } || model is not { Length: > 0 })
-        {
-            return null;
-        }
-
-        return _options.Value.Pricing.Voice.TryGetValue(provider, out var models) &&
-               models.TryGetValue(model, out var price)
-            ? price
-            : null;
-    }
 }

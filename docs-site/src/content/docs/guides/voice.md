@@ -185,6 +185,14 @@ known does the default provider fall back to `SynthesisModelId` or
 `TranscriptionModelId`, and only the built-in client to its own default model. The
 built-in client always reports the model it used.
 
+A model with no price does not fail the call and is never recorded as free. Tracon says so twice: the
+first time a synthesis, transcription or live voice session finds no price for a model, one `Warning`
+names the provider, the model and the key to set; and the `SynthesisModelId` and `TranscriptionModelId`
+you configure are listed under `pricing.unpricedMediaModels` in
+[`GET /api/diagnostics`](/guides/observability/#export-traces-and-metrics) and in a startup warning
+until a rate covers them. A synthesis needs `PerMillionCharacters`; a transcription and a live
+session need `PerMinute`.
+
 ### Character-level timing
 
 `POST /api/voice/speak` accepts `includeTimestamps` (default `false`). When set, the
