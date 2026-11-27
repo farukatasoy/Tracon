@@ -84,6 +84,11 @@ public sealed class OpenAIProviderOptions
     /// minute. Tracon's own circuit breaker and fallback models see only the failure of the last try.
     /// </para>
     /// <para>
+    /// Image generation shares this client, so an image call, which is billed, is sent again by the same count. A ceiling for
+    /// image calls alone (<see cref="TraconImageProviderOptions.MaxRetries"/>, <c>Tracon:Images:Providers:openai:MaxRetries</c>)
+    /// lowers it for them and leaves chat as it is; a ceiling above this count changes nothing.
+    /// </para>
+    /// <para>
     /// Lower it (<c>0</c> sends the call once) when something above Tracon already retries, a job queue for example: the
     /// two multiply, and a rate-limited provider is called more often exactly when it asked to be called less. Must be
     /// from <c>0</c> to <c>10</c> when set; any other value fails at startup. It applies to the key the host started

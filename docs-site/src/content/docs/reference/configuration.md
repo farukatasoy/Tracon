@@ -512,6 +512,12 @@ that provider is the default. Set it explicitly when the host registers more tha
 without it) or a custom generator that no extension registered. `ProviderSettings` (`openai.quality`, `azure-openai.quality`)
 are code only and are not bound from configuration.
 
+`Providers:{name}:MaxRetries` is a ceiling on how often the provider's client sends one failing image call again, from
+`0` (send once) to `10`. Left out, the client's own count applies: three, or `OpenAIProviderOptions.MaxRetries` for OpenAI.
+It only lowers the count, it does not change chat calls on the same client, and a value above the client's count changes
+nothing. Only `openai` and `azure-openai` take it; a value on any other provider, `google` included, or one outside the
+range stops the host at start. You can set the model in code and this key in configuration for the same provider.
+
 ## Operational sections
 
 <p class="reads-this">Read by <code>Tracon.Core</code>. The lease-backed entries coordinate more than one process only with a SQL persistence package.</p>

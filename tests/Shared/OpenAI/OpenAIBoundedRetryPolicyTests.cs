@@ -204,6 +204,80 @@ public sealed class OpenAIBoundedRetryPolicyTests
         transport.Calls.ShouldBe(1);
     }
 
+    /// <summary>
+    /// A ceiling set on one message lowers the retries of that message below the policy's own count, and never raises them.
+    /// The count the library keeps on the message is not visible to a derived policy, so the policy counts its own retries:
+    /// this theory is what notices a library that stops calling the hook it counts on.
+    /// </summary>
+    [Theory]
+    [InlineData(null, 0, 1, false)]
+    [InlineData(null, 0, 1, true)]
+    [InlineData(null, 1, 2, false)]
+    [InlineData(null, 1, 2, true)]
+    [InlineData(null, 2, 3, false)]
+    [InlineData(null, 3, 4, false)]
+    [InlineData(null, 10, 4, false)]
+    [InlineData(null, 10, 4, true)]
+    [InlineData(1, 5, 2, false)]
+    [InlineData(1, 5, 2, true)]
+    [InlineData(0, 5, 1, false)]
+    [InlineData(5, 2, 3, false)]
+    [InlineData(5, 2, 3, true)]
+    public async Task A_ceiling_on_the_message_lowers_the_retries_and_never_raises_them(int? maxRetries, int ceiling, int expectedCalls, bool synchronous)
+    {
+        var clock = new ManualClock();
+        var transport = new Script((503, null));
+
+        await clock.AdvanceUntilAsync(Start(transport, clock, synchronous, CancellationToken.None, maxRetries, ceiling));
+
+        transport.Calls.ShouldBe(expectedCalls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_call_that_succeeds_within_the_ceiling_is_not_cut_short(bool synchronous)
+    {
+        var clock = new ManualClock();
+        var transport = new Script((503, null), (200, null));
+
+        await clock.AdvanceUntilAsync(Start(transport, clock, synchronous, CancellationToken.None, maxRetries: null, ceiling: 1));
+
+        transport.Calls.ShouldBe(2, "the first try failed, the one retry the ceiling allows answered");
+    }
+
+    [Fact]
+    public async Task A_ceiling_belongs_to_its_message_and_the_next_message_of_the_pipeline_keeps_the_policys_count()
+    {
+        var clock = new ManualClock();
+        var transport = new Script((503, null));
+        var pipeline = ClientPipeline.Create(new ClientPipelineOptions
+        {
+            RetryPolicy = new OpenAIBoundedRetryPolicy(clock),
+            Transport = new HttpClientPipelineTransport(new HttpClient(transport)),
+        });
+
+        var capped = pipeline.CreateMessage(Address, "GET");
+        OpenAIBoundedRetryPolicy.CapRetries(capped, 0);
+        await clock.AdvanceUntilAsync(pipeline.SendAsync(capped).AsTask());
+
+        transport.Calls.ShouldBe(1, "the capped message is sent once");
+
+        var plain = pipeline.CreateMessage(Address, "GET");
+        await clock.AdvanceUntilAsync(pipeline.SendAsync(plain).AsTask());
+
+        transport.Calls.ShouldBe(1 + 4, "a message with no ceiling is sent the first time and the policy's three retries");
+    }
+
+    [Fact]
+    public void A_negative_ceiling_is_refused()
+    {
+        var pipeline = ClientPipeline.Create();
+        var message = pipeline.CreateMessage(Address, "GET");
+
+        Should.Throw<ArgumentOutOfRangeException>(() => OpenAIBoundedRetryPolicy.CapRetries(message, -1));
+    }
+
     // The call ends by itself when the policy honors the token; one that ignored it would wait on a clock nobody moves,
     // so the end is awaited as a condition (bounded as a failure) before the outcome is read.
     private static async Task AssertCancelledAsync(Task send)
@@ -234,7 +308,7 @@ public sealed class OpenAIBoundedRetryPolicyTests
         }
     }
 
-    private static Task Start(Script transport, TimeProvider clock, bool synchronous, CancellationToken cancellationToken, int? maxRetries = null)
+    private static Task Start(Script transport, TimeProvider clock, bool synchronous, CancellationToken cancellationToken, int? maxRetries = null, int? ceiling = null)
     {
         var pipeline = ClientPipeline.Create(new ClientPipelineOptions
         {
@@ -243,6 +317,11 @@ public sealed class OpenAIBoundedRetryPolicyTests
         });
         var message = pipeline.CreateMessage(Address, "GET");
         message.Apply(new RequestOptions { CancellationToken = cancellationToken });
+
+        if (ceiling is { } cap)
+        {
+            OpenAIBoundedRetryPolicy.CapRetries(message, cap);
+        }
 
         // The synchronous loop blocks its thread in the policy's wait, so it runs on one of its own.
         // The token is on the message already (`Apply` above). System.ClientModel 1.17 has a `SendAsync(message, token)`

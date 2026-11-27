@@ -16,7 +16,10 @@ public static class AzureOpenAIImageBuilderExtensions
     /// Call <see cref="AzureOpenAIProviderExtensions.UseAzureOpenAI(ITraconBuilder, Uri, string, Action{AzureOpenAIProviderOptions}?)"/>
     /// first. The image model is an Azure deployment name, not a public model id. <paramref name="configure"/> changes the entry
     /// of <c>azure-openai</c> in <see cref="TraconImageOptions.Providers"/> and no other; <c>azure-openai.quality</c> in
-    /// <see cref="TraconImageProviderOptions.ProviderSettings"/> sets the image quality.
+    /// <see cref="TraconImageProviderOptions.ProviderSettings"/> sets the image quality. An image call is billed, and the Azure
+    /// OpenAI client sends a failed call again up to three times; it has no retry option of its own, so
+    /// <see cref="TraconImageProviderOptions.MaxRetries"/> is the way to ask for fewer for image calls. Chat calls keep the
+    /// client's count.
     /// <example>
     /// <code>
     /// builder.AddTracon()

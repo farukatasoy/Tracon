@@ -64,8 +64,9 @@ internal sealed class ImageGenerationService : IImageGenerationService
                 "Request fewer images or raise the `Tracon:Images:MaxImagesPerRequest` setting.");
         }
 
-        // One read: the provider, its model and its settings belong together.
-        var chosen = _selection.Select(request.Provider, request.Model);
+        // One read: the provider, its model and its settings belong together. The call's own settings are laid over the registered
+        // ones and checked here, before the tenant checks and the provider: a refused setting sends nothing anywhere.
+        var chosen = _selection.Select(request.Provider, request.Model, request.ProviderSettings);
 
         // The tenant of the run the call is part of; outside a run, the request's. Its provider checks come before the call.
         var tenantId = TraconRunContext.Current?.TenantId ?? _tenants.TenantId;

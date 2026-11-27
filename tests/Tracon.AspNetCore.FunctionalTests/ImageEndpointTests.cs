@@ -114,6 +114,26 @@ public sealed class ImageEndpointTests
         generator.LastRequest.ShouldBeNull();
     }
 
+    [Theory]
+    [InlineData("providerSettings")]
+    [InlineData("openai.quality")]
+    [InlineData("quality")]
+    [InlineData("maxRetries")]
+    public async Task Endpoint_passes_no_provider_setting_and_no_retry_count_whatever_the_body_names(string field)
+    {
+        // What an image costs depends on its quality and on how often a failed call is sent again. Those are set in code: a
+        // client of the endpoint is not given them. The body has no such field, and a field of that name reaches nothing.
+        var generator = new StubImageGenerator();
+        await using var host = await StartWithImagesAsync(generator);
+
+        using var response = await host.Client.PostAsJsonAsync(
+            GenerateUri,
+            new Dictionary<string, object>(StringComparer.Ordinal) { ["prompt"] = "a lighthouse", [field] = "high" });
+
+        generator.LastOptions.ShouldNotBeNull("the call was made, so the options of the call were seen");
+        generator.LastOptions!.AdditionalProperties.ShouldBeNull("the request chose nothing the provider sees");
+    }
+
     [Fact]
     public async Task Endpoint_translates_a_provider_failure_to_bad_gateway()
     {

@@ -83,6 +83,27 @@ public sealed class TraconImageProviderOptions
     public string? Model { get; set; }
 
     /// <summary>
+    /// Gets or sets the most times an image call is sent again after a failure the provider client considers worth repeating.
+    /// When <see langword="null"/>, the count of the provider's client applies.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An image call is billed, and the client sends it again on <c>429</c>, <c>500</c> and <c>503</c>: with the default of
+    /// three, one failing call reaches the server four times. The provider's client shares its retry count with chat
+    /// (<c>OpenAIProviderOptions.MaxRetries</c>, three by default; Azure OpenAI has no option and uses three), and a count that
+    /// suits chat can be too high for a call that costs money. This value is a ceiling for image calls alone: <c>0</c> sends a
+    /// call once, <c>1</c> sends it at most twice. It only lowers: a value above the client's own count changes nothing, and
+    /// chat calls on the same client keep the client's count.
+    /// </para>
+    /// <para>
+    /// Must be from <c>0</c> to <c>10</c> when set. Only the OpenAI and Azure OpenAI image providers take it: a value on any
+    /// other provider (Google's image client has no retry setting) fails at startup instead of being ignored. Configuration
+    /// binds it (<c>Tracon:Images:Providers:{name}:MaxRetries</c>).
+    /// </para>
+    /// </remarks>
+    public int? MaxRetries { get; set; }
+
+    /// <summary>
     /// Gets the provider-specific settings, keyed under the provider's prefix (for example <c>openai.quality</c>). Empty by
     /// default.
     /// </summary>
@@ -96,6 +117,10 @@ public sealed class TraconImageProviderOptions
     /// OpenAI and Azure OpenAI support <c>openai.quality</c> and <c>azure-openai.quality</c> (a string such as
     /// <c>low</c>, <c>medium</c>, <c>high</c> or <c>auto</c>). Google supports none. Code sets them; configuration does not bind
     /// this dictionary.
+    /// </para>
+    /// <para>
+    /// These are the settings of every call to the provider. A host's own call can lay its own over them for that call alone
+    /// (<see cref="TraconImageRequest.ProviderSettings"/>).
     /// </para>
     /// </remarks>
     public IDictionary<string, JsonElement> ProviderSettings { get; } =
@@ -149,6 +174,25 @@ internal sealed class TraconImageOptionsValidator : IValidateOptions<TraconImage
                 $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Providers)}[{providerName}]",
                 nameof(TraconImageProviderOptions.Model),
                 ref failures);
+
+            var scope = $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Providers)}[{providerName}]";
+
+            if (provider.MaxRetries is { } maxRetries)
+            {
+                if (!ImageProviderSettingKeys.SupportsMaxRetries(providerName))
+                {
+                    // Nothing is ignored silently: a ceiling the client cannot apply would read as a protection that is not there.
+                    (failures ??= []).Add(
+                        $"{scope}.{nameof(TraconImageProviderOptions.MaxRetries)} is set, but the '{providerName}' image provider has no " +
+                        "retry setting, so the value would be ignored. Only the openai and azure-openai image providers take one: remove it.");
+                }
+                else if (maxRetries is < 0 or > ImageProviderSettingKeys.MaximumMaxRetries)
+                {
+                    (failures ??= []).Add(
+                        $"{scope}.{nameof(TraconImageProviderOptions.MaxRetries)} must be from 0 to {ImageProviderSettingKeys.MaximumMaxRetries}. " +
+                        $"Received value: {maxRetries}.");
+                }
+            }
 
             try
             {

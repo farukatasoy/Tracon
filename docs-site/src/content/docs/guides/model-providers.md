@@ -195,6 +195,10 @@ key alike, and it is bound from `Tracon:Providers:OpenAI:MaxRetries` as well. Th
 provider has an option of the same name. Azure OpenAI uses the OpenAI default and has no
 option for it yet.
 
+Image generation shares this client, so a billed image call is sent again by the same count. To send images fewer
+times than chat, set `Tracon:Images:Providers:openai:MaxRetries` (or `azure-openai`): it is a ceiling for image calls
+alone and leaves chat as it is. See [Send a failed image call fewer times](/guides/multimodal/#send-a-failed-image-call-fewer-times).
+
 :::caution[Compatibility is measured per server and model]
 A successful health check proves reachability. It does not prove tool calling,
 structured output, streaming usage, or Responses API compatibility. Some compatible
@@ -893,7 +897,7 @@ as a rejection, since there is nothing to compare the prompt against.
 | Health cache | 60 seconds |
 | Background health checks | Off; checks run on request unless an interval is configured |
 | Circuit breaker | On; 5 consecutive failures; one half-open attempt after 30 seconds |
-| OpenAI client retries | Three, before Tracon sees the failure; `MaxRetries` changes it |
+| OpenAI client retries | Three, before Tracon sees the failure; `MaxRetries` changes it, and `Tracon:Images:Providers:{name}:MaxRetries` lowers it for image calls alone |
 | Model catalog | Empty until the host supplies entries |
 | Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
 | Fallback chain | Empty; an unavailable primary throws |

@@ -137,15 +137,76 @@ public sealed class GenerateImageToolTests
         schema.ShouldContain("\"required\"");
     }
 
+    [Fact]
+    public void Tool_schema_offers_the_prompt_the_count_and_the_size_and_no_cost_lever()
+    {
+        // The quality of an image and the number of times a billed call is sent again are what the call costs. A model that
+        // read them from the schema could spend the host's money; they are set in code, so they are not here.
+        using var services = new ServiceCollection().BuildServiceProvider();
+        using var schema = System.Text.Json.JsonDocument.Parse(new GenerateImageTool(services).JsonSchema.GetRawText());
+
+        var names = schema.RootElement.GetProperty("properties").EnumerateObject().Select(static property => property.Name).ToArray();
+
+        names.ShouldBe(["prompt", "count", "size"]);
+        schema.RootElement.TryGetProperty("additionalProperties", out _).ShouldBeFalse("the schema does not invite more arguments");
+    }
+
+    [Fact]
+    public async Task Arguments_that_name_a_provider_setting_or_a_retry_count_are_not_passed_to_the_provider()
+    {
+        var generator = new StubImageGenerator();
+        var services = BuildServices(generator);
+
+        using var scope = RunScope();
+
+        _ = await InvokeAsync(
+            services,
+            "a lighthouse",
+            extra: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["providerSettings"] = new Dictionary<string, object?>(StringComparer.Ordinal) { ["openai.quality"] = "high" },
+                ["openai.quality"] = "high",
+                ["quality"] = "high",
+                ["maxRetries"] = 9,
+                [ImageProviderSettingKeys.MaxRetriesProperty] = 9,
+            });
+
+        generator.CallCount.ShouldBe(1);
+        generator.LastOptions.ShouldNotBeNull().AdditionalProperties.ShouldBeNull("the model chose nothing the provider sees");
+    }
+
+    [Fact]
+    public async Task The_retry_ceiling_of_the_provider_reaches_the_generator_of_a_tool_call()
+    {
+        var generator = new StubImageGenerator();
+        var services = BuildServices(generator, options => options.Providers["test-images"].MaxRetries = 1);
+
+        using var scope = RunScope();
+
+        _ = await InvokeAsync(services, "a lighthouse");
+
+        generator.LastOptions.ShouldNotBeNull().AdditionalProperties.ShouldNotBeNull()
+            [ImageProviderSettingKeys.MaxRetriesProperty].ShouldBe(1);
+    }
+
     private static async ValueTask<object?> InvokeAsync(
         IServiceProvider services,
         string prompt,
         int? count = null,
-        string? size = null)
+        string? size = null,
+        IReadOnlyDictionary<string, object?>? extra = null)
     {
         var tool = new GenerateImageTool(services);
 
         var values = new Dictionary<string, object?>(StringComparer.Ordinal) { ["prompt"] = prompt };
+
+        if (extra is not null)
+        {
+            foreach (var (key, argument) in extra)
+            {
+                values[key] = argument;
+            }
+        }
 
         if (count is { } value)
         {

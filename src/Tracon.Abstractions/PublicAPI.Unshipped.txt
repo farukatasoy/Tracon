@@ -1287,6 +1287,8 @@ Tracon.TraconImageRequest.Prompt.get -> string!
 Tracon.TraconImageRequest.Prompt.init -> void
 Tracon.TraconImageRequest.Provider.get -> string?
 Tracon.TraconImageRequest.Provider.init -> void
+Tracon.TraconImageRequest.ProviderSettings.get -> System.Collections.Generic.IDictionary<string!, System.Text.Json.JsonElement>!
+Tracon.TraconImageRequest.ProviderSettings.init -> void
 Tracon.TraconImageRequest.Size.get -> System.Drawing.Size?
 Tracon.TraconImageRequest.Size.init -> void
 Tracon.TraconImageRequest.TraconImageRequest() -> void

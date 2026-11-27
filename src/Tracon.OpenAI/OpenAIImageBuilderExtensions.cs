@@ -24,6 +24,11 @@ public static class OpenAIImageBuilderExtensions
     /// <see cref="TraconImageProviderOptions.ProviderSettings"/> sets the image quality.
     /// </para>
     /// <para>
+    /// An image call is billed and shares the client of <c>UseOpenAI</c>, so it is sent again by that client's retry count
+    /// (<see cref="OpenAIProviderOptions.MaxRetries"/>, three by default). <see cref="TraconImageProviderOptions.MaxRetries"/>
+    /// lowers it for image calls alone: <c>0</c> sends a call once, and chat calls are not affected.
+    /// </para>
+    /// <para>
     /// The <c>generate_image</c> tool stays absent until
     /// <see cref="TraconImageOptions.Enabled"/> is true. Registering this
     /// generator alone does not expose a paid capability to agents.

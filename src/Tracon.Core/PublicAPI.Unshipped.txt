@@ -387,6 +387,8 @@ Tracon.TraconImageOptions.Timeout.get -> System.TimeSpan
 Tracon.TraconImageOptions.Timeout.set -> void
 Tracon.TraconImageOptions.TraconImageOptions() -> void
 Tracon.TraconImageProviderOptions
+Tracon.TraconImageProviderOptions.MaxRetries.get -> int?
+Tracon.TraconImageProviderOptions.MaxRetries.set -> void
 Tracon.TraconImageProviderOptions.Model.get -> string?
 Tracon.TraconImageProviderOptions.Model.set -> void
 Tracon.TraconImageProviderOptions.ProviderSettings.get -> System.Collections.Generic.IDictionary<string!, System.Text.Json.JsonElement>!

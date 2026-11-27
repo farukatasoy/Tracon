@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 
 namespace Tracon;
@@ -30,19 +31,23 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>Delivery:</strong> no delivery guarantee applies. One call sends one request; a failed call is not repeated by this
-/// service (the provider client's own retries apply).
+/// service, but the provider client's own retries apply, and an image call is billed. The OpenAI and Azure OpenAI clients send a
+/// call again on <c>429</c>, <c>500</c> and <c>503</c> up to three times by default, so one failing call can reach the provider
+/// four times. <c>Tracon:Images:Providers:{name}:MaxRetries</c> (<c>TraconImageProviderOptions.MaxRetries</c>) is a ceiling on
+/// that count for image calls: <c>0</c> sends the call once. It only lowers the count, and chat calls keep the client's.
 /// </para>
 /// </remarks>
 public interface IImageGenerationService
 {
     /// <summary>Generates one or more images.</summary>
-    /// <param name="request">The prompt, and optionally the count, size, provider and model.</param>
+    /// <param name="request">The prompt, and optionally the count, size, provider, model and provider settings of this call.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The images as bytes, and what the call spent.</returns>
     /// <exception cref="ArgumentException">The prompt is blank, or the count or the size is not positive.</exception>
     /// <exception cref="TraconException">
     /// No provider or model can be selected, the count exceeds <c>Tracon:Images:MaxImagesPerRequest</c>, the provider is refused for
-    /// the tenant (<see cref="TraconTenantProviderRefusedException"/>), the provider failed (a <c>ProviderInvocationException</c>
+    /// the tenant (<see cref="TraconTenantProviderRefusedException"/>), a setting in <see cref="TraconImageRequest.ProviderSettings"/>
+    /// is not supported by the provider or is of the wrong type, the provider failed (a <c>ProviderInvocationException</c>
     /// from Tracon's core package, with the status and whether a retry can help), the call ran longer than
     /// <c>Tracon:Images:Timeout</c>, or the provider returned no image.
     /// </exception>
@@ -85,6 +90,35 @@ public sealed record TraconImageRequest
 
     /// <summary>Gets the model or Azure deployment, or <see langword="null"/> for the provider's configured model.</summary>
     public string? Model { get; init; }
+
+    /// <summary>
+    /// Gets the provider settings of this call, keyed under the provider's prefix (for example <c>openai.quality</c>). Empty by
+    /// default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The type is the one of <c>TraconImageProviderOptions.ProviderSettings</c>, and the keys are the same. The call's
+    /// settings are laid over the ones registered for the provider: a key in both takes the call's value for this call only, and
+    /// the next call starts from the registered ones again. A key the provider does not support, a key of another provider and a
+    /// value of the wrong type are refused with a <see cref="TraconException"/> before the provider is called, as nothing is
+    /// ignored silently. The message names the key, never the value.
+    /// </para>
+    /// <para>
+    /// Code sets it. The <c>generate_image</c> tool and <c>POST /api/images/generate</c> send none and cannot be given any:
+    /// the quality of an image changes what the call costs, and a model or a client must not choose it.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// var request = new TraconImageRequest
+    /// {
+    ///     Prompt = "A lighthouse at dawn",
+    ///     ProviderSettings = { ["openai.quality"] = JsonSerializer.SerializeToElement("high") },
+    /// };
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public IDictionary<string, JsonElement> ProviderSettings { get; init; } =
+        new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>What one image call returned and spent.</summary>

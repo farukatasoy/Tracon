@@ -50,6 +50,7 @@ Tracon:Idempotency:ReservationTimeout
 Tracon:Images:Enabled
 Tracon:Images:MaxImagesPerRequest
 Tracon:Images:Provider
+Tracon:Images:Providers:*:MaxRetries
 Tracon:Images:Providers:*:Model
 Tracon:Images:Timeout
 Tracon:InboundTriggers:AllowedConfigurationPrefix

@@ -51,6 +51,7 @@ public sealed class TraconImageOptionsBindingTests
             ["Tracon:Images:Enabled"] = "true",
             ["Tracon:Images:Provider"] = "openai",
             ["Tracon:Images:Providers:openai:Model"] = "gpt-image-1",
+            ["Tracon:Images:Providers:openai:MaxRetries"] = "2",
             ["Tracon:Images:MaxImagesPerRequest"] = "3",
             ["Tracon:Images:Timeout"] = "00:00:45",
         };
@@ -60,9 +61,49 @@ public sealed class TraconImageOptionsBindingTests
         options.Enabled.ShouldBeTrue();
         string.Equals(options.Provider, "openai", StringComparison.Ordinal).ShouldBeTrue();
         string.Equals(options.Providers["openai"].Model, "gpt-image-1", StringComparison.Ordinal).ShouldBeTrue();
+        options.Providers["openai"].MaxRetries.ShouldBe(2);
         options.MaxImagesPerRequest.ShouldBe(3);
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(45));
         OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Images", options);
+    }
+
+    [Fact]
+    public void A_retry_ceiling_binds_for_a_provider_whose_model_is_set_in_code()
+    {
+        // The model of a provider is often set in code (UseOpenAIImages), and the ceiling is the one setting an operator
+        // changes without a build: the entry exists for the ceiling alone.
+        var options = Bind(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Images:Providers:openai:MaxRetries"] = "0",
+        });
+
+        var entry = options.Providers["openai"];
+
+        entry.MaxRetries.ShouldBe(0, "zero is a value: the call is sent once");
+        entry.Model.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_provider_section_that_names_neither_a_model_nor_a_ceiling_creates_no_entry()
+    {
+        var options = Bind(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Images:Providers:openai:Unknown"] = "x",
+            ["Tracon:Images:Providers:google:MaxRetries"] = "  ",
+        });
+
+        options.Providers.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void An_unreadable_retry_ceiling_stops_the_host_at_startup()
+    {
+        var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Images:Providers:openai:MaxRetries"] = "twice",
+        });
+
+        failure.Message.ShouldContain("Tracon:Images:Providers:openai:MaxRetries is 'twice'");
     }
 
     [Fact]

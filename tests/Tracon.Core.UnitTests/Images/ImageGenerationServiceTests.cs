@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.Tests.Common;
@@ -81,6 +82,173 @@ public sealed class ImageGenerationServiceTests
             .ShouldBeEmpty("a call that never returned an image spent nothing Tracon could measure");
     }
 
+    [Fact]
+    public async Task A_call_setting_replaces_the_registered_one_for_that_call_only()
+    {
+        var generator = new Generator();
+        await using var provider = BuildOpenAI(generator, registered => registered.ProviderSettings["openai.quality"] = Text("medium"));
+        var images = provider.GetRequiredService<IImageGenerationService>();
+        var request = new TraconImageRequest { Prompt = "a kite", ProviderSettings = { ["openai.quality"] = Text("high") } };
+
+        await images.GenerateAsync(request, TestContext.Current.CancellationToken);
+        await images.GenerateAsync(new TraconImageRequest { Prompt = "a kite" }, TestContext.Current.CancellationToken);
+
+        generator.Options.Count.ShouldBe(2);
+        QualityOf(generator.Options[0]).ShouldBe("high", "the call's value wins");
+        QualityOf(generator.Options[1]).ShouldBe("medium", "the next call starts from the registered value again");
+
+        provider.GetRequiredService<ImageProviderSelection>().Options.Providers["openai"].ProviderSettings["openai.quality"]
+            .GetString().ShouldBe("medium", "the registered settings are not mutated");
+        request.ProviderSettings["openai.quality"].GetString().ShouldBe("high", "the request's own dictionary is not mutated either");
+    }
+
+    [Fact]
+    public async Task A_call_setting_with_no_registered_one_reaches_the_provider()
+    {
+        var generator = new Generator();
+        await using var provider = BuildOpenAI(generator);
+        var images = provider.GetRequiredService<IImageGenerationService>();
+
+        await images.GenerateAsync(
+            new TraconImageRequest { Prompt = "a kite", ProviderSettings = { ["openai.quality"] = Text("low") } },
+            TestContext.Current.CancellationToken);
+
+        QualityOf(generator.Options.ShouldHaveSingleItem()).ShouldBe("low");
+    }
+
+    [Fact]
+    public async Task A_call_key_in_another_letter_case_replaces_the_registered_key_and_still_reaches_the_provider()
+    {
+        var generator = new Generator();
+        await using var provider = BuildOpenAI(generator, registered => registered.ProviderSettings["openai.quality"] = Text("medium"));
+        var images = provider.GetRequiredService<IImageGenerationService>();
+
+        await images.GenerateAsync(
+            new TraconImageRequest { Prompt = "a kite", ProviderSettings = { ["OpenAI.Quality"] = Text("high") } },
+            TestContext.Current.CancellationToken);
+
+        var options = generator.Options.ShouldHaveSingleItem();
+
+        options.AdditionalProperties.ShouldNotBeNull().Count.ShouldBe(1, "one setting, not the registered one beside the call's");
+        QualityOf(options).ShouldBe("high", "the generator reads the key by its exact spelling");
+    }
+
+    [Theory]
+    [InlineData("openai.size")]
+    [InlineData("azure-openai.quality")]
+    [InlineData("google.quality")]
+    [InlineData("quality")]
+    [InlineData("tracon.maxRetries")]
+    public async Task A_call_setting_the_provider_does_not_support_is_refused_before_the_provider_is_called(string key)
+    {
+        var generator = new Generator();
+        await using var provider = BuildOpenAI(generator);
+        var images = provider.GetRequiredService<IImageGenerationService>();
+
+        var failure = await Should.ThrowAsync<TraconException>(
+            async () => await images.GenerateAsync(
+                new TraconImageRequest { Prompt = "a kite", ProviderSettings = { [key] = Text("high") } },
+                TestContext.Current.CancellationToken));
+
+        failure.Message.ShouldContain(key, Case.Sensitive);
+        failure.Message.ShouldNotContain("high", Case.Sensitive);
+        generator.Calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_call_setting_of_the_wrong_type_is_refused_and_the_message_names_no_value()
+    {
+        var generator = new Generator();
+        await using var provider = BuildOpenAI(generator);
+        var images = provider.GetRequiredService<IImageGenerationService>();
+
+        var failure = await Should.ThrowAsync<TraconException>(
+            async () => await images.GenerateAsync(
+                new TraconImageRequest { Prompt = "a kite", ProviderSettings = { ["openai.quality"] = JsonSerializer.SerializeToElement(4242) } },
+                TestContext.Current.CancellationToken));
+
+        failure.Message.ShouldContain("openai.quality", Case.Sensitive);
+        failure.Message.ShouldNotContain("4242", Case.Sensitive);
+        generator.Calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_provider_that_supports_no_setting_refuses_every_call_setting()
+    {
+        var generator = new Generator();
+        await using var provider = Build(generator);
+        var images = provider.GetRequiredService<IImageGenerationService>();
+
+        await Should.ThrowAsync<TraconException>(
+            async () => await images.GenerateAsync(
+                new TraconImageRequest { Prompt = "a kite", ProviderSettings = { ["openai.quality"] = Text("high") } },
+                TestContext.Current.CancellationToken));
+
+        generator.Calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_request_whose_settings_are_null_is_the_same_as_one_with_none()
+    {
+        var generator = new Generator();
+        await using var provider = BuildOpenAI(generator, registered => registered.ProviderSettings["openai.quality"] = Text("medium"));
+        var images = provider.GetRequiredService<IImageGenerationService>();
+
+        await images.GenerateAsync(
+            new TraconImageRequest { Prompt = "a kite", ProviderSettings = null! },
+            TestContext.Current.CancellationToken);
+
+        QualityOf(generator.Options.ShouldHaveSingleItem()).ShouldBe("medium");
+    }
+
+    [Fact]
+    public async Task A_retry_ceiling_of_the_provider_travels_with_every_call_and_none_travels_when_none_is_set()
+    {
+        var capped = new Generator();
+        await using (var provider = BuildOpenAI(capped, registered => registered.MaxRetries = 0))
+        {
+            await provider.GetRequiredService<IImageGenerationService>()
+                .GenerateAsync(new TraconImageRequest { Prompt = "a kite" }, TestContext.Current.CancellationToken);
+        }
+
+        capped.Options.ShouldHaveSingleItem().AdditionalProperties.ShouldNotBeNull()
+            [ImageProviderSettingKeys.MaxRetriesProperty].ShouldBe(0, "zero is a ceiling, not the absence of one");
+
+        var open = new Generator();
+        await using (var provider = BuildOpenAI(open))
+        {
+            await provider.GetRequiredService<IImageGenerationService>()
+                .GenerateAsync(new TraconImageRequest { Prompt = "a kite" }, TestContext.Current.CancellationToken);
+        }
+
+        (open.Options.ShouldHaveSingleItem().AdditionalProperties?.ContainsKey(ImageProviderSettingKeys.MaxRetriesProperty) ?? false)
+            .ShouldBeFalse("no ceiling is asked for, so the client's own count applies");
+    }
+
+    private static JsonElement Text(string value) => JsonSerializer.SerializeToElement(value);
+
+    private static string? QualityOf(ImageGenerationOptions options)
+        => options.AdditionalProperties is { } properties && properties.TryGetValue("openai.quality", out var value)
+            ? (value as JsonElement?)?.GetString()
+            : null;
+
+    private static ServiceProvider BuildOpenAI(Generator generator, Action<TraconImageProviderOptions>? registered = null)
+    {
+        var services = new ServiceCollection();
+
+        services.AddTracon()
+            .ConfigureImages(images =>
+            {
+                images.Provider = "openai";
+                images.Providers["openai"] = new TraconImageProviderOptions { Model = "image-1" };
+                registered?.Invoke(images.Providers["openai"]);
+            });
+
+        services.AddKeyedSingleton<IImageGenerator>("openai", generator);
+
+        return services.BuildServiceProvider();
+    }
+
     private static ServiceProvider Build(Generator generator, Action<IServiceCollection>? configure = null)
     {
         var services = new ServiceCollection();
@@ -106,6 +274,9 @@ public sealed class ImageGenerationServiceTests
 
         public bool Hold { get; init; }
 
+        /// <summary>Gets the options of every call that reached the generator, in order.</summary>
+        public List<ImageGenerationOptions> Options { get; } = [];
+
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task<ImageGenerationResponse> GenerateAsync(
@@ -114,6 +285,15 @@ public sealed class ImageGenerationServiceTests
             CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _calls);
+
+            if (options is not null)
+            {
+                lock (Options)
+                {
+                    Options.Add(options);
+                }
+            }
+
             Entered.TrySetResult();
 
             if (Hold)

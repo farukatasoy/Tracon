@@ -264,11 +264,16 @@ public static partial class TraconServiceCollectionExtensions
             options.Provider = provider;
         }
 
-        // Tracon:Images:Providers:{name}:Model. The settings are code only: a value of another type cannot be read from text
-        // without a guess.
+        // Tracon:Images:Providers:{name}:Model and :MaxRetries. The settings are code only: a value of another type cannot be
+        // read from text without a guess. A section that names neither key creates no entry, and one that names only the
+        // ceiling does: the model of a provider is often set in code, the ceiling is what an operator changes without a build.
         foreach (var providerSection in section.GetSection(nameof(TraconImageOptions.Providers)).GetChildren())
         {
-            if (providerSection[nameof(TraconImageProviderOptions.Model)] is not { Length: > 0 } model)
+            var model = providerSection[nameof(TraconImageProviderOptions.Model)];
+            var hasModel = !string.IsNullOrEmpty(model);
+            var hasCeiling = !string.IsNullOrWhiteSpace(providerSection[nameof(TraconImageProviderOptions.MaxRetries)]);
+
+            if (!hasModel && !hasCeiling)
             {
                 continue;
             }
@@ -279,7 +284,16 @@ public static partial class TraconServiceCollectionExtensions
                 options.Providers[providerSection.Key] = entry;
             }
 
-            entry.Model = model;
+            if (hasModel)
+            {
+                entry.Model = model;
+            }
+
+            // The registered options own the report of text the reader cannot read, not the entry the text belongs to.
+            ConfigurationValueReader.For(providerSection, entry, root: options).Int32(
+                nameof(TraconImageProviderOptions.MaxRetries),
+                static o => o.MaxRetries,
+                static (o, v) => o.MaxRetries = v);
         }
 
         read.Int32(

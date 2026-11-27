@@ -248,6 +248,51 @@ When the provider names a configuration key for its key and address, the image g
 sends the pair that is current when it generates; see
 [change the provider key without a restart](/guides/model-providers/#change-the-provider-key-without-a-restart).
 
+### Change the quality of one call
+
+The settings you register with `UseOpenAIImages` apply to every call. Code that calls `IImageGenerationService` can lay
+its own over them for one call, in `TraconImageRequest.ProviderSettings`:
+
+```csharp
+var result = await images.GenerateAsync(
+    new TraconImageRequest
+    {
+        Prompt = "A lighthouse at dawn",
+        ProviderSettings = { ["openai.quality"] = JsonSerializer.SerializeToElement("high") },
+    },
+    cancellationToken);
+```
+
+The call's value wins for that call. The next call starts from the registered value again, and the registered settings
+are never changed. A key the provider does not support, a key of another provider, and a value that is not text throw a
+`TraconException` before anything is sent; the message names the key and never the value.
+
+The `generate_image` tool and `POST /api/images/generate` take no such setting. The quality changes what a call costs,
+so a model or a client does not choose it: it is set in code.
+
+### Send a failed image call fewer times
+
+An image call is billed. The OpenAI client sends a call again on `429`, `500` and `503`, so with its default of three
+retries one failing call reaches the server four times. That count is shared with chat, and a count that suits chat can
+be too high for a call that is priced per image. `Tracon:Images:Providers:{name}:MaxRetries` lowers the count for image
+calls alone, from `0` (send once) to `10`:
+
+```json
+{
+  "Tracon": {
+    "Images": {
+      "Providers": { "openai": { "MaxRetries": 0 } }
+    }
+  }
+}
+```
+
+It is a ceiling: a value above the client's own count changes nothing, and chat calls on the same client keep the
+client's count. The OpenAI and Azure OpenAI image providers take it, and so does the matching `MaxRetries` property of
+`TraconImageProviderOptions` in code. Azure OpenAI has no retry option of its own, so this is the one way to ask its
+client for fewer than three. Google has no retry setting to lower: a value on `google` stops the host at start instead of
+being ignored.
+
 ## Troubleshooting
 
 **Upload returns “type rejected.”** Changing the multipart `Content-Type` does not

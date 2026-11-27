@@ -100,4 +100,70 @@ public sealed class ImageOptionsValidationTests
         result.Succeeded.ShouldBeFalse();
         result.Failures!.ShouldHaveSingleItem().ShouldNotContain("4242", Case.Sensitive);
     }
+
+    [Theory]
+    [InlineData("openai", -1)]
+    [InlineData("openai", 11)]
+    [InlineData("azure-openai", -1)]
+    [InlineData("azure-openai", 1000)]
+    public void A_retry_ceiling_outside_zero_to_ten_fails_at_startup(string provider, int maxRetries)
+    {
+        var options = new TraconImageOptions();
+        options.Providers[provider] = new TraconImageProviderOptions { MaxRetries = maxRetries };
+
+        var result = new TraconImageOptionsValidator().Validate(null, options);
+
+        result.Succeeded.ShouldBeFalse();
+
+        var failure = result.Failures!.ShouldHaveSingleItem();
+
+        failure.ShouldContain($"Providers[{provider}]");
+        failure.ShouldContain("MaxRetries");
+        failure.ShouldContain("0 to 10");
+        failure.ShouldContain(maxRetries.ToString(System.Globalization.CultureInfo.InvariantCulture), Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData("openai", null)]
+    [InlineData("openai", 0)]
+    [InlineData("openai", 10)]
+    [InlineData("azure-openai", 0)]
+    [InlineData("azure-openai", 3)]
+    public void A_retry_ceiling_inside_the_bound_passes_for_the_providers_that_take_one(string provider, int? maxRetries)
+    {
+        var options = new TraconImageOptions();
+        options.Providers[provider] = new TraconImageProviderOptions { MaxRetries = maxRetries };
+
+        new TraconImageOptionsValidator().Validate(null, options).Succeeded.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("google")]
+    [InlineData("GOOGLE")]
+    [InlineData("my-own-provider")]
+    public void A_retry_ceiling_on_a_provider_that_has_no_retry_setting_fails_at_startup_instead_of_being_ignored(string provider)
+    {
+        var options = new TraconImageOptions();
+        options.Providers[provider] = new TraconImageProviderOptions { MaxRetries = 1 };
+
+        var result = new TraconImageOptionsValidator().Validate(null, options);
+
+        result.Succeeded.ShouldBeFalse();
+
+        var failure = result.Failures!.ShouldHaveSingleItem();
+
+        failure.ShouldContain($"Providers[{provider}]");
+        failure.ShouldContain("MaxRetries");
+        failure.ShouldContain("openai", Case.Sensitive);
+        failure.ShouldContain("azure-openai", Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_provider_with_no_retry_ceiling_is_the_same_whatever_its_name()
+    {
+        var options = new TraconImageOptions();
+        options.Providers["google"] = new TraconImageProviderOptions { Model = "gemini-image" };
+
+        new TraconImageOptionsValidator().Validate(null, options).Succeeded.ShouldBeTrue();
+    }
 }

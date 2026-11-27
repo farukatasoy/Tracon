@@ -7,7 +7,8 @@ namespace Tracon.ProviderCore.Tests;
 /// <summary>
 /// A one-request HTTP/1.1 server on a loopback port. It records the request
 /// line and headers, then writes a canned response - or never answers, to
-/// drive a timeout.
+/// drive a timeout. <see cref="RespondToEvery"/> keeps answering, one connection
+/// per request, and counts them: what a client that sends a call again does.
 /// </summary>
 /// <remarks>
 /// Linked into the four provider test projects. A real socket, not
@@ -21,12 +22,14 @@ internal sealed class StubHttpServer : IAsyncDisposable
     private readonly Task _serve;
     private readonly TaskCompletionSource<string> _request = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<string> _body = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly List<string> _bodies = [];
+    private int _requests;
 
-    private StubHttpServer(int statusCode, string reason, string? body)
+    private StubHttpServer(int statusCode, string reason, string? body, bool repeat = false)
     {
         _listener.Start();
         BaseAddress = new Uri($"http://127.0.0.1:{((IPEndPoint)_listener.LocalEndpoint).Port}/");
-        _serve = ServeAsync(statusCode, reason, body);
+        _serve = ServeAsync(statusCode, reason, body, repeat);
     }
 
     /// <summary>The server's base address, with a trailing slash.</summary>
@@ -34,6 +37,9 @@ internal sealed class StubHttpServer : IAsyncDisposable
 
     /// <summary>Starts a server that answers with <paramref name="statusCode"/> and a JSON body.</summary>
     public static StubHttpServer Respond(int statusCode, string reason, string body) => new(statusCode, reason, body);
+
+    /// <summary>Starts a server that answers every request, one after the other, with the same status and JSON body.</summary>
+    public static StubHttpServer RespondToEvery(int statusCode, string reason, string body) => new(statusCode, reason, body, repeat: true);
 
     /// <summary>Starts a server that reads the request and never answers.</summary>
     public static StubHttpServer NeverRespond() => new(0, string.Empty, body: null);
@@ -46,6 +52,21 @@ internal sealed class StubHttpServer : IAsyncDisposable
     /// (UTF-8). Empty when the request carried none.
     /// </summary>
     public Task<string> RequestBody => _body.Task;
+
+    /// <summary>How many requests the server has read so far.</summary>
+    public int Requests => Volatile.Read(ref _requests);
+
+    /// <summary>The body of every request the server has read, in the order they arrived.</summary>
+    public IReadOnlyList<string> RequestBodies
+    {
+        get
+        {
+            lock (_bodies)
+            {
+                return [.. _bodies];
+            }
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {
@@ -64,32 +85,43 @@ internal sealed class StubHttpServer : IAsyncDisposable
         _stop.Dispose();
     }
 
-    private async Task ServeAsync(int statusCode, string reason, string? body)
+    private async Task ServeAsync(int statusCode, string reason, string? body, bool repeat)
     {
-        using var client = await _listener.AcceptTcpClientAsync(_stop.Token);
-        await using var stream = client.GetStream();
-
-        var (head, requestBody) = await ReadRequestAsync(stream, _stop.Token);
-        _request.TrySetResult(head);
-        _body.TrySetResult(requestBody);
-
-        if (body is null)
+        do
         {
-            // Hold the connection open until the test ends.
-            await Task.Delay(Timeout.Infinite, _stop.Token); // delay: simulated
-            return;
+            using var client = await _listener.AcceptTcpClientAsync(_stop.Token);
+            await using var stream = client.GetStream();
+
+            var (head, requestBody) = await ReadRequestAsync(stream, _stop.Token);
+
+            lock (_bodies)
+            {
+                _bodies.Add(requestBody);
+            }
+
+            Interlocked.Increment(ref _requests);
+            _request.TrySetResult(head);
+            _body.TrySetResult(requestBody);
+
+            if (body is null)
+            {
+                // Hold the connection open until the test ends.
+                await Task.Delay(Timeout.Infinite, _stop.Token); // delay: simulated
+                return;
+            }
+
+            var payload = Encoding.UTF8.GetBytes(body);
+            var header = Encoding.ASCII.GetBytes(
+                $"HTTP/1.1 {statusCode} {reason}\r\n" +
+                "Content-Type: application/json\r\n" +
+                $"Content-Length: {payload.Length}\r\n" +
+                "Connection: close\r\n\r\n");
+
+            await stream.WriteAsync(header, _stop.Token);
+            await stream.WriteAsync(payload, _stop.Token);
+            await stream.FlushAsync(_stop.Token);
         }
-
-        var payload = Encoding.UTF8.GetBytes(body);
-        var header = Encoding.ASCII.GetBytes(
-            $"HTTP/1.1 {statusCode} {reason}\r\n" +
-            "Content-Type: application/json\r\n" +
-            $"Content-Length: {payload.Length}\r\n" +
-            "Connection: close\r\n\r\n");
-
-        await stream.WriteAsync(header, _stop.Token);
-        await stream.WriteAsync(payload, _stop.Token);
-        await stream.FlushAsync(_stop.Token);
+        while (repeat);
     }
 
     private static async Task<(string Head, string Body)> ReadRequestAsync(NetworkStream stream, CancellationToken cancellationToken)

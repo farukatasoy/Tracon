@@ -49,6 +49,12 @@ namespace Tracon;
 /// <c>{provider}.quality</c> (<c>openai.quality</c>, <c>azure-openai.quality</c>). A value that is not a string is refused before
 /// the request is sent.
 /// </para>
+/// <para>
+/// The call can also carry a ceiling on how often the client sends it again, under <c>tracon.maxRetries</c>. It is not a provider
+/// setting: Tracon writes it from the image options of the provider, and it lowers the retries of this one message below the
+/// client's own count (<see cref="OpenAIBoundedRetryPolicy.CapRetries"/>). A value that is not a whole number from 0 to 10 is
+/// refused before the request is sent.
+/// </para>
 /// </remarks>
 internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
 {
@@ -102,6 +108,9 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
         ArgumentNullException.ThrowIfNull(request);
         var prompt = request.Prompt ?? throw new ArgumentException("The image request has no prompt.", nameof(request));
 
+        // Read first: a ceiling that is not a whole number in range is refused before anything is sent.
+        var maxRetries = MaxRetries(options);
+
         BinaryData answer;
 
         if (request.OriginalImages?.FirstOrDefault() is { } original)
@@ -111,12 +120,12 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
             var payload = await form.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
 
             using var content = BinaryContent.Create(BinaryData.FromBytes(payload));
-            answer = await PostAsync("images/edits", content, contentType, cancellationToken).ConfigureAwait(false);
+            answer = await PostAsync("images/edits", content, contentType, maxRetries, cancellationToken).ConfigureAwait(false);
         }
         else
         {
             using var content = BinaryContent.Create(GenerationBody(prompt, options));
-            answer = await PostAsync("images/generations", content, "application/json", cancellationToken).ConfigureAwait(false);
+            answer = await PostAsync("images/generations", content, "application/json", maxRetries, cancellationToken).ConfigureAwait(false);
         }
 
         return ToResponse(answer);
@@ -220,7 +229,7 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
         return form;
     }
 
-    private async Task<BinaryData> PostAsync(string path, BinaryContent content, string contentType, CancellationToken cancellationToken)
+    private async Task<BinaryData> PostAsync(string path, BinaryContent content, string contentType, int? maxRetries, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -229,6 +238,13 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
 
         using var message = target.Pipeline.CreateMessage();
         message.Apply(new RequestOptions { CancellationToken = cancellationToken });
+
+        // The client is shared with chat, whose retries suit a call that costs nothing. This call is billed: its ceiling lowers
+        // the retries of this message alone, and a client whose policy is not Tracon's (a host's own pipeline) never reads it.
+        if (maxRetries is { } ceiling)
+        {
+            OpenAIBoundedRetryPolicy.CapRetries(message, ceiling);
+        }
 
         var request = message.Request;
         request.Method = "POST";
@@ -392,6 +408,30 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
             JsonElement { ValueKind: JsonValueKind.String } element when !string.IsNullOrWhiteSpace(element.GetString()) => element.GetString(),
             _ => throw new TraconException($"The image setting '{_qualityKey}' must be a non-empty string."),
         };
+    }
+
+    /// <summary>The ceiling on how often this call is sent again, or <see langword="null"/> when the call asks for none.</summary>
+    /// <exception cref="TraconException">The value is not a whole number from 0 to the most a ceiling may be. The message names the key and never the value.</exception>
+    private static int? MaxRetries(ImageGenerationOptions? options)
+    {
+        if (options?.AdditionalProperties is not { } properties
+            || !properties.TryGetValue(ImageProviderSettingKeys.MaxRetriesProperty, out var value))
+        {
+            return null;
+        }
+
+        var count = value switch
+        {
+            int whole => whole,
+            long whole when whole is >= 0 and <= ImageProviderSettingKeys.MaximumMaxRetries => (int)whole,
+            JsonElement { ValueKind: JsonValueKind.Number } element when element.TryGetInt32(out var whole) => whole,
+            _ => -1,
+        };
+
+        return count is >= 0 and <= ImageProviderSettingKeys.MaximumMaxRetries
+            ? count
+            : throw new TraconException(
+                $"The image setting '{ImageProviderSettingKeys.MaxRetriesProperty}' must be a whole number from 0 to {ImageProviderSettingKeys.MaximumMaxRetries}.");
     }
 
     private static string? Size(ImageGenerationOptions? options)
