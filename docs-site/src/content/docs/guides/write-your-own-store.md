@@ -286,16 +286,26 @@ Two more rules carry the
   `JobStoreContract` and `RunStoreContract` check each of these with the same values, the two
   ends of the range included.
 - **`IJobStore` fences every write that needs the lease.** `RenewLeaseAsync`,
-  `MarkRunningAsync`, `CompleteAsync` and `ReleaseForRetryAsync` take a `JobLease`
-  (the job, the owner and the attempt that `LeaseAsync` returned) and change the job only
-  while its lease is exactly that one, in the `Leased` or `Running` status. Otherwise they
-  return `false` and change nothing. Check and write in **one** statement: a store that
-  reads the lease first and writes after leaves a window in which a worker that stalled
-  past its lease closes the attempt of the worker that took the job over. Compare the
-  attempt as well as the owner, because a worker keeps its owner when it leases a job
-  again. Cancelling a job clears its lease, so a cancelled job answers `false` to all four.
+  `MarkRunningAsync`, `CompleteAsync`, `ReleaseForRetryAsync` and `ReleaseInterruptedAsync`
+  take a `JobLease` (the job, the owner and the attempt that `LeaseAsync` returned) and
+  change the job only while its lease is exactly that one, in the `Leased` or `Running`
+  status. Otherwise they return `false` and change nothing. Check and write in **one**
+  statement: a store that reads the lease first and writes after leaves a window in which a
+  worker that stalled past its lease closes the attempt of the worker that took the job over.
+  Compare the attempt as well as the owner, because a worker keeps its owner when it leases a
+  job again. Cancelling a job clears its lease, so a cancelled job answers `false` to all five.
   `JobStoreContract` checks the owner, the attempt, the status and a cancelled job. It cannot prove
   that check and write are one step, so keep them in one statement.
+- **`IJobStore.ReleaseInterruptedAsync` gives an attempt back.** It returns the job to
+  `Pending` and clears its lease like `ReleaseForRetryAsync`, and it also lowers
+  `JobRecord.Attempt` by one, never below zero. It leaves `ScheduledFor` and the last
+  `ErrorMessage` as they are, so the job keeps its place in the queue and the next lease counts
+  the same attempt again. The worker calls it for one case only: the host is stopping and the
+  job's handler threw `JobInterruptedException` to say it had not begun its work. Every
+  other way a job comes back (a failed attempt, a lease that runs out) keeps the attempt it
+  counted: a job limited to one attempt is never run twice after a crash. No migration is
+  needed; the attempt is an existing column. Add the method to a store you wrote before this
+  member existed, and run `JobStoreContract` against it.
 - **`IRunStore` marks and closes a `Queued` row that has a heartbeat.**
   `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`

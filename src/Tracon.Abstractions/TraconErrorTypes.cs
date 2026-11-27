@@ -76,6 +76,9 @@ public static class TraconErrorTypes
     /// <summary>A job handler failed its job on this attempt, whatever attempts were left (<see cref="JobPermanentFailureException"/>).</summary>
     public const string JobPermanentFailure = "job_permanent_failure";
 
+    /// <summary>A job handler stopped before it began its work, while the worker was stopping (<see cref="JobInterruptedException"/>).</summary>
+    public const string JobInterrupted = "job_interrupted";
+
     /// <summary>An agent source failed (<see cref="TraconAgentSourceException"/>).</summary>
     public const string AgentSourceFailed = "agent_source_failed";
 

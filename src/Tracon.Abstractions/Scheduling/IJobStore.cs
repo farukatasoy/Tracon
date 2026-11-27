@@ -18,7 +18,7 @@ namespace Tracon;
 /// <para>
 /// <strong>A write that needs the lease is fenced by it.</strong>
 /// <see cref="RenewLeaseAsync"/>, <see cref="MarkRunningAsync"/>,
-/// <see cref="CompleteAsync"/> and <see cref="ReleaseForRetryAsync"/> take the
+/// <see cref="CompleteAsync"/>, <see cref="ReleaseForRetryAsync"/> and <see cref="ReleaseInterruptedAsync"/> take the
 /// <see cref="JobLease"/> the worker was given and change the job only while the job's
 /// lease is exactly that one: the same <see cref="JobLease.JobId"/>, the same
 /// <see cref="JobLease.Owner"/> and the same <see cref="JobLease.Attempt"/>, in the
@@ -215,6 +215,37 @@ public interface IJobStore
         JobLease lease,
         string errorMessage,
         TimeSpan? retryAfter = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns a job to the <see cref="JobStatus.Pending"/> state, releases its lease, and gives back the attempt that
+    /// lease counted: <see cref="JobRecord.Attempt"/> is one lower afterwards, never below zero.
+    /// </summary>
+    /// <param name="lease">The lease the worker holds.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> if the job went back to the queue; <see langword="false"/> if the job's lease is no longer
+    /// <paramref name="lease"/>, in which case nothing changed.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The worker calls this for one case only: the host is shutting down and the job's handler said, by throwing
+    /// <see cref="JobInterruptedException"/>, that it stopped before it began any work it cannot take back. The attempt
+    /// that was cut off is then not an attempt the job used, and the next worker that leases the job counts the same
+    /// attempt again. Everywhere else the attempt stays counted: <see cref="ReleaseForRetryAsync"/> does not change
+    /// <see cref="JobRecord.Attempt"/>, and a lease that runs out is an attempt, because a worker that crashed may have
+    /// done work with side effects.
+    /// </para>
+    /// <para>
+    /// <see cref="JobRecord.ScheduledFor"/> is not changed, so the job may be leased at once and keeps its place in the
+    /// queue; the job's last <see cref="JobRecord.ErrorMessage"/> is left as it was. Like <see cref="CompleteAsync"/> and
+    /// <see cref="ReleaseForRetryAsync"/>, the call leaves a job in a terminal status unchanged: a cancelled job never
+    /// returns to <see cref="JobStatus.Pending"/>. The lease, the owner and the attempt number are checked in the same
+    /// write that changes the job.
+    /// </para>
+    /// </remarks>
+    ValueTask<bool> ReleaseInterruptedAsync(
+        JobLease lease,
         CancellationToken cancellationToken = default);
 
     /// <summary>

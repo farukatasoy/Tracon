@@ -763,6 +763,13 @@ whose status is no longer `Pending`; see
   `HttpRequestException` with `404` while a resource is not there yet, keeps its
   retries. A `JobRetryException` keeps its retries too, and an attempt that reached its
   time limit counts like any failed attempt.
+- A host that stops while a job runs cancels the handler's token. A handler that returns normally
+  completes its job, even though the stop has fallen. A handler that had not begun its work throws
+  `JobInterruptedException` and the job goes back to the queue with its attempt given back, so a
+  job limited to one attempt still has it on the next host. Anything else leaves the job to its
+  lease, and a lease that runs out counts as an attempt. With `Drain` on, the stop first waits for
+  the running jobs while their tokens are live. See
+  [Stop with the host](/guides/write-your-own-job-handler/#stop-with-the-host).
 - A handler that knows another attempt cannot succeed says so: it throws
   `JobPermanentFailureException` with a stable code, and the job ends `Failed` on that
   attempt with the code as its `errorMessage`. See

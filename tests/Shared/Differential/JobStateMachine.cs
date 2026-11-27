@@ -94,6 +94,9 @@ internal sealed record CompleteJobStep(int Slot, LeaseHint Hint, int Owner, int 
 /// <summary>The return of a job to the queue.</summary>
 internal sealed record ReleaseJobStep(int Slot, LeaseHint Hint, int Owner, int Attempt, int Error, int? DelaySeconds) : LeaseHolderStep(Slot, Hint, Owner, Attempt);
 
+/// <summary>The return of a job to the queue that gives back the attempt its lease counted.</summary>
+internal sealed record ReleaseInterruptedJobStep(int Slot, LeaseHint Hint, int Owner, int Attempt) : LeaseHolderStep(Slot, Hint, Owner, Attempt);
+
 /// <summary>The cancellation of a job on behalf of a tenant.</summary>
 internal sealed record CancelJobStep(int Tenant, int Slot) : JobStep;
 
@@ -230,6 +233,7 @@ internal sealed class JobStateMachine : StateMachine<JobPlan, JobStep>
         MarkRunningJobStep s => $"MarkRunning slot={s.Slot} lease={s.Hint}(owner={s.Owner} attempt={s.Attempt})",
         CompleteJobStep s => $"Complete slot={s.Slot} lease={s.Hint}(owner={s.Owner} attempt={s.Attempt}) status={s.Status} at={s.CompletedSeconds}s error={s.Error?.ToString(CultureInfo.InvariantCulture) ?? "-"}",
         ReleaseJobStep s => $"Release slot={s.Slot} lease={s.Hint}(owner={s.Owner} attempt={s.Attempt}) error={s.Error} delay={s.DelaySeconds?.ToString(CultureInfo.InvariantCulture) ?? "-"}s",
+        ReleaseInterruptedJobStep s => $"ReleaseInterrupted slot={s.Slot} lease={s.Hint}(owner={s.Owner} attempt={s.Attempt})",
         CancelJobStep s => $"Cancel tenant={s.Tenant} slot={s.Slot}",
         GetJobStep s => $"Get tenant={s.Tenant} slot={s.Slot}",
         QueryJobsStep s => $"Query tenant={s.Tenant?.ToString(CultureInfo.InvariantCulture) ?? "-"} handler={s.Handler?.ToString(CultureInfo.InvariantCulture) ?? "-"} lane={(s.Lane is null ? "-" : BoundaryValues.Show(s.Lane))} status={s.Status?.ToString() ?? "-"} unknownSchedule={s.UnknownSchedule} skip={s.Skip} take={s.Take}",
@@ -339,6 +343,7 @@ internal sealed class JobStateMachine : StateMachine<JobPlan, JobStep>
             (8, slot.SelectMany(s => hint.SelectMany(h => owner.Select(o => (JobStep)new MarkRunningJobStep(s, h, o, 1))))),
             (9, slot.SelectMany(s => hint.SelectMany(h => owner.SelectMany(o => Gen.Frequency((3, Gen.Const(JobStatus.Completed)), (2, Gen.Const(JobStatus.Failed))).SelectMany(st => Gen.Int[0, 30].SelectMany(at => Gen.Frequency((1, Gen.Const((int?)null)), (2, Gen.Int[0, u.Errors.Length - 1].Select(static x => (int?)x))).Select(e => (JobStep)new CompleteJobStep(s, h, o, 1, st, at, e)))))))),
             (6, slot.SelectMany(s => hint.SelectMany(h => owner.SelectMany(o => Gen.Int[0, u.Errors.Length - 1].SelectMany(e => Gen.Frequency((2, Gen.Const((int?)null)), (1, Gen.Const((int?)0)), (4, Gen.Int[1, 120].Select(static x => (int?)x))).Select(d => (JobStep)new ReleaseJobStep(s, h, o, 1, e, d))))))),
+            (3, slot.SelectMany(s => hint.SelectMany(h => owner.Select(o => (JobStep)new ReleaseInterruptedJobStep(s, h, o, 1))))),
             (5, tenant.SelectMany(t => slot.Select(s => (JobStep)new CancelJobStep(t, s)))),
             (9, Gen.Frequency((6, Gen.Const(-1)), (2, tenant)).SelectMany(t => slot.Select(s => (JobStep)new GetJobStep(t, s)))),
             (8, query),
@@ -486,6 +491,7 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
                 MarkRunningJobStep s => Holder(s, job => job.Status = JobStatus.Running, requireLeased: true),
                 CompleteJobStep s => Holder(s, job => Finish(job, s), requireLeased: false),
                 ReleaseJobStep s => Holder(s, job => Release(job, s), requireLeased: false),
+                ReleaseInterruptedJobStep s => Holder(s, ReleaseInterrupted, requireLeased: false),
                 CancelJobStep s => Cancel(s),
                 GetJobStep s => Get(s),
                 QueryJobsStep s => Query(s),
@@ -520,6 +526,7 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
         MarkRunningJobStep s => s with { Owner = owner, Attempt = attempt },
         CompleteJobStep s => s with { Owner = owner, Attempt = attempt },
         ReleaseJobStep s => s with { Owner = owner, Attempt = attempt },
+        ReleaseInterruptedJobStep s => s with { Owner = owner, Attempt = attempt },
         _ => throw new InvalidOperationException(step.GetType().Name),
     };
 
@@ -731,6 +738,16 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
         {
             job.ScheduledFor = Stamp(_now + JobModel.RetryDelayTicks(seconds, job.Slot));
         }
+    }
+
+    // The attempt the lease counted is given back; the due time and the last error stay as they were.
+    private static void ReleaseInterrupted(Job job)
+    {
+        job.Status = JobStatus.Pending;
+        job.Owner = null;
+        job.OwnerIndex = null;
+        job.LeaseUntil = null;
+        job.Attempt = Math.Max(job.Attempt - 1, 0);
     }
 
     private Observation Cancel(CancelJobStep s)
@@ -957,6 +974,8 @@ internal sealed class JobDriver : IStepDriver<JobStep>, IAsyncDisposable
                     Lease(s),
                     _universe.Errors[s.Error],
                     s.DelaySeconds is { } seconds ? (seconds == 0 ? TimeSpan.Zero : TimeSpan.FromTicks(JobModel.RetryDelayTicks(seconds, s.Slot))) : null));
+            case ReleaseInterruptedJobStep s:
+                return Bool(await _store.ReleaseInterruptedAsync(Lease(s)));
             case CancelJobStep s:
                 return Bool(await _store.CancelAsync(_scope.Wrap(_universe.Tenants[s.Tenant]), _ids[s.Slot]));
             case GetJobStep s:

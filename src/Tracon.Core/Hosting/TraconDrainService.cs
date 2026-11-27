@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>
-/// Waits for in-flight runs to finish before the process actually stops, and
+/// Waits for in-flight runs and running jobs to finish before the process actually stops, and
 /// reports <see cref="IsDraining"/> so new work is refused while waiting.
 /// </summary>
 /// <remarks>
@@ -22,8 +22,10 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// The actual wait happens in <see cref="StopAsync"/>: it polls
-/// <see cref="IRunCancellationRegistry.ActiveCount"/> until it reaches zero
-/// or <see cref="TraconDrainOptions.Timeout"/> elapses. For this wait to
+/// <see cref="IRunCancellationRegistry.ActiveCount"/> and the number of jobs the worker is
+/// running until both reach zero or <see cref="TraconDrainOptions.Timeout"/> elapses. A job of a
+/// consumer's handler is in no run registry, so the worker's own count is what the drain waits for
+/// there; a handler sees a live token while it does, and finishes its work normally. For this wait to
 /// matter for job-worker-driven runs (queued agent runs, workflows), this
 /// service's <c>StopAsync</c> must run BEFORE <c>JobWorkerBackgroundService</c>'s
 /// own — the generic host stops <see cref="IHostedService"/> instances in
@@ -43,7 +45,8 @@ internal sealed class TraconDrainService(
     IOptionsMonitor<TraconDrainOptions> optionsMonitor,
     IHostApplicationLifetime? lifetime = null,
     TimeProvider? timeProvider = null,
-    ILogger<TraconDrainService>? logger = null) : IHostedService, ITraconDrainState
+    ILogger<TraconDrainService>? logger = null,
+    IJobWorkerActivity? workerActivity = null) : IHostedService, ITraconDrainState
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly TickOptions<TraconDrainOptions> _readOptions = new(optionsMonitor, logger, "drain on shutdown");
@@ -81,7 +84,7 @@ internal sealed class TraconDrainService(
 
         _isDraining = true;
 
-        if (registry.ActiveCount == 0)
+        if (registry.ActiveCount == 0 && RunningJobs == 0)
         {
             return;
         }
@@ -91,8 +94,9 @@ internal sealed class TraconDrainService(
         if (logger is not null && logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
-                "Draining: waiting for {Count} in-flight run(s) to finish (timeout {Timeout}).",
+                "Draining: waiting for {Count} in-flight run(s) and {Jobs} running job(s) to finish (timeout {Timeout}).",
                 registry.ActiveCount,
+                RunningJobs,
                 timeout);
         }
 
@@ -103,7 +107,7 @@ internal sealed class TraconDrainService(
         {
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(200), _clock);
 
-            while (registry.ActiveCount > 0)
+            while (registry.ActiveCount > 0 || RunningJobs > 0)
             {
                 await timer.WaitForNextTickAsync(linked.Token).ConfigureAwait(false);
             }
@@ -114,11 +118,15 @@ internal sealed class TraconDrainService(
             // A stuck run must not block the process from stopping forever.
         }
 
-        if (registry.ActiveCount > 0 && logger is not null && logger.IsEnabled(LogLevel.Warning))
+        if ((registry.ActiveCount > 0 || RunningJobs > 0) && logger is not null && logger.IsEnabled(LogLevel.Warning))
         {
             logger.LogWarning(
-                "Drain timed out with {Count} run(s) still in flight; stopping anyway.",
-                registry.ActiveCount);
+                "Drain timed out with {Count} run(s) and {Jobs} job(s) still in flight; stopping anyway.",
+                registry.ActiveCount,
+                RunningJobs);
         }
     }
+
+    /// <summary>Gets how many jobs the worker of this process is running; zero when it runs none or there is no worker.</summary>
+    private int RunningJobs => workerActivity?.RunningJobs ?? 0;
 }

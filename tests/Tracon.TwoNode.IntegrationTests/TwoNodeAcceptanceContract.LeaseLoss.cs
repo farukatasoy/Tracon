@@ -346,6 +346,17 @@ public abstract partial class TwoNodeAcceptanceContract
             return applied;
         }
 
+        public async ValueTask<bool> ReleaseInterruptedAsync(JobLease lease, CancellationToken cancellationToken = default)
+        {
+            await probe.WritesGateAsync(lease.Owner, cancellationToken).ConfigureAwait(false);
+
+            var applied = await inner.ReleaseInterruptedAsync(lease, cancellationToken).ConfigureAwait(false);
+
+            probe.Record(lease, "release-interrupted", applied);
+
+            return applied;
+        }
+
         public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
             => inner.CancelAsync(tenantId, jobId, cancellationToken);
 

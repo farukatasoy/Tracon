@@ -27,7 +27,8 @@ internal static class JobAttemptProbes
         IJobHandler handler,
         Action<TraconSchedulingOptions>? configure = null,
         Microsoft.Extensions.Logging.ILogger<JobWorkerBackgroundService>? logger = null,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null,
+        IWebhookPublisher? webhookPublisher = null)
     {
         var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
         var options = new TraconSchedulingOptions
@@ -47,7 +48,8 @@ internal static class JobAttemptProbes
             new SchemaReadyGate([]),
             new NotDraining(),
             timeProvider: clock,
-            logger: logger ?? NullLogger<JobWorkerBackgroundService>.Instance);
+            logger: logger ?? NullLogger<JobWorkerBackgroundService>.Instance,
+            webhookPublisher: webhookPublisher);
 
         return (worker, host);
     }
@@ -196,6 +198,8 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
     private int _failures;
     private int _reads;
     private int _renewals;
+    private int _completeCalls;
+    private int _releaseInterruptedCalls;
 
     /// <summary>Gets how many times <see cref="GetAsync"/> was called.</summary>
     public int Reads => Volatile.Read(ref _reads);
@@ -218,6 +222,18 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
 
     /// <summary>Gets or sets a step that runs before every lease call and sees the call's token.</summary>
     public Func<CancellationToken, Task>? BeforeLease { get; set; }
+
+    /// <summary>Gets how many times the store was asked to complete a job.</summary>
+    public int CompleteCalls => Volatile.Read(ref _completeCalls);
+
+    /// <summary>Gets how many times the store was asked to give an interrupted attempt back.</summary>
+    public int ReleaseInterruptedCalls => Volatile.Read(ref _releaseInterruptedCalls);
+
+    /// <summary>Gets or sets a step that runs before every completion and sees the call's token; one that never ends is a store that never answers.</summary>
+    public Func<CancellationToken, Task>? BeforeComplete { get; set; }
+
+    /// <summary>Gets or sets an exception every interrupted release throws, as a store that cannot be reached does.</summary>
+    public Exception? ReleaseInterruptedFailure { get; set; }
 
     /// <inheritdoc />
     public ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
@@ -278,8 +294,17 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
         => inner.MarkRunningAsync(lease, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
-        => inner.CompleteAsync(lease, completion, cancellationToken);
+    public async ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref _completeCalls);
+
+        if (BeforeComplete is { } before)
+        {
+            await before(cancellationToken).ConfigureAwait(false);
+        }
+
+        return await inner.CompleteAsync(lease, completion, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public async ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
@@ -292,6 +317,19 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
         }
 
         return released;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> ReleaseInterruptedAsync(JobLease lease, CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref _releaseInterruptedCalls);
+
+        if (ReleaseInterruptedFailure is { } failure)
+        {
+            throw failure;
+        }
+
+        return inner.ReleaseInterruptedAsync(lease, cancellationToken);
     }
 
     /// <inheritdoc />

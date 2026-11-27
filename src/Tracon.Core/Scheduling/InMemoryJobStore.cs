@@ -321,6 +321,33 @@ internal sealed class InMemoryJobStore : IJobStore
         }
     }
 
+    /// <inheritdoc />
+    public ValueTask<bool> ReleaseInterruptedAsync(JobLease lease, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_jobs)
+        {
+            if (_jobs.TryGetValue(lease.JobId, out var job) && Holds(job, lease))
+            {
+                // The attempt the lease counted is given back, and nothing else moves: the job keeps its place in the
+                // queue (ScheduledFor) and its last error.
+                _jobs[lease.JobId] = job with
+                {
+                    Status = JobStatus.Pending,
+                    LeaseOwner = null,
+                    LeaseUntil = null,
+                    Attempt = Math.Max(job.Attempt - 1, 0),
+                };
+
+                return new ValueTask<bool>(true);
+            }
+
+            return new ValueTask<bool>(false);
+        }
+    }
+
     /// <summary>
     /// Whether <paramref name="lease"/> is the job's current lease: the same owner and attempt, on a job
     /// that is still open. The SQL stores state the same three conditions in their WHERE clause.

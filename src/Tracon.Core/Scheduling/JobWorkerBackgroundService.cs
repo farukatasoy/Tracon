@@ -55,6 +55,13 @@ internal sealed class JobWorkerBackgroundService(
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly TickOptions<TraconSchedulingOptions> _tickOptions = new(optionsMonitor, logger, "job worker");
     private readonly ConcurrentDictionary<Guid, Task> _runningJobs = new();
+    private int _inFlightJobs;
+
+    /// <summary>
+    /// Gets how many leased jobs this worker has not finished with: the ones running, and the ones leased that wait for their
+    /// previous attempt to end. A reading for the drain on shutdown, not a reservation.
+    /// </summary>
+    internal int RunningJobs => Volatile.Read(ref _inFlightJobs);
 
     /// <summary>Reads, from the application services, whether this loop runs.</summary>
     /// <param name="services">The application services.</param>
@@ -334,6 +341,10 @@ internal sealed class JobWorkerBackgroundService(
 
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            // Counted from the lease until RunJobAsync ends, whichever of the two paths below starts the job: the drain on
+            // shutdown asks how many of them are left.
+            Interlocked.Increment(ref _inFlightJobs);
+
             if (!_runningJobs.TryAdd(job.Id, completion.Task))
             {
                 // A job released for another attempt is leasable at once, so
@@ -406,6 +417,7 @@ internal sealed class JobWorkerBackgroundService(
             // Removes this attempt's own entry only: a lease that waited for it adds the next one.
             _runningJobs.TryRemove(KeyValuePair.Create(job.Id, completion.Task));
             completion.TrySetResult();
+            Interlocked.Decrement(ref _inFlightJobs);
         }
     }
 
@@ -842,8 +854,16 @@ internal sealed class JobWorkerBackgroundService(
         if (failure is null)
         {
             // A handler that returns normally completes its job, even past its time
-            // limit: it finished the work.
-            await FinalizeSucceededAsync(job, window, startedAt, stoppingToken).ConfigureAwait(false);
+            // limit: it finished the work. One that returns while the worker is stopping
+            // finished it too: the write is made under a token the stop did not cancel,
+            // or the job would run again for work that was done (see FinalizeSucceededAsync).
+            await FinalizeSucceededAsync(job, window, startedAt, stoppingToken, stopping: reason == JobStopReason.WorkerStopping).ConfigureAwait(false);
+        }
+        else if (failure is JobInterruptedException interrupted && reason == JobStopReason.WorkerStopping)
+        {
+            // The handler said, while the host was stopping, that it had not begun its work: the attempt the lease
+            // counted is given back. Only the handler's word does that, and only now; see GiveAttemptBackAsync.
+            await GiveAttemptBackAsync(job, interrupted, window).ConfigureAwait(false);
         }
         else if (reason == JobStopReason.Cancelled)
         {
@@ -997,12 +1017,24 @@ internal sealed class JobWorkerBackgroundService(
     /// <param name="window">How long a store error may be retried.</param>
     /// <param name="startedAt">The monotonic timestamp taken when the attempt started.</param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
+    /// <param name="stopping">
+    /// Whether the handler returned while the worker was stopping: the writes then run under no token of the stop's, and
+    /// each is tried once.
+    /// </param>
     private async Task FinalizeSucceededAsync(
         JobRecord job,
         FinalizationWindow window,
         long startedAt,
-        CancellationToken stoppingToken)
+        CancellationToken stoppingToken,
+        bool stopping = false)
     {
+        // 🚨 A handler that returned while the worker is stopping did its work, and the token those writes would be bound to
+        // has already fallen: each store call would end in a cancellation, the job would stay Running, and the next worker
+        // would run the handler again. The writes are made under no token of the stop's and the call budget bounds each one
+        // (see CallWithinAsync), and they are tried ONCE: retrying belongs to a worker that runs, and a stop that waited for a
+        // store that keeps failing would hold the host open. A write that fails leaves the job to its lease.
+        var writeToken = stopping ? CancellationToken.None : stoppingToken;
+
         IReadOnlyList<JobItemRecord> finalItems = [];
 
         var listed = await RetryFinalizationAsync(
@@ -1016,7 +1048,8 @@ internal sealed class JobWorkerBackgroundService(
             },
             appliedStatus: null,
             window,
-            stoppingToken).ConfigureAwait(false);
+            writeToken,
+            singleTry: stopping).ConfigureAwait(false);
 
         if (listed != FinalizationResult.Written)
         {
@@ -1040,7 +1073,8 @@ internal sealed class JobWorkerBackgroundService(
             ct => jobStore.CompleteAsync(lease, completion, ct),
             completion.Status,
             window,
-            stoppingToken).ConfigureAwait(false);
+            writeToken,
+            singleTry: stopping).ConfigureAwait(false);
 
         if (completed == FinalizationResult.GaveUp)
         {
@@ -1056,7 +1090,7 @@ internal sealed class JobWorkerBackgroundService(
             // refuses the write on a terminal job. Cancelled IS terminal, so the
             // attempt is still counted. A refusal for any other reason is a lost
             // lease: the job is another worker's, and that worker counts it.
-            if (!await IsCancelledAfterRefusalAsync(job, "complete it", window.CallBudget, stoppingToken).ConfigureAwait(false))
+            if (!await IsCancelledAfterRefusalAsync(job, "complete it", window.CallBudget, writeToken).ConfigureAwait(false))
             {
                 return;
             }
@@ -1067,7 +1101,88 @@ internal sealed class JobWorkerBackgroundService(
         window.Settled();
 
         RecordJobMetric(job, finalStatus, startedAt);
-        await PublishJobOutcomeAsync(job, finalStatus, completion.ErrorMessage, stoppingToken).ConfigureAwait(false);
+        await PublishJobOutcomeAsync(job, finalStatus, completion.ErrorMessage, stoppingToken, stopping).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns a job to the queue and gives back the attempt its lease counted, because its handler said, while the host
+    /// was stopping, that it had not begun its work.
+    /// </summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="interrupted">What the handler threw.</param>
+    /// <param name="window">The finalization window of the attempt.</param>
+    /// <remarks>
+    /// <para>
+    /// A lease that runs out counts as an attempt, because a worker that crashed may have done work with side effects,
+    /// and a job limited to one attempt is never run twice. A stop is not a crash, and a handler knows whether it had begun.
+    /// The worker therefore never gives an attempt back on its own (a handler that began its work, and was cut off, keeps
+    /// it), and it does so only on the handler's word and only while it is stopping: at any other time the exception is an
+    /// ordinary failed attempt (see <see cref="FinalizeFailedAsync"/>).
+    /// </para>
+    /// <para>
+    /// One try, under a token the stop did not cancel and bounded by one call budget, as the completion of a job that
+    /// returned while the host stopped (see <see cref="FinalizeSucceededAsync"/>). A store that fails or does not answer
+    /// leaves the job to its lease, and the log says so. The write is fenced by the lease, so a job that was cancelled in
+    /// the meantime, or that another worker holds, is not changed.
+    /// </para>
+    /// <para>
+    /// Deliberately NOT counted as a finished job: the job has not finished, it is leased again, as after a release for
+    /// another attempt.
+    /// </para>
+    /// </remarks>
+    private async Task GiveAttemptBackAsync(JobRecord job, JobInterruptedException interrupted, FinalizationWindow window)
+    {
+        if (window.LeaseLost)
+        {
+            return;
+        }
+
+        var lease = LeaseOf(job);
+
+        try
+        {
+            var released = await CallWithinAsync(
+                job,
+                "give the attempt back",
+                ct => jobStore.ReleaseInterruptedAsync(lease, ct),
+                window.CallBudget,
+                CancellationToken.None).ConfigureAwait(false);
+
+            window.Settled();
+
+            if (logger is null || !logger.IsEnabled(LogLevel.Information))
+            {
+                return;
+            }
+
+            if (released)
+            {
+                logger.LogInformation(
+                    "Job {JobId} went back to the queue with attempt {Attempt} given back: its handler had not begun its work when the worker stopped. ({Reason})",
+                    job.Id,
+                    job.Attempt,
+                    interrupted.Reason ?? "no reason given");
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Job {JobId} attempt {Attempt} was not given back: the job is no longer this worker's attempt to return (cancelled, or leased by another worker). ({Reason})",
+                    job.Id,
+                    job.Attempt,
+                    interrupted.Reason ?? "no reason given");
+            }
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    exception,
+                    "Job {JobId}: could not give attempt {Attempt} back while the worker was stopping, and it is not tried again. The job is left to its lease: it is leased again once the lease runs out, and that lease counts as an attempt.",
+                    job.Id,
+                    job.Attempt);
+            }
+        }
     }
 
     /// <summary>
@@ -1124,6 +1239,18 @@ internal sealed class JobWorkerBackgroundService(
     {
         var nonRetryable = exception is NonRetryableJobException;
         var permanent = exception as JobPermanentFailureException;
+
+        // Only a handler that is stopping with the worker may hand its attempt back (see GiveAttemptBackAsync). Thrown at any
+        // other time it is an ordinary failed attempt, and the log says so: a handler has no way to run its own job again for
+        // free while the process stays up.
+        if (exception is JobInterruptedException interrupted && logger is not null && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(
+                "Job {JobId} attempt {Attempt}: the handler threw JobInterruptedException while the worker was not stopping, so the attempt counts as failed like any other. ({Reason})",
+                job.Id,
+                job.Attempt,
+                interrupted.Reason ?? "no reason given");
+        }
 
         // Read from the failure's stable identity, never its text. An attempt
         // that reached its time limit is not judged by what the handler threw on its
@@ -1289,6 +1416,10 @@ internal sealed class JobWorkerBackgroundService(
     /// </param>
     /// <param name="window">How long the tries may go on.</param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
+    /// <param name="singleTry">
+    /// Makes one try: a store error ends the step as <see cref="FinalizationResult.GaveUp"/> instead of waiting and trying
+    /// again. The finalization of a worker that is stopping asks for it.
+    /// </param>
     /// <returns>
     /// <see cref="FinalizationResult.Written"/> once the call applied;
     /// <see cref="FinalizationResult.Refused"/> when the store answered that the write
@@ -1329,7 +1460,8 @@ internal sealed class JobWorkerBackgroundService(
         Func<CancellationToken, ValueTask<bool>> call,
         JobStatus? appliedStatus,
         FinalizationWindow window,
-        CancellationToken stoppingToken)
+        CancellationToken stoppingToken,
+        bool singleTry = false)
     {
         var delay = FinalizationRetryFirstDelay;
         var failedBefore = false;
@@ -1360,6 +1492,20 @@ internal sealed class JobWorkerBackgroundService(
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {
+                if (singleTry)
+                {
+                    if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                    {
+                        logger.LogWarning(
+                            exception,
+                            "Job {JobId}: could not {Step} while the worker was stopping, and it is not tried again. The job is left to its lease: it is leased again once the lease runs out, and that lease counts as an attempt.",
+                            job.Id,
+                            step);
+                    }
+
+                    return FinalizationResult.GaveUp;
+                }
+
                 failedBefore = true;
 
                 var left = window.Left;
@@ -1612,7 +1758,7 @@ internal sealed class JobWorkerBackgroundService(
     /// </remarks>
     // The job.* events were documented and accepted on subscribe, but no
     // code published them.
-    private async Task PublishJobOutcomeAsync(JobRecord job, JobStatus status, string? errorMessage, CancellationToken stoppingToken)
+    private async Task PublishJobOutcomeAsync(JobRecord job, JobStatus status, string? errorMessage, CancellationToken stoppingToken, bool stopping = false)
     {
         if (webhookPublisher is null ||
             status is not (JobStatus.Completed or JobStatus.Failed) ||
@@ -1620,6 +1766,11 @@ internal sealed class JobWorkerBackgroundService(
         {
             return;
         }
+
+        // A worker that is stopping publishes the event of a job it just completed (see FinalizeSucceededAsync) under a token
+        // the stop did not cancel, bounded by one call budget: the publisher takes no time limit of its own.
+        using var shutdownBound = stopping ? new CancellationTokenSource(CallBudgetOf(optionsMonitor.CurrentValue.LeaseDuration), _clock) : null;
+        var token = shutdownBound?.Token ?? stoppingToken;
 
         try
         {
@@ -1633,9 +1784,9 @@ internal sealed class JobWorkerBackgroundService(
                     "outcome read",
                     ct => jobStore.GetAsync(job.TenantId, job.Id, ct),
                     CallBudgetOf(optionsMonitor.CurrentValue.LeaseDuration),
-                    stoppingToken).ConfigureAwait(false) ?? job;
+                    token).ConfigureAwait(false) ?? job;
             }
-            catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, token))
             {
                 latest = job;
             }
@@ -1658,9 +1809,9 @@ internal sealed class JobWorkerBackgroundService(
                         Error = errorMessage,
                     },
                 },
-                stoppingToken).ConfigureAwait(false);
+                token).ConfigureAwait(false);
         }
-        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, token) || shutdownBound is { IsCancellationRequested: true })
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {

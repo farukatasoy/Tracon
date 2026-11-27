@@ -486,6 +486,10 @@ public static partial class TraconServiceCollectionExtensions
         // worker process (RunWorker = false) does not build the worker at all.
         services.TryAddGatedLoop<JobWorkerBackgroundService>();
 
+        // What the drain on shutdown reads to wait for the jobs the worker is running. It looks the worker up through
+        // its gate when asked and builds nothing: a host without a worker answers zero.
+        services.TryAddSingleton<IJobWorkerActivity>(static provider => new JobWorkerActivity(provider));
+
         // Queue-depth gauge. The same shape and the same reasons as
         // QuotaUsageObserver above: a background refresh behind a cache-only
         // callback, behind a gate. While EnableJobQueueDepthGauge is off (the

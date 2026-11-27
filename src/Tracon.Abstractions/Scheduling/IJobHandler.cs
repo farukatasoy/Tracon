@@ -51,8 +51,11 @@ public interface IJobHandler
     /// </para>
     /// <list type="bullet">
     /// <item>
-    /// The worker is shutting down: the job is left to its lease and is leased again
-    /// later, as after a crash.
+    /// The worker is shutting down. A handler that returns normally completes the job,
+    /// though the token had already fallen. One that throws <see cref="JobInterruptedException"/>
+    /// says it had not begun its work: the job goes back to the queue and the attempt
+    /// its lease counted is given back. Anything else leaves the job to its lease, and
+    /// it is leased again later, as after a crash; that lease counts as an attempt.
     /// </item>
     /// <item>
     /// The job was cancelled: the worker reads the job's status every

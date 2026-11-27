@@ -619,6 +619,9 @@ public sealed class RunReconciliationTests
         public ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
             => _inner.ReleaseForRetryAsync(lease, errorMessage, retryAfter, cancellationToken);
 
+        public ValueTask<bool> ReleaseInterruptedAsync(JobLease lease, CancellationToken cancellationToken = default)
+            => _inner.ReleaseInterruptedAsync(lease, cancellationToken);
+
         public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
             => _inner.CancelAsync(tenantId, jobId, cancellationToken);
 

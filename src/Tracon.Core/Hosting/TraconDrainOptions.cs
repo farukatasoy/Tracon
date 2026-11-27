@@ -12,7 +12,7 @@ public sealed class TraconDrainOptions
 
     /// <summary>
     /// Whether draining is on. Defaults to <see langword="false"/>: today's
-    /// behavior (the process stops immediately, in-flight runs are cut off)
+    /// behavior (the process stops immediately, in-flight runs and running jobs are cut off)
     /// does not change unless a setup opts in.
     /// </summary>
     /// <remarks>
@@ -27,10 +27,13 @@ public sealed class TraconDrainOptions
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// The longest time to wait for in-flight runs to finish before the
+    /// The longest time to wait for in-flight runs and running jobs to finish before the
     /// process stops anyway.
     /// </summary>
     /// <remarks>
+    /// The wait covers every job the job worker of this process is running, a consumer's own
+    /// handler included, not only the runs Tracon tracks. The handler is given a live
+    /// cancellation token while the drain waits: it finishes its work and the job completes.
     /// The host's own <c>HostOptions.ShutdownTimeout</c> (default 30 s)
     /// still applies on top of this value and can cut the wait short; a
     /// setup that wants the full wait to take effect raises both together.

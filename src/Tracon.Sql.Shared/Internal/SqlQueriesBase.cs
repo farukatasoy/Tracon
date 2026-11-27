@@ -602,6 +602,9 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that puts a job back into the queue for a retry.</summary>
     public string ReleaseJobForRetry { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that puts a job back into the queue and gives back the attempt its lease counted.</summary>
+    public string ReleaseJobInterrupted { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that tries to cancel a job.</summary>
     public string CancelJob { get; protected set; } = string.Empty;
 
@@ -2121,6 +2124,17 @@ internal abstract class SqlQueriesBase
             UPDATE {Table("jobs")}
                SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
                    scheduled_for = COALESCE({LeaseInstant("retry_at")}, scheduled_for)
+             WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status IN (1, 2);
+            """;
+
+        // A host that stops while a handler has not begun its work gives the attempt back: the lease counted it
+        // (LeaseJob adds one), and the next lease counts the same attempt again. scheduled_for and error_message stay
+        // as they are, so the job keeps its place in the queue and its last error. CASE and not a function: it is the
+        // one spelling the three dialects share. The lease is checked in the same statement, as in the three above.
+        ReleaseJobInterrupted = $"""
+            UPDATE {Table("jobs")}
+               SET status = 0, lease_owner = NULL, lease_until = NULL,
+                   attempt = CASE WHEN attempt > 0 THEN attempt - 1 ELSE 0 END
              WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status IN (1, 2);
             """;
 

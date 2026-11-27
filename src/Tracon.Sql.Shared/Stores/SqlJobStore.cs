@@ -253,6 +253,23 @@ internal sealed class SqlJobStore : IJobStore
             cancellationToken).ConfigureAwait(false) > 0;
     }
 
+    /// <inheritdoc />
+    [TenantAgnostic(
+        "Same rationale as RenewLeaseAsync: the lease belongs to the job itself.")]
+    public async ValueTask<bool> ReleaseInterruptedAsync(JobLease lease, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+
+        return await _context.ExecuteStatementAsync(
+            _sql.ReleaseJobInterrupted,
+            command =>
+            {
+                AddLease(command, lease);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
+    }
+
     private static void AddLease(DbCommand command, JobLease lease)
     {
         DbHelpers.Add(command, "id", lease.JobId);

@@ -322,6 +322,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.JobTenantBindings | Singleton | Factory",
         "Tracon.JobWorkerBackgroundService | Singleton | Tracon.JobWorkerBackgroundService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.GatedLoop`1[Tracon.JobWorkerBackgroundService]",
+        "Tracon.IJobWorkerActivity | Singleton | Factory",
         "Tracon.JobQueueDepthObserver | Singleton | Factory",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.GatedLoop`1[Tracon.JobQueueDepthObserver]",
         "Tracon.RunHeartbeatWriter | Singleton | Tracon.RunHeartbeatWriter",

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -132,6 +133,70 @@ public sealed class DrainTests
             "the job to settle once the drain ended");
 
         settled.ShouldBe(JobStatus.Completed);
+    }
+
+    [Fact]
+    public async Task The_drain_waits_for_a_consumers_running_job_which_finishes_under_a_live_token()
+    {
+        // A consumer's handler does its own work and is in no run registry: the drain used to wait only for runs, and the host
+        // stopped under the job. The drain is the first thing a host stop does, so the worker still runs and the handler's
+        // token is live while it waits.
+        var probe = new HeldJobProbe();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                builder.AddJobHandler<HeldJobHandler>(HeldJobHandler.Key);
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
+            configureServices: services =>
+            {
+                services.AddSingleton(probe);
+                services.Configure<TraconDrainOptions>(static options =>
+                {
+                    options.Enabled = true;
+                    options.Timeout = TimeSpan.FromMinutes(5);
+                });
+            });
+
+        var jobs = host.Services.GetRequiredService<IJobStore>();
+        var tenantId = host.Services.GetRequiredService<ITenantContext>().TenantId;
+        var now = DateTimeOffset.UtcNow;
+        var queued = await jobs.EnqueueAsync(
+            new JobRecord
+            {
+                Id = TraconId.NewId(),
+                TenantId = tenantId,
+                HandlerKey = HeldJobHandler.Key,
+                TargetName = "held",
+                Status = JobStatus.Pending,
+                Payload = JsonSerializer.SerializeToElement(new { }),
+                MaxAttempts = 1,
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            []);
+
+        await probe.Started.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        var drain = host.Services.GetServices<IHostedService>().Single(static service => string.Equals(service.GetType().Name, "TraconDrainService", StringComparison.Ordinal));
+        var stopping = drain.StopAsync(TestContext.Current.CancellationToken);
+
+        await WaitUntil.TrueAsync(() => host.Services.GetRequiredService<ITraconDrainState>().IsDraining, "the drain to begin");
+
+        // The job runs, so the drain waits, and the handler's token has not fallen.
+        stopping.IsCompleted.ShouldBeFalse("the drain returned while a consumer's job was still running");
+        probe.TokenFell.ShouldBeFalse();
+
+        probe.Release.TrySetResult();
+
+        await stopping.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        var job = (await jobs.GetAsync(tenantId, queued.Id)).ShouldNotBeNull();
+
+        job.Status.ShouldBe(JobStatus.Completed);
+        job.Attempt.ShouldBe(1);
+        probe.TokenFell.ShouldBeFalse("the handler was cancelled during the drain");
     }
 
     // --- The workflow endpoints start runs too ---
@@ -343,6 +408,34 @@ public sealed class DrainTests
         => (await host.Services.GetRequiredService<IRunStore>()
                 .QueryRunsAsync(new RunQuery { Take = 50 }))
             .Count(static run => run.Kind == RunKind.Workflow);
+
+    /// <summary>What a held job and the test tell each other.</summary>
+    private sealed class HeldJobProbe
+    {
+        private int _tokenFell;
+
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool TokenFell => Volatile.Read(ref _tokenFell) != 0;
+
+        public void NoteTokenFell() => Volatile.Write(ref _tokenFell, 1);
+    }
+
+    /// <summary>Holds its job until the test releases it, and notes whether its token ever fell.</summary>
+    private sealed class HeldJobHandler(HeldJobProbe probe) : IJobHandler
+    {
+        public const string Key = "contoso.held-by-the-drain";
+
+        public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken.Register(static state => ((HeldJobProbe)state!).NoteTokenFell(), probe);
+            probe.Started.TrySetResult();
+
+            await probe.Release.Task;
+        }
+    }
 
     private sealed class MutableDrainState : ITraconDrainState
     {

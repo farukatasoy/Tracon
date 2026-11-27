@@ -349,6 +349,142 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldNotBeNull();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReleaseInterruptedAsync_returns_to_pending_and_gives_the_attempt_back(bool running)
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var first = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        first.Attempt.ShouldBe(1);
+
+        if (running)
+        {
+            (await Store.MarkRunningAsync(first)).ShouldBeTrue();
+        }
+
+        var before = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        (await Store.ReleaseInterruptedAsync(first)).ShouldBeTrue();
+
+        var released = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        released.Status.ShouldBe(JobStatus.Pending);
+        released.Attempt.ShouldBe(0, "the attempt the lease counted is given back");
+        released.LeaseOwner.ShouldBeNull();
+        released.LeaseUntil.ShouldBeNull();
+        released.ErrorMessage.ShouldBeNull();
+        released.ScheduledFor.ShouldBe(before.ScheduledFor);
+
+        // The next lease counts the same attempt again, so a job limited to one attempt still has it.
+        var second = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        second.Attempt.ShouldBe(first.Attempt);
+    }
+
+    [Fact]
+    public async Task ReleaseInterruptedAsync_keeps_the_last_error_and_gives_back_only_the_attempt_it_ends()
+    {
+        // A job that failed once and was released for another attempt carries that attempt and its error. The
+        // interrupted one is the second: only it is given back.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var owner = Owner();
+        var first = await LeaseOfAsync(owner, TimeSpan.FromMinutes(5));
+
+        (await Store.ReleaseForRetryAsync(first, "temporary error")).ShouldBeTrue();
+
+        var second = await LeaseOfAsync(owner, TimeSpan.FromMinutes(5));
+
+        second.Attempt.ShouldBe(2);
+        (await Store.ReleaseInterruptedAsync(second)).ShouldBeTrue();
+
+        var released = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        released.Status.ShouldBe(JobStatus.Pending);
+        released.Attempt.ShouldBe(1);
+        released.ErrorMessage.ShouldBe("temporary error");
+    }
+
+    [Fact]
+    public async Task ReleaseInterruptedAsync_is_fenced_by_the_lease_like_every_write_of_a_holder()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var owner = Owner();
+        var stale = await LeaseOfAsync(owner, TimeSpan.FromMilliseconds(20));
+        var current = JobLease.Of(await LeaseOnceExpiredAsync(owner, TimeSpan.FromMinutes(5)));
+
+        current.Attempt.ShouldBe(stale.Attempt + 1);
+
+        // An earlier attempt of the same worker, another worker, and a job that was never queued.
+        (await Store.ReleaseInterruptedAsync(stale)).ShouldBeFalse();
+        (await Store.ReleaseInterruptedAsync(current with { Owner = Owner() })).ShouldBeFalse();
+        (await Store.ReleaseInterruptedAsync(current with { JobId = Guid.NewGuid() })).ShouldBeFalse();
+
+        var record = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        record.Status.ShouldBe(JobStatus.Leased);
+        record.Attempt.ShouldBe(current.Attempt, "a write that is not the holder's gave an attempt back");
+        record.LeaseOwner.ShouldBe(current.Owner);
+
+        (await Store.MarkRunningAsync(current)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ReleaseInterruptedAsync_gives_the_attempt_back_once()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        (await Store.ReleaseInterruptedAsync(lease)).ShouldBeTrue();
+        (await Store.ReleaseInterruptedAsync(lease)).ShouldBeFalse();
+
+        (await Store.GetAsync(job.TenantId, job.Id))!.Attempt.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_closed_job_is_changed_by_no_interrupted_release()
+    {
+        // A cancelled job never returns to the queue, and a finished one keeps the attempt it finished on.
+        var cancelled = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var cancelledLease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        (await Store.CancelAsync(cancelled.TenantId, cancelled.Id)).ShouldBeTrue();
+        (await Store.ReleaseInterruptedAsync(cancelledLease)).ShouldBeFalse();
+
+        var cancelledNow = (await Store.GetAsync(cancelled.TenantId, cancelled.Id)).ShouldNotBeNull();
+
+        cancelledNow.Status.ShouldBe(JobStatus.Cancelled);
+        cancelledNow.Attempt.ShouldBe(1);
+
+        var finished = await Store.EnqueueAsync(TestData.Job(), ["b"]);
+        var finishedLease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        (await Store.CompleteAsync(finishedLease, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeTrue();
+        (await Store.ReleaseInterruptedAsync(finishedLease)).ShouldBeFalse();
+
+        var finishedNow = (await Store.GetAsync(finished.TenantId, finished.Id)).ShouldNotBeNull();
+
+        finishedNow.Status.ShouldBe(JobStatus.Completed);
+        finishedNow.Attempt.ShouldBe(1);
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_job_released_after_an_interruption_keeps_its_place_in_the_queue()
+    {
+        // Two jobs, the older one released after an interruption: it is still the older one, so it is leased first.
+        var older = await Store.EnqueueAsync(TestData.Job(scheduledFor: DateTimeOffset.UtcNow.AddMinutes(-20)), ["a"]);
+        var newer = await Store.EnqueueAsync(TestData.Job(scheduledFor: DateTimeOffset.UtcNow.AddMinutes(-10)), ["b"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        lease.JobId.ShouldBe(older.Id);
+        (await Store.ReleaseInterruptedAsync(lease)).ShouldBeTrue();
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5)))!.Id.ShouldBe(older.Id);
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5)))!.Id.ShouldBe(newer.Id);
+    }
+
     [Fact]
     public async Task A_cancelled_job_is_changed_by_neither_completion_nor_release()
     {

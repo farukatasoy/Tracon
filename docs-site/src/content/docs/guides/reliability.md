@@ -685,9 +685,9 @@ A hosted tool (a provider's web search or code interpreter) is not checked: it r
 Tracon cannot see it start. The file memory, todo and harness tools, an agent called as a tool and a tool that an
 agent extension adds are not checked either. The next model call is still refused.
 
-## Wait for in-flight runs before the process stops
+## Wait for in-flight runs and running jobs before the process stops
 
-By default a process that receives a stop signal exits immediately and any run in
+By default a process that receives a stop signal exits immediately and any run or job in
 flight is cut off — the same crash reconciliation and continuation exist to recover
 from. `Drain` makes a graceful stop wait instead:
 
@@ -704,8 +704,11 @@ from. `Drain` makes a graceful stop wait instead:
 
 Once a stop signal arrives, new runs are refused, and the background job worker stops
 leasing new jobs, while runs already in flight are given up to `Timeout` to finish
-before the process actually exits. Every surface that starts a run in the process
-refuses it:
+before the process actually exits. The wait covers the jobs the worker is running as well:
+a job of your own handler (a render, a call to an outside system) is in no run registry, and
+the drain still waits for it. The handler keeps a live cancellation token while the drain
+waits, so it finishes its work and the job completes. Every surface that starts a run in the
+process refuses it:
 
 - The agent and workflow run endpoints (with or without `Prefer: respond-async`),
   workflow resume and respond, and run replay return `503`.
@@ -718,14 +721,16 @@ A request that only writes a job (an inbound trigger, an eval run, a schedule tr
 an approval decision) is still accepted: its job waits in the queue until a worker
 that is not draining leases it.
 
-A run that is still going when the timeout elapses is cut off anyway; a stuck run
+A run or job that is still going when the timeout elapses is cut off anyway; a stuck one
 must not block a deployment forever. The host's own shutdown timeout still applies on
-top of this value, so raise both together for the full wait to take effect.
+top of this value, so raise both together for the full wait to take effect. What happens
+to a job that is cut off, and how a handler hands its attempt back, is in
+[Write your own job handler](/guides/write-your-own-job-handler/#stop-with-the-host).
 
 | Setting | Default | Effect |
 |---|---:|---|
 | `Drain.Enabled` | `false` | The process stops immediately, exactly as before |
-| `Drain.Timeout` | 30 seconds | The longest a stop waits for in-flight runs |
+| `Drain.Timeout` | 30 seconds | The longest a stop waits for in-flight runs and running jobs |
 
 ## Failure boundaries at a glance
 
@@ -738,7 +743,7 @@ top of this value, so raise both together for the full wait to take effect.
 | Process dies during a direct run | Reconcile a stale `Running` record when enabled, and continue it in the same session when safe | Make external tool effects idempotent, or declare a tool safe to repeat |
 | Process dies during a queued job | Release or expire the lease for another worker | Make item processing replay-safe |
 | Process dies during a queued workflow run or batch item | With `ResumeInterruptedRuns`, continue the run from its latest checkpoint on the next lease | Make the step in progress safe to run again |
-| Process receives a stop signal mid-run | Wait up to `Drain.Timeout` for in-flight runs, refuse new ones | Set a timeout that covers your slowest normal run |
+| Process receives a stop signal mid-run | Wait up to `Drain.Timeout` for in-flight runs and running jobs, refuse new ones | Set a timeout that covers your slowest normal run or job |
 | Live cancel reaches wrong node | Return `409` | Use sticky routing or a distributed cancellation registry |
 | Child-agent fan-out grows | Refuse new children at tree limits | Set budgets that match cost and latency objectives |
 

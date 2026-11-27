@@ -35,6 +35,7 @@ public sealed class TenantPredicateTests
         ["CompleteJob"] = ById,
         ["MarkJobRunning"] = ById,
         ["ReleaseJobForRetry"] = ById,
+        ["ReleaseJobInterrupted"] = ById,
         ["RenewJobLease"] = ById,
         ["ReportJobItem"] = ById,
         ["LeaseJob"] = "A worker leases the next due job of any tenant; the lease then carries the job's own identifier.",

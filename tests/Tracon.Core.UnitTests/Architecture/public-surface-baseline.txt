@@ -5,7 +5,7 @@
 # The number may only shrink; a growth is a deliberate surface addition.
 Tracon=0
 Tracon.AGUI=3
-Tracon.Abstractions=443
+Tracon.Abstractions=444
 Tracon.Anthropic=3
 Tracon.AspNetCore=24
 Tracon.Azure=4

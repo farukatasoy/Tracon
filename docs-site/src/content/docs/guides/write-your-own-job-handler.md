@@ -162,7 +162,7 @@ handler throws:
 
 | Reason | When | Outcome |
 |---|---|---|
-| The worker stops | Host shutdown | Nothing is written; the job is leased again when its lease runs out |
+| The worker stops | Host shutdown | The job is left to its lease and is leased again when the lease runs out, and that lease counts as an attempt. A handler that returns normally completes the job; one that throws `JobInterruptedException` hands its attempt back ([below](#stop-with-the-host)) |
 | The job is cancelled | `POST /api/jobs/{id}/cancel`, read every `PollInterval` (10 seconds by default) | The job stays `Cancelled`, with no error |
 | The worker loses the lease | The store refused a renewal because another worker leased the job after the lease lapsed, or renewals kept failing, or one renewal did not answer, until the worker could no longer prove it holds the lease | Nothing is written for this attempt, whatever the handler does next: the job belongs to the worker that took it over, and that worker completes it or returns it to the queue |
 | The time limit passes | The attempt ran longer than its limit | The attempt fails with `tracon.job.max-duration-exceeded`; the job is leased again while attempts are left |
@@ -198,6 +198,41 @@ item failed completes as `Failed`. Keep the `ReportItemAsync` call outside the
 `try` that guards the item's own work: inside it, a store error while reporting
 a finished item is caught as that item's failure, and work that succeeded is
 recorded as `Failed`.
+
+## Stop with the host
+
+A host that stops is not a crash, and the three things a handler can do when its token falls for that
+reason end three ways:
+
+| The handler | The job |
+|---|---|
+| Returns normally (it finished, or it ignored the token and ran to the end) | `Completed`. The worker writes the completion even though the stop already cancelled the token. The write is tried once and is bounded by one lease duration, so a store that does not answer cannot hold the stop open |
+| Throws `JobInterruptedException` | Back in the queue as `Pending`, with the attempt its lease counted given back: the next worker leases it with the same `attempt`. Use it when you know you had not begun the work, for example the token was already cancelled before your first call out |
+| Throws anything else, including `OperationCanceledException` | Left `Running` to its lease. The lease that runs out counts as an attempt, because you may have done work with a side effect |
+
+```csharp
+public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+{
+    if (cancellationToken.IsCancellationRequested)
+    {
+        // The host is stopping and this attempt has paid for nothing yet.
+        throw new JobInterruptedException();
+    }
+
+    await ChargeTheCustomerAsync(context.Job, cancellationToken);
+}
+```
+
+The worker never gives an attempt back on its own. A job limited to one attempt (a paid or side-effecting
+job: `MaxAttempts` of `1`) is never run twice after a crash, and the worker cannot tell a handler that had
+begun its work from one that had not. Only the handler knows, so only its `JobInterruptedException` gives
+the attempt back, and only while the worker is stopping: thrown at any other time it is an ordinary failed
+attempt and the worker writes a warning to the log. If the store cannot be reached when the worker tries to
+give the attempt back, the job stays `Running` and the old rule applies.
+
+A stop that comes through `Tracon:Drain` is gentler still. The drain waits for the jobs the worker is
+running, yours included, while their tokens are live, so a handler that finishes in time completes its job
+without any of the above. See [Wait for in-flight runs and running jobs before the process stops](/guides/reliability/#wait-for-in-flight-runs-and-running-jobs-before-the-process-stops).
 
 ## End the job for good when another attempt cannot succeed
 
