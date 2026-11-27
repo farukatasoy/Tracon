@@ -131,6 +131,76 @@ public sealed class GoogleUsageChatClientTests
         usage.ReasoningTokenCount.ShouldBe(319);
     }
 
+    [Fact]
+    public async Task The_real_adapter_folds_the_cumulative_usage_of_every_chunk_of_a_stream_into_one_usage_update_with_the_last_numbers()
+    {
+        // A Gemini stream carries usageMetadata on several chunks, and each one holds the totals so far. Core sums every
+        // usage update it sees, so the adapter has to hand over one: this pins what Google.GenAI does, and the first
+        // assertion fails if a later SDK version starts to hand over one per chunk.
+        await using var server = StubHttpServer.Respond(200, "OK", CumulativeStream);
+        using var factory = new GoogleChatClientFactory(TestData.Options(options => options.Endpoint = server.BaseAddress));
+        using var raw = factory.Client.AsIChatClient(TestData.Model);
+        var updates = new List<ChatResponseUpdate>();
+
+        await foreach (var update in raw.GetStreamingResponseAsync("hi", cancellationToken: TestContext.Current.CancellationToken))
+        {
+            updates.Add(update);
+        }
+
+        updates.Count(static update => update.Contents.OfType<TextContent>().Any()).ShouldBe(3, "three chunks of text came out");
+
+        var usage = updates.SelectMany(static update => update.Contents).OfType<UsageContent>().ShouldHaveSingleItem().Details;
+
+        usage.InputTokenCount.ShouldBe(10);
+        usage.OutputTokenCount.ShouldBe(20, "the last chunk's candidates count, as the service reported it");
+        usage.ReasoningTokenCount.ShouldBe(150);
+        usage.TotalTokenCount.ShouldBe(180);
+    }
+
+    [Fact]
+    public async Task A_stream_with_cumulative_usage_on_every_chunk_is_counted_once_with_the_thinking_of_its_last_chunk()
+    {
+        await using var server = StubHttpServer.Respond(200, "OK", CumulativeStream);
+        using var factory = new GoogleChatClientFactory(TestData.Options(options => options.Endpoint = server.BaseAddress));
+        using var client = factory.CreateChatClient(TestData.Binding());
+        var updates = new List<ChatResponseUpdate>();
+
+        await foreach (var update in client.GetStreamingResponseAsync("hi", cancellationToken: TestContext.Current.CancellationToken))
+        {
+            updates.Add(update);
+        }
+
+        var usage = updates.SelectMany(static update => update.Contents).OfType<UsageContent>().ShouldHaveSingleItem().Details;
+
+        usage.OutputTokenCount.ShouldBe(170, "20 answer tokens and 150 thinking tokens, counted once and not once per chunk");
+        usage.ReasoningTokenCount.ShouldBe(150);
+        usage.TotalTokenCount.ShouldBe(180);
+
+        // What Core does with the stream: it adds up every usage update.
+        var summed = new UsageDetails();
+
+        foreach (var content in updates.SelectMany(static update => update.Contents).OfType<UsageContent>())
+        {
+            summed.Add(content.Details);
+        }
+
+        summed.OutputTokenCount.ShouldBe(170);
+    }
+
+    /// <summary>Three chunks of one answer, each carrying the usage so far, as a Gemini stream does.</summary>
+    private static readonly string CumulativeStream = string.Concat(
+        Chunk("one ", """{"promptTokenCount":10,"candidatesTokenCount":5,"totalTokenCount":15}"""),
+        Chunk("two ", """{"promptTokenCount":10,"candidatesTokenCount":10,"thoughtsTokenCount":100,"totalTokenCount":120}"""),
+        Chunk("three", """{"promptTokenCount":10,"candidatesTokenCount":20,"thoughtsTokenCount":150,"totalTokenCount":180}""", finished: true));
+
+    private static string Chunk(string text, string usage, bool finished = false)
+    {
+        var finish = finished ? ",\"finishReason\":\"STOP\"" : string.Empty;
+
+        return "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"" + text + "\"}]}" + finish + "}],"
+               + "\"usageMetadata\":" + usage + ",\"modelVersion\":\"gemini-test\"}\r\n\r\n";
+    }
+
     private static UsageDetails Details(long? output, long? reasoning)
         => new()
         {

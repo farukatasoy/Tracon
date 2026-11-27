@@ -271,9 +271,7 @@ internal sealed class GoogleSpeechSynthesizer : ISpeechSynthesizer, ISpeechDialo
 
     /// <summary>Formats Google's status code name (<c>INVALID_ARGUMENT</c>); anything else is dropped.</summary>
     private static string StatusName(string? status)
-        => status is { Length: > 0 and <= 40 } && status.All(static c => c is (>= 'A' and <= 'Z') or '_')
-            ? $" ({status})"
-            : string.Empty;
+        => GoogleApiFailure.StatusName(status) is { } name ? $" ({name})" : string.Empty;
 
     private const string NoVoiceHint =
         "The request named no voice, and some Gemini speech models need one: pass a voice name such as 'Kore'.";

@@ -50,10 +50,15 @@ internal static class GoogleApiFailure
         return translated;
     }
 
-    // The service's status name is a closed vocabulary of upper-case words (INVALID_ARGUMENT, UNAVAILABLE). With an
-    // empty error body the SDK puts the HTTP reason phrase there instead ("Forbidden", "Service Unavailable"), and a
-    // reason phrase is not a code the provider gave.
-    private static string? StatusName(string? status)
+    /// <summary>Reads the status name the service gave (<c>INVALID_ARGUMENT</c>, <c>UNAVAILABLE</c>).</summary>
+    /// <param name="status">The <see cref="ApiException.Status"/> of an error.</param>
+    /// <returns>The name, or <see langword="null"/> when <paramref name="status"/> is not one.</returns>
+    /// <remarks>
+    /// The service's status name is a closed vocabulary of upper-case words. With an empty error body the SDK puts the
+    /// HTTP reason phrase there instead (<c>Forbidden</c>, <c>Service Unavailable</c>), and a reason phrase is not a name
+    /// the service gave. The chat and image translation and the speech failure text read the name through this one rule.
+    /// </remarks>
+    internal static string? StatusName(string? status)
         => status is { Length: > 0 and <= MaxStatusNameLength } && status.All(static c => c is (>= 'A' and <= 'Z') or '_')
             ? status
             : null;

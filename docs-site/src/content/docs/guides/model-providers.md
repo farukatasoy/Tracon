@@ -485,9 +485,10 @@ before the filter stops it and complete with the event. A turn that Gemini ends 
 function call it could not use (finish reason `MALFORMED_FUNCTION_CALL`, or `UNEXPECTED_TOOL_CALL` when the
 request declared no such tool) and that holds no call fails the run as a provider error
 (`upstream_error`); it does not complete with an empty answer, and a fallback chain goes on to the next model.
-An error answer from Gemini carries its HTTP status like every other provider's: a `503` or a `429` is
-transient and moves a call to the next model of a `Fallbacks` chain, and a `400` is neither retried nor counted
-against the circuit of a shared key. See
+An error answer from Gemini to a chat call or an image generation carries its HTTP status like every other
+provider's: a `503` or a `429` is transient and moves a call to the next model of a `Fallbacks` chain, and a
+`400` is neither retried nor counted against the circuit of a shared key. Speech synthesis is not translated: its
+failure is a `TraconException` that names the status in its message. See
 [Decide a retry from the failure](/concepts/run-errors/#decide-a-retry-from-the-failure-not-from-its-text).
 
 OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
