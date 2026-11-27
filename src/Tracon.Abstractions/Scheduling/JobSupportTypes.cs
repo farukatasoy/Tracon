@@ -29,15 +29,18 @@ public sealed record JobQuery
 /// <remarks>
 /// <para>
 /// A write that only the lease holder may make (<see cref="IJobStore.RenewLeaseAsync"/>,
-/// <see cref="IJobStore.MarkRunningAsync"/>, <see cref="IJobStore.CompleteAsync"/> and
-/// <see cref="IJobStore.ReleaseForRetryAsync"/>) carries this value, and a store applies it only
-/// while the job's lease is exactly this one.
+/// <see cref="IJobStore.MarkRunningAsync"/>, <see cref="IJobStore.CompleteAsync"/>,
+/// <see cref="IJobStore.ReleaseForRetryAsync"/> and <see cref="IJobStore.ReleaseInterruptedAsync"/>) carries this
+/// value, and a store applies it only while the job's lease is exactly this one.
 /// </para>
 /// <para>
 /// The attempt number is part of the lease because the owner identifier is not enough: a worker
 /// that leases a job again keeps the same <see cref="Owner"/>, and the attempt it had before must not
 /// be able to change the attempt that replaced it. <see cref="JobRecord.Attempt"/> grows by one
-/// each time the job is leased, so an older attempt always carries a smaller number.
+/// each time the job is leased, and goes down by one only through <see cref="IJobStore.ReleaseInterruptedAsync"/>,
+/// which gives back the attempt of a lease whose handler had not begun. A lease taken after that call carries
+/// the number the one given back had, so an older attempt does not always carry a smaller number: the owner tells
+/// the two apart, and a worker that gave an attempt back must not lease the job again under the same owner.
 /// </para>
 /// </remarks>
 public sealed record JobLease

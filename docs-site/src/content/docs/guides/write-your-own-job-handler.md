@@ -206,7 +206,7 @@ reason end three ways:
 
 | The handler | The job |
 |---|---|
-| Returns normally (it finished, or it ignored the token and ran to the end) | `Completed`. The worker writes the completion even though the stop already cancelled the token. The write is tried once and is bounded by one lease duration, so a store that does not answer cannot hold the stop open |
+| Returns normally (it finished, or it ignored the token and ran to the end) | `Completed`. The worker writes the completion even though the stop already cancelled the token. Each store call of that write is given at most four seconds and is tried once (the worker makes at most five such calls), so a store that does not answer delays the stop by at most about twenty seconds, inside the host's default shutdown timeout of thirty. A write that fails leaves the job `Running` to its lease. **Returning claims the work is done**: a handler that catches `OperationCanceledException` and returns because it could not finish completes its job, where it used to leave the job to run again. If you could not finish, rethrow the cancellation or throw `JobInterruptedException` |
 | Throws `JobInterruptedException` | Back in the queue as `Pending`, with the attempt its lease counted given back: the next worker leases it with the same `attempt`. Use it when you know you had not begun the work, for example the token was already cancelled before your first call out |
 | Throws anything else, including `OperationCanceledException` | Left `Running` to its lease. The lease that runs out counts as an attempt, because you may have done work with a side effect |
 
@@ -229,6 +229,10 @@ begun its work from one that had not. Only the handler knows, so only its `JobIn
 the attempt back, and only while the worker is stopping: thrown at any other time it is an ordinary failed
 attempt and the worker writes a warning to the log. If the store cannot be reached when the worker tries to
 give the attempt back, the job stays `Running` and the old rule applies.
+
+A stop that lands between the lease and the call of your handler (while the worker marks the job
+running, reads its items, opens the tenant scope or builds your handler) is not covered: the handler
+never ran and had no chance to say so, and the attempt is kept.
 
 A stop that comes through `Tracon:Drain` is gentler still. The drain waits for the jobs the worker is
 running, yours included, while their tokens are live, so a handler that finishes in time completes its job

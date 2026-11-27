@@ -303,7 +303,10 @@ Two more rules carry the
   the same attempt again. The worker calls it for one case only: the host is stopping and the
   job's handler threw `JobInterruptedException` to say it had not begun its work. Every
   other way a job comes back (a failed attempt, a lease that runs out) keeps the attempt it
-  counted: a job limited to one attempt is never run twice after a crash. No migration is
+  counted: a job limited to one attempt is never run twice after a crash. The attempt number is
+  therefore no longer strictly increasing: a lease taken after the call carries the number the
+  one given back had, so tell two leases apart by owner and attempt together, never by "an older
+  attempt has a smaller number". No migration is
   needed; the attempt is an existing column. Add the method to a store you wrote before this
   member existed, and run `JobStoreContract` against it.
 - **`IRunStore` marks and closes a `Queued` row that has a heartbeat.**

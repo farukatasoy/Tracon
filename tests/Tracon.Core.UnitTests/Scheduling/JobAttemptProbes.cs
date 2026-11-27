@@ -276,6 +276,9 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
     /// <summary>Gets or sets an exception every lease renewal throws, as a store that cannot be reached does.</summary>
     public Exception? RenewalFailure { get; set; }
 
+    /// <summary>Gets or sets whether every lease renewal is answered "not yours", as a store does for a job another worker holds now.</summary>
+    public bool RefuseRenewals { get; set; }
+
     /// <inheritdoc />
     public ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
     {
@@ -284,6 +287,11 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
         if (RenewalFailure is { } failure)
         {
             throw failure;
+        }
+
+        if (RefuseRenewals)
+        {
+            return ValueTask.FromResult(false);
         }
 
         return inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);

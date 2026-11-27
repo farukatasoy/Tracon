@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Tracon.Core.UnitTests.Fakes;
@@ -182,11 +183,13 @@ public sealed class TraconDrainServiceTests
         var worker = NewActivity(1);
         var clock = new ManualClock();
 
+        var logger = new CollectingDrainLogger();
+
         var service = new TraconDrainService(
             registry,
             Options(new TraconDrainOptions { Enabled = true, Timeout = TimeSpan.FromMinutes(5) }),
             timeProvider: clock,
-            logger: NullLogger<TraconDrainService>.Instance,
+            logger: logger,
             workerActivity: worker);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
@@ -195,7 +198,9 @@ public sealed class TraconDrainServiceTests
         clock.FireAll();
 
         await stopped.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
-        worker.RunningJobs.ShouldBe(1);
+
+        // The drain gave the job up at the timeout and said so: the job counted in the line is the one it left behind.
+        logger.Warnings.ShouldHaveSingleItem().ShouldContain("1 job(s) still in flight");
     }
 
     [Fact]
@@ -234,6 +239,44 @@ public sealed class TraconDrainServiceTests
         activity.Set(runningJobs);
 
         return activity;
+    }
+
+    private sealed class CollectingDrainLogger : ILogger<TraconDrainService>
+    {
+        private readonly List<string> _warnings = [];
+
+        public IReadOnlyList<string> Warnings
+        {
+            get
+            {
+                lock (_warnings)
+                {
+                    return [.. _warnings];
+                }
+            }
+        }
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+            => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Warning)
+            {
+                lock (_warnings)
+                {
+                    _warnings.Add(formatter(state, exception));
+                }
+            }
+        }
     }
 
     private sealed class FakeWorkerActivity : IJobWorkerActivity

@@ -199,6 +199,88 @@ public sealed class DrainTests
         probe.TokenFell.ShouldBeFalse("the handler was cancelled during the drain");
     }
 
+    [Fact]
+    public async Task A_host_stop_waits_in_the_drain_before_the_worker_stops_and_the_job_finishes_under_a_live_token()
+    {
+        // The drain waits for the jobs only if it stops BEFORE the worker: the host stops its hosted services in the reverse
+        // of their registration order, and the drain is registered last. This goes through the host's own stop, which is the
+        // only thing that pins that order. A worker that stopped first would cancel the handler's token and then wait for it,
+        // the drain would never start and the line this test waits for would never be written.
+        var probe = new HeldJobProbe();
+
+        var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                builder.AddJobHandler<HeldJobHandler>(HeldJobHandler.Key);
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
+            configureServices: services =>
+            {
+                services.AddSingleton(probe);
+                services.Configure<TraconDrainOptions>(static options =>
+                {
+                    options.Enabled = true;
+                    options.Timeout = TimeSpan.FromMinutes(5);
+                });
+            });
+
+        var jobs = host.Services.GetRequiredService<IJobStore>();
+        var tenantId = host.Services.GetRequiredService<ITenantContext>().TenantId;
+        var disposed = false;
+        Task stopping = Task.CompletedTask;
+        Guid jobId;
+
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            var queued = await jobs.EnqueueAsync(
+                new JobRecord
+                {
+                    Id = TraconId.NewId(),
+                    TenantId = tenantId,
+                    HandlerKey = HeldJobHandler.Key,
+                    TargetName = "held",
+                    Status = JobStatus.Pending,
+                    Payload = JsonSerializer.SerializeToElement(new { }),
+                    MaxAttempts = 1,
+                    ScheduledFor = now,
+                    CreatedAt = now,
+                },
+                []);
+
+            jobId = queued.Id;
+
+            await probe.Started.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+            disposed = true;
+            stopping = host.DisposeAsync().AsTask();
+
+            await WaitUntil.TrueAsync(
+                () => host.Logs.Entries.Any(static line => line.Contains("Draining: waiting for 0 in-flight run(s) and 1 running job(s)", StringComparison.Ordinal)),
+                "the drain to be waiting for the job");
+
+            stopping.IsCompleted.ShouldBeFalse("the host stopped under a running job");
+            probe.TokenFell.ShouldBeFalse("the worker stopped before the drain: the handler's token fell while the drain waited");
+
+            probe.Release.TrySetResult();
+        }
+        finally
+        {
+            if (!disposed)
+            {
+                await host.DisposeAsync();
+            }
+        }
+
+        await stopping.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        var job = (await jobs.GetAsync(tenantId, jobId)).ShouldNotBeNull();
+
+        job.Status.ShouldBe(JobStatus.Completed);
+        job.Attempt.ShouldBe(1);
+        probe.TokenFell.ShouldBeFalse("the handler was cancelled during the stop");
+    }
+
     // --- The workflow endpoints start runs too ---
     //
     // Each endpoint gets its own test: they do not share a filter, so a test of

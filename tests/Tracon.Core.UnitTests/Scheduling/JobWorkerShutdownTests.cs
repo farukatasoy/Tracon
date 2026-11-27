@@ -227,9 +227,10 @@ public sealed class JobWorkerShutdownTests
     }
 
     [Fact]
-    public async Task A_completion_the_store_never_answers_does_not_hold_the_stop_past_one_call_budget()
+    public async Task A_completion_the_store_never_answers_does_not_hold_the_stop_past_the_stop_call_budget()
     {
-        // The bound is one lease duration on the worker's clock: a store that hangs would otherwise hold the host open.
+        // A stopping worker gives each store call four seconds, not the lease duration a running one is given: the host's
+        // own shutdown timeout is thirty seconds, and the calls of one finalization follow each other.
         var clock = new ManualClock();
         var store = new ProbeJobStore(new InMemoryJobStore())
         {
@@ -253,16 +254,216 @@ public sealed class JobWorkerShutdownTests
             handler.For("work").Release.TrySetResult();
 
             await WaitUntil.TrueAsync(() => store.CompleteCalls == 1, "the completion to be asked for");
-            await WaitUntil.TrueAsync(() => clock.Pending.Contains(TimeSpan.FromMinutes(5)), "the call budget to be armed");
+            await WaitUntil.TrueAsync(() => clock.Pending.Contains(TimeSpan.FromSeconds(4)), "the stop's call budget to be armed");
 
+            clock.Pending.ShouldNotContain(TimeSpan.FromMinutes(5), "a stopping worker waited a lease duration for one call");
             stopping.IsCompleted.ShouldBeFalse("the stop waits for the completion up to its budget");
 
-            clock.Advance(TimeSpan.FromMinutes(5));
+            clock.Advance(TimeSpan.FromSeconds(4));
 
             await stopping.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
             store.CompleteCalls.ShouldBe(1);
             (await store.GetAsync(Tenant, id, TestContext.Current.CancellationToken))!.Status.ShouldBe(JobStatus.Running);
+        }
+    }
+
+    [Fact]
+    public async Task A_webhook_publisher_that_never_answers_does_not_hold_the_stop_past_the_stop_call_budget()
+    {
+        // The completion is written; the event of it is the last call, and the publisher has no time limit of its own.
+        var clock = new ManualClock();
+        var store = new ProbeJobStore(new InMemoryJobStore());
+        var handler = new TokenProbeHandler();
+        handler.For("work").Behavior = ProbeBehavior.IgnoreToken;
+        var publisher = new HangingWebhookPublisher();
+        var (worker, host) = Worker(store, handler, clock: clock, webhookPublisher: publisher);
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAsync(store, "work", maxAttempts: 1);
+
+            await StartOnClockAsync(worker, clock);
+            await handler.For("work").Started.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+            var stopping = worker.StopAsync(TestContext.Current.CancellationToken);
+
+            await handler.For("work").Cancelled.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+            handler.For("work").Release.TrySetResult();
+
+            await WaitUntil.TrueAsync(() => publisher.Calls == 1, "the event to be published");
+            await WaitUntil.TrueAsync(() => clock.Pending.Contains(TimeSpan.FromSeconds(4)), "the stop's call budget to be armed");
+
+            stopping.IsCompleted.ShouldBeFalse("the stop waits for the publisher up to its budget");
+
+            clock.Advance(TimeSpan.FromSeconds(4));
+
+            await stopping.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+            (await store.GetAsync(Tenant, id, TestContext.Current.CancellationToken))!.Status.ShouldBe(JobStatus.Completed);
+        }
+    }
+
+    [Fact]
+    public async Task A_stop_that_lands_in_the_middle_of_the_completion_does_not_lose_the_work_that_was_done()
+    {
+        // The handler returned while the worker was not stopping, so the writes are the ones of a running worker, bound to the
+        // stop's token. The stop arrives while the completion is in flight: that write ends in the stop's cancellation, and
+        // the job used to stay Running and run its handler again. The worker tries once more, under no token of the stop's.
+        var store = new ProbeJobStore(new InMemoryJobStore());
+        store.BeforeComplete = async token =>
+        {
+            // The first call is the one the stop interrupts; the next one is the worker's last try.
+            if (store.CompleteCalls == 1)
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
+            }
+        };
+        var handler = new CompletingHandler();
+        var publisher = new RecordingWebhookPublisher();
+        var logs = new WorkerLogCollector();
+        var (worker, host) = Worker(store, handler, logger: logs, webhookPublisher: publisher);
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAsync(store, "work", maxAttempts: 1);
+
+            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await WaitUntil.TrueAsync(() => store.CompleteCalls == 1, "the completion to be in flight");
+
+            await worker.StopAsync(TestContext.Current.CancellationToken);
+
+            handler.Calls.ShouldBe(1);
+            store.CompleteCalls.ShouldBe(2, "the interrupted write was not tried again");
+
+            var job = (await store.GetAsync(Tenant, id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+            job.Status.ShouldBe(JobStatus.Completed, "the work was done; a stop that landed in its completion lost it");
+            job.Attempt.ShouldBe(1);
+            publisher.Published.ShouldBe([WebhookEvents.JobCompleted]);
+            logs.Entries.ShouldNotContain(static entry => entry.Level >= LogLevel.Warning);
+        }
+    }
+
+    [Fact]
+    public async Task A_stop_that_lands_in_the_middle_of_the_completion_is_not_taken_for_a_lost_lease_when_the_write_had_applied()
+    {
+        // The cancelled call may have applied the completion before the cancellation reached the worker. The last try then
+        // finds the job closed and is refused; the worker reads the job back before it calls that a lost lease, and counts
+        // the job as the completion it is.
+        var inner = new InMemoryJobStore();
+        var store = new ProbeJobStore(inner);
+        JobRecord? leased = null;
+        store.Leased = job => leased = job;
+        store.BeforeComplete = async token =>
+        {
+            if (store.CompleteCalls == 1)
+            {
+                // Applies the write itself, as a store that committed and then lost the answer does, and never answers.
+                (await inner.CompleteAsync(
+                    JobLease.Of(leased!),
+                    new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow },
+                    CancellationToken.None)).ShouldBeTrue();
+
+                await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
+            }
+        };
+        var handler = new CompletingHandler();
+        var publisher = new RecordingWebhookPublisher();
+        var (worker, host) = Worker(store, handler, webhookPublisher: publisher);
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAsync(store, "work", maxAttempts: 1);
+
+            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await WaitUntil.TrueAsync(() => store.CompleteCalls == 1, "the completion to be in flight");
+
+            await worker.StopAsync(TestContext.Current.CancellationToken);
+
+            (await store.GetAsync(Tenant, id, TestContext.Current.CancellationToken))!.Status.ShouldBe(JobStatus.Completed);
+            publisher.Published.ShouldBe([WebhookEvents.JobCompleted], "the completion was counted as a lost lease and its event dropped");
+        }
+    }
+
+    [Fact]
+    public async Task A_stop_with_the_lease_already_lost_gives_no_attempt_back()
+    {
+        // The store refused a renewal, so the job is another worker's: whatever the handler says on its way out, this
+        // worker writes nothing for the attempt, an interrupted release included.
+        var clock = new ManualClock();
+        var store = new ProbeJobStore(new InMemoryJobStore()) { RefuseRenewals = true };
+        var handler = new HoldsThenInterruptedHandler();
+        var logs = new WorkerLogCollector();
+        var (worker, host) = Worker(store, handler, logger: logs, clock: clock);
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAsync(store, "work", maxAttempts: 1);
+
+            await StartOnClockAsync(worker, clock);
+            await handler.Started.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+            // The lease runs for five minutes and is renewed at a third of that: the first renewal is refused.
+            await WaitUntil.TrueAsync(() => clock.Pending.Contains(TimeSpan.FromSeconds(100)), "the renewal timer to be armed");
+            clock.Advance(TimeSpan.FromSeconds(100));
+            await WaitUntil.TrueAsync(
+                () => logs.Entries.Any(static entry => entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal)),
+                "the worker to learn that the lease is lost");
+
+            // Now the host stops, and the handler, which had not begun, says so.
+            var stopping = worker.StopAsync(TestContext.Current.CancellationToken);
+            handler.Release.TrySetResult();
+
+            await stopping.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+            store.ReleaseInterruptedCalls.ShouldBe(0, "a worker that lost its lease gave an attempt back that is another worker's");
+            store.CompleteCalls.ShouldBe(0);
+
+            var job = (await store.GetAsync(Tenant, id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+            job.Status.ShouldBe(JobStatus.Running);
+            job.Attempt.ShouldBe(1);
+        }
+    }
+
+    [Fact]
+    public async Task A_job_cancelled_before_the_stop_is_not_given_an_attempt_back_and_nothing_is_logged_as_a_problem()
+    {
+        // The cancel watch never ticks on this clock, so the worker meets the cancel at the release: the store answers
+        // false because cancelling cleared the lease. That is an answer, not an error.
+        var clock = new ManualClock();
+        var store = new ProbeJobStore(new InMemoryJobStore());
+        var handler = new InterruptedOnStopHandler();
+        var logs = new WorkerLogCollector();
+        var (worker, host) = Worker(store, handler, logger: logs, clock: clock);
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAsync(store, "work", maxAttempts: 1);
+
+            await StartOnClockAsync(worker, clock);
+            await handler.Started.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+            (await store.CancelAsync(Tenant, id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+
+            await worker.StopAsync(TestContext.Current.CancellationToken);
+
+            store.ReleaseInterruptedCalls.ShouldBe(1);
+
+            var job = (await store.GetAsync(Tenant, id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+            job.Status.ShouldBe(JobStatus.Cancelled, "a cancelled job went back to the queue");
+            job.Attempt.ShouldBe(1);
+            logs.Entries.ShouldContain(static entry =>
+                entry.Level == LogLevel.Information &&
+                entry.Message.Contains("was not given back", StringComparison.Ordinal));
+            logs.Entries.ShouldNotContain(static entry => entry.Level >= LogLevel.Warning);
         }
     }
 
@@ -283,6 +484,23 @@ public sealed class JobWorkerShutdownTests
             {
                 throw new JobInterruptedException("The host stopped before the first call out.");
             }
+        }
+    }
+
+    /// <summary>Holds its job until the test releases it, and then says it had not begun its work.</summary>
+    private sealed class HoldsThenInterruptedHandler : IJobHandler
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+
+            await Release.Task.ConfigureAwait(false);
+
+            throw new JobInterruptedException("The host stopped before the first call out.");
         }
     }
 
@@ -325,6 +543,23 @@ public sealed class JobWorkerShutdownTests
             Interlocked.Increment(ref _calls);
 
             return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>A publisher that takes the event and never answers, as a queue that stopped responding does.</summary>
+    private sealed class HangingWebhookPublisher : IWebhookPublisher
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public async ValueTask<int> PublishAsync(string tenantId, string eventType, WebhookEventPayload payload, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _calls);
+
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
+
+            return 0;
         }
     }
 

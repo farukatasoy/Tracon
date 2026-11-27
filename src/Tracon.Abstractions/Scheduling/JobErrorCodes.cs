@@ -53,6 +53,11 @@ public static class JobErrorCodes
     /// effects; a job limited to one attempt is never run twice.
     /// </para>
     /// <para>
+    /// "Never run twice" is about the job's work. A handler that threw <see cref="JobInterruptedException"/> when the host
+    /// stopped, before it began its work, gave its attempt back, so the job reaches the next worker with the attempt
+    /// count it had: that handler may be called twice, and the second call is the first one that did the work.
+    /// </para>
+    /// <para>
     /// The handler never ran, so a record the handler would have closed — a
     /// queued agent run, say — keeps the status it had when the earlier attempt
     /// stopped. Run reconciliation closes such a run.

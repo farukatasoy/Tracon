@@ -56,6 +56,8 @@ public interface IJobHandler
     /// says it had not begun its work: the job goes back to the queue and the attempt
     /// its lease counted is given back. Anything else leaves the job to its lease, and
     /// it is leased again later, as after a crash; that lease counts as an attempt.
+    /// A stop that lands between the lease and the call of the handler is not covered
+    /// by any of this: the attempt is kept.
     /// </item>
     /// <item>
     /// The job was cancelled: the worker reads the job's status every
@@ -80,6 +82,14 @@ public interface IJobHandler
     /// completes the job.
     /// </item>
     /// </list>
+    /// <para>
+    /// <strong>Returning is a claim that the work is done.</strong> A handler that catches
+    /// <see cref="OperationCanceledException"/> and returns, because it could not finish when the
+    /// token fell, completes its job while the host stops (it used to leave the job to its lease, and
+    /// the job ran again). If you could not finish, do not swallow the cancellation and return: let it
+    /// propagate, and the job is left to its lease, or throw <see cref="JobInterruptedException"/> when
+    /// you had not begun.
+    /// </para>
     /// <para>
     /// The token is cooperative: a handler that never reads it is not stopped. Its
     /// worker waits for it, and its slot stays taken until it returns.
