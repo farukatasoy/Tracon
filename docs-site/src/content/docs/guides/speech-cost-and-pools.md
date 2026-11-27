@@ -5,8 +5,8 @@ description: What a speech call costs and in which unit, how to give batch narra
 
 A speech call is billed by the provider in a unit of its own, a host with live conversations and a batch
 of narration shares one account, and a request that failed can be worth sending again. This page covers
-the three. The [voice guide](/guides/voice/) installs the layer and the speech tools these examples
-use.
+the three. The examples use `UseVoice()` and `AddElevenLabsSynthesizer()` from the `Tracon.Voice`
+package, which the [voice guide](/guides/voice/) installs together with the speech tools.
 
 ## Voice cost has a different unit
 
