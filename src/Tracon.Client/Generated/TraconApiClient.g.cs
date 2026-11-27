@@ -23524,7 +23524,8 @@ namespace Tracon.Client.Generated
         public int FailedItems { get; set; } = default!;
 
         /// <summary>
-        /// The number of lease attempts. Increments each time a worker leases the job.
+        /// The number of lease attempts. Increments each time a worker leases the job, and goes down by one only when a
+        /// <br/>stopping host's handler gives its attempt back (`ReleaseInterruptedAsync`).
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("attempt")]
         public int Attempt { get; set; } = default!;

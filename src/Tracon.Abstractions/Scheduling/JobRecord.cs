@@ -67,7 +67,7 @@ public sealed record JobRecord
 
     /// <summary>
     /// The number of lease attempts. Increments each time a worker leases the job, and goes down by one only when a
-    /// stopping host's handler gives its attempt back (<see cref="IJobStore.ReleaseInterruptedAsync"/>).
+    /// stopping host's handler gives its attempt back (<c>ReleaseInterruptedAsync</c>).
     /// </summary>
     public int Attempt { get; init; }
 

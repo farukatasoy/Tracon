@@ -14107,7 +14107,7 @@
               "integer",
               "string"
             ],
-            "description": "The number of lease attempts. Increments each time a worker leases the job.",
+            "description": "The number of lease attempts. Increments each time a worker leases the job, and goes down by one only when a\nstopping host\u0027s handler gives its attempt back (\u0060ReleaseInterruptedAsync\u0060).",
             "format": "int32"
           },
           "maxAttempts": {
